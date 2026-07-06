@@ -43,5 +43,4 @@ pub fn main() void {
         if (client < 0) break;
         handle_client(client);
     }
-    _ = c.close(listen_fd);
 }
