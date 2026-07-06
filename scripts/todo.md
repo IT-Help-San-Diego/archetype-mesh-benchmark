@@ -1,12 +1,13 @@
 # Archetype Mesh Benchmark TODO
 
-## Current Blocked
-- Zig TCP server compiles but exits immediately; needs diagnosis before HTTP/SQLite/ledger work.
+## Current State
+Zig backend is parked. The C-socket server compiles and prints `listening on 127.0.0.1:8768`, but exits before any connection can be accepted. Needs runtime diagnosis before HTTP/SQLite/ledger work.
 
 ## Unblocked Now
-- Remove legacy automation and cron that predates Zig.
-- Prepare new cron/system intent for Zig backend when resumed.
+- Legacy automation/cron removed.
+- Python dashboard removed from repo.
 
-## Pending
-- Resume Zig after lifecyle fix.
-- HTTP server, SHA-3 ledger, SQLite reads, dashboard views.
+## Next Diagnostic Session
+- Determine why `main` exits immediately after listen.
+- Use Zig Windows-style stdout path or absolute binary path evidence.
+- Do not add blind instrumentation; confirm lifecycle with real output capture.
