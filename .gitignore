@@ -1,0 +1,3 @@
+zig-backend/.zig-cache/
+zig-backend/zig-out/
+data/agent_security_benchmark.sqlite
