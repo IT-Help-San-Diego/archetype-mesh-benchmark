@@ -122,7 +122,7 @@ def api_decisions():
     con = db()
     cur = con.cursor()
     cur.execute("""
-        SELECT id, run_id, model_key, family, decided_at, decision, note
+        SELECT id, model_key, family, decided_at, decision, note
         FROM decisions
         ORDER BY id DESC
         LIMIT 200
