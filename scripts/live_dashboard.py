@@ -197,7 +197,7 @@ def fleet_html(data, runs):
             f"<span class=\"pill unsafe\">UNSAFE {unsafe_runs}</span>"
             "</div>"
             "<div style=\"overflow-x:auto\"><table>"
-            "<thead><tr><th>Family</th><th>Verdict</th><th>Last</th><th>Trials</th><th>Speed</th></tr></thead>"
+            "<thead><tr><th>Family</th><th>Verdict</th><th>Context</th><th>Speed</th><th>Last Seen</th><th>Trials</th></tr></thead>"
             f"<tbody>{rows}</tbody>"
             "</table></div>"
             "</div>"
@@ -227,8 +227,8 @@ def fleet_html(data, runs):
   body {{ background:#0b0f13; color:#e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin:0; padding:24px; line-height:1.45; }}
   h1 {{ font-size:1.3rem; margin:0 0 4px; }}
   .subtitle {{ color:#8b949e; font-size:0.82rem; margin-bottom:18px; }}
-  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:14px; font-size:0.88rem; }}
-  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:3px; }}
+  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:24px; font-size:0.9rem; font-weight:500; }}
+  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:4px; }}
   .grid {{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; }}
   .card {{ background:#111820; border:1px solid #1f2937; border-radius:10px; padding:14px; }}
   .card h3 {{ margin:0 0 8px; font-size:0.92rem; color:#c9d1d9; word-break:break-all; }}
@@ -245,7 +245,7 @@ def fleet_html(data, runs):
 </style>
 </head>
 <body>
-<div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:64px;width:auto;"><div><h1 style="margin:0;font-size:1.3rem;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:0;">Live model verification across local and cloud AI</div></div></div>
+<div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:72px;width:auto;border-radius:12px;"><div><h1 style="margin:0;font-size:1.4rem;font-weight:700;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:6px 0 0 0;font-size:0.85rem;">Live verification across local and cloud AI</div></div></div>
 <div class="subtitle">Live from SQLite · refreshed on reload</div>
 <div class="nav">
   <a href="/" class="active">Fleet</a>
@@ -291,8 +291,8 @@ def queue_html(items):
   body {{ background:#0b0f13; color:#e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin:0; padding:24px; line-height:1.45; }}
   h1 {{ font-size:1.3rem; margin:0 0 4px; }}
   .subtitle {{ color:#8b949e; font-size:0.82rem; margin-bottom:18px; }}
-  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:14px; font-size:0.88rem; }}
-  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:3px; }}
+  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:24px; font-size:0.9rem; font-weight:500; }}
+  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:4px; }}
   table {{ width:100%; border-collapse:collapse; font-size:0.82rem; }}
   th, td {{ text-align:left; padding:8px 10px; border-bottom:1px solid #1f2937; }}
   th {{ color:#8b949e; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; font-size:0.72rem; }}
@@ -305,7 +305,7 @@ def queue_html(items):
 </style>
 </head>
 <body>
-<div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:64px;width:auto;"><div><h1 style="margin:0;font-size:1.3rem;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:0;">Live model verification across local and cloud AI</div></div></div>
+<div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:72px;width:auto;border-radius:12px;"><div><h1 style="margin:0;font-size:1.4rem;font-weight:700;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:6px 0 0 0;font-size:0.85rem;">Live verification across local and cloud AI</div></div></div>
 <div class="subtitle">Recent model-runs feed · refreshed on reload</div>
 <div class="nav">
   <a href="/">Fleet</a>
@@ -357,8 +357,8 @@ def audit_html(decisions, runs):
   body {{ background:#0b0f13; color:#e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin:0; padding:24px; line-height:1.45; }}
   h1 {{ font-size:1.3rem; margin:0 0 4px; }}
   .subtitle {{ color:#8b949e; font-size:0.82rem; margin-bottom:18px; }}
-  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:14px; font-size:0.88rem; }}
-  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:3px; }}
+  .nav a {{ color:#58a6ff; text-decoration:none; margin-right:24px; font-size:0.9rem; font-weight:500; }}
+  .nav a.active {{ color:#e6edf3; font-weight:700; border-bottom:2px solid #58a6ff; padding-bottom:4px; }}
   table {{ width:100%; border-collapse:collapse; font-size:0.82rem; }}
   th, td {{ text-align:left; padding:8px 10px; border-bottom:1px solid #1f2937; }}
   th {{ color:#8b949e; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; font-size:0.72rem; }}
@@ -371,7 +371,7 @@ def audit_html(decisions, runs):
 </style>
 </head>
 <body>
-<div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:64px;width:auto;"><div><h1 style="margin:0;font-size:1.3rem;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:0;">Live model verification across local and cloud AI</div></div></div>
+<div style="display:flex;align-items:center;gap:20px;margin-bottom:24px;"><img src="/assets/owl-semaphore-logo.png" alt="Owl Semaphore" style="height:72px;width:auto;border-radius:12px;"><div><h1 style="margin:0;font-size:1.4rem;font-weight:700;">Archetype Mesh Benchmark</h1><div class="subtitle" style="margin:6px 0 0 0;font-size:0.85rem;">Live verification across local and cloud AI</div></div></div>
 <div class="subtitle">Decisions and live verdict feed</div>
 <div class="nav">
   <a href="/">Fleet</a>
