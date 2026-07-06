@@ -26,4 +26,20 @@ pub fn main() void {
         return;
     }
     std.debug.print("listening on 127.0.0.1:8768\n", .{});
+
+    const client = c.accept(listen_fd, null, null);
+    if (client < 0) {
+        std.debug.print("accept failed\n", .{});
+        return;
+    }
+    const response =
+        \\HTTP/1.1 200 OK\r
+        \\Content-Type: text/plain\r
+        \\Connection: close\r
+        \\\r
+        \\Zig foundation: alive\r
+    ;
+    _ = c.send(client, response, c.strlen(response), 0);
+    c.close(client);
+    c.close(listen_fd);
 }
