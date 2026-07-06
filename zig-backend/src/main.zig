@@ -22,31 +22,43 @@ fn handle_client(client_fd: c_int) void {
 pub fn main() void {
     const listen_fd = c.socket(c.AF_INET, c.SOCK_STREAM, 0);
     if (listen_fd < 0) {
-        std.debug.print("socket failed errno={d}\n", .{0});
+        std.debug.print("socket failed\n", .{});
         return;
     }
+
     var addr: c.struct_sockaddr_in = std.mem.zeroes(c.struct_sockaddr_in);
+    addr.sin_len = @sizeOf(c.struct_sockaddr_in);
     addr.sin_family = c.AF_INET;
-    addr.sin_port = std.math.cast(u16, 8768) orelse 0;
+    addr.sin_port = c.htons(8768);
     addr.sin_addr.s_addr = c.htonl(0x7f000001);
-    if (c.bind(listen_fd, @ptrCast(&addr), @sizeOf(c.struct_sockaddr_in)) < 0) {
-        std.debug.print("bind failed errno={d}\n", .{0});
+
+    if (c.bind(listen_fd, @ptrCast(&addr), @sizeOf(c.struct_sockaddr_in)) != 0) {
+        std.debug.print("bind failed\n", .{});
+        _ = c.close(listen_fd);
         return;
     }
+
     if (c.listen(listen_fd, 16) < 0) {
-        std.debug.print("listen failed errno={d}\n", .{0});
+        std.debug.print("listen failed\n", .{});
+        _ = c.close(listen_fd);
         return;
     }
+
     std.debug.print("listening on 127.0.0.1:8768 fd={d}\n", .{listen_fd});
-    while (true) {
+
+    var i: usize = 0;
+    while (i < 3) : (i += 1) {
+        std.debug.print("loop iteration {d}\n", .{i + 1});
         const client = c.accept(listen_fd, null, null);
+        std.debug.print("accept returned {d}\n", .{client});
         if (client < 0) {
-            std.debug.print("accept returned {d}\n", .{client});
+            std.debug.print("accept negative, breaking\n", .{});
             break;
         }
-        std.debug.print("accepted client={d}\n", .{client});
+        std.debug.print("handling client {d}\n", .{client});
         handle_client(client);
     }
+
     _ = c.close(listen_fd);
-    std.debug.print("exiting\n", .{});
+    std.debug.print("exited loop cleanly\n", .{});
 }
