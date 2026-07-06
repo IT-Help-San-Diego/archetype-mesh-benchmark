@@ -7,6 +7,18 @@ const c = @cImport({
     @cInclude("string.h");
 });
 
+fn handle_client(client_fd: c_int) void {
+    const response =
+        \\HTTP/1.1 200 OK\r
+        \\Content-Type: text/plain\r
+        \\Connection: close\r
+        \\\r
+        \\Zig foundation: alive\r
+    ;
+    _ = c.send(client_fd, response, c.strlen(response), 0);
+    _ = c.close(client_fd);
+}
+
 pub fn main() void {
     const listen_fd = c.socket(c.AF_INET, c.SOCK_STREAM, 0);
     if (listen_fd < 0) {
@@ -26,20 +38,10 @@ pub fn main() void {
         return;
     }
     std.debug.print("listening on 127.0.0.1:8768\n", .{});
-
-    const client = c.accept(listen_fd, null, null);
-    if (client < 0) {
-        std.debug.print("accept failed\n", .{});
-        return;
+    while (true) {
+        const client = c.accept(listen_fd, null, null);
+        if (client < 0) break;
+        handle_client(client);
     }
-    const response =
-        \\HTTP/1.1 200 OK\r
-        \\Content-Type: text/plain\r
-        \\Connection: close\r
-        \\\r
-        \\Zig foundation: alive\r
-    ;
-    _ = c.send(client, response, c.strlen(response), 0);
-    _ = c.close(client);
     _ = c.close(listen_fd);
 }
