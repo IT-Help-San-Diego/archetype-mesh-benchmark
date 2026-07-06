@@ -9,15 +9,12 @@ pub fn build(b: *std.Build) !void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "archetype-mesh-dashboard",
+        .name = "archetype-mesh-ledger",
         .root_module = module,
         .linkage = .static,
-        .use_llvm = true,
-        .use_lld = true,
     });
 
     exe.linkLibC();
-    exe.linkSystemLibrary("sqlite3");
 
     b.installArtifact(exe);
 }
