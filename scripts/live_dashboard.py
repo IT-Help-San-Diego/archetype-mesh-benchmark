@@ -7,7 +7,7 @@ Views:
   /queue   → Pending / test queue
   /audit   → Audit trail / decisions
 
-Data: agent_security_benchmark.sqlite
+Data: archetype_mesh_benchmark.sqlite
 Start: python3 scripts/live_dashboard.py
 """
 
@@ -15,8 +15,8 @@ import json, os, sqlite3, http.server, socketserver
 from collections import defaultdict
 from datetime import datetime
 
-REPO = os.path.expanduser("~/Documents/GitHub/agent-security-benchmark")
-DB_PATH = os.path.join(REPO, "data", "agent_security_benchmark.sqlite")
+REPO = os.path.expanduser("~/Documents/GitHub/archetype-mesh-benchmark")
+DB_PATH = os.path.join(REPO, "data", "archetype_mesh_benchmark.sqlite")
 PORT = 8768
 
 FAMILY_LABELS = {
@@ -208,7 +208,7 @@ def fleet_html(data, runs):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fleet — Agent Security Benchmark</title>
+<title>Fleet — Archetype Mesh Benchmark</title>
 <style>
   :root {{ color-scheme: dark; }}
   * {{ box-sizing: border-box; }}
@@ -272,7 +272,7 @@ def queue_html(items):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pending Queue — Agent Security Benchmark</title>
+<title>Pending Queue — Archetype Mesh Benchmark</title>
 <style>
   :root {{ color-scheme: dark; }}
   * {{ box-sizing: border-box; }}
@@ -338,7 +338,7 @@ def audit_html(decisions, runs):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audit Trail — Agent Security Benchmark</title>
+<title>Audit Trail — Archetype Mesh Benchmark</title>
 <style>
   :root {{ color-scheme: dark; }}
   * {{ box-sizing: border-box; }}
