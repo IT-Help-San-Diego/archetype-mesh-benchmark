@@ -1,0 +1,8 @@
+FROM postgres:18-bookworm
+
+RUN apt-get update && apt-get install -y \
+    postgresql-18-pgvector \
+    && rm -rf /var/lib/apt/lists/*
+
+# pgvectorscale .deb will be installed at runtime if available
+# For now, pgvector alone is sufficient for the dashboard

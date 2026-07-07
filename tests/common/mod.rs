@@ -1,13 +1,13 @@
 use axum::Router;
-use sqlx::sqlite::SqlitePool;
+use sqlx::PgPool;
 
 pub async fn test_app() -> Router {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| {
-            "sqlite:///Users/careybalboa/Documents/GitHub/archetype-mesh-benchmark/data/archetype_mesh_benchmark.sqlite".to_string()
+            "postgres://REDACTED:REDACTED@localhost:5432/archetype_mesh".to_string()
         });
 
-    let db = SqlitePool::connect(&database_url)
+    let db = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
 

@@ -6,7 +6,7 @@ pub struct ModelEntry {
     pub name: String,
     pub provider: String,
     pub kind: String,
-    pub vision: i64,
-    pub tools: i64,
+    pub vision: i32,
+    pub tools: i32,
     pub local_path: String,
 }

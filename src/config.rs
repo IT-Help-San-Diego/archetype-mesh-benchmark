@@ -12,7 +12,7 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "sqlite:///Users/careybalboa/Documents/GitHub/archetype-mesh-benchmark/data/archetype_mesh_benchmark.sqlite".to_string()
+            "postgres://REDACTED:REDACTED@localhost:5432/archetype_mesh".to_string()
         });
 
         let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
