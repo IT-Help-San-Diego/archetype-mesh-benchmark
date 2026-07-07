@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Archetype Mesh Benchmark — Live Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background:#0d1117; color:#e6edf3; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; margin:0; padding:24px; line-height:1.5; }
+  h1 { font-size:1.6rem; margin:0 0 6px; display:flex; align-items:center; gap:10px; }
+  .subtitle { color:#8b949e; margin-bottom:16px; font-size:0.9rem; }
+  .controls { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:18px; align-items:center; }
+  select, button { background:#161b22; color:#e6edf3; border:1px solid #30363d; border-radius:8px; padding:8px 10px; font-size:0.88rem; }
+  button { cursor:pointer; background:#0ea5e0; border-color:#0ea5e0; color:#001018; font-weight:600; }
+  button:hover { background:#0284c7; }
+  .stats { display:flex; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .stat-card { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:14px 18px; min-width:130px; }
+  .stat-card .num { font-size:1.8rem; font-weight:700; }
+  .stat-card .label { color:#8b949e; font-size:0.78rem; margin-top:2px; }
+  .num-safe { color:#4ade80; }
+  .num-unsafe { color:#f87171; }
+  .num-flaky { color:#fbbf24; }
+  table.fleet { width:100%; border-collapse:collapse; background:#161b22; border-radius:10px; overflow:hidden; font-size:0.84rem; }
+  table.fleet th, table.fleet td { padding:10px 12px; text-align:center; border-bottom:1px solid #21262d; }
+  table.fleet th { background:#0d1117; color:#8b949e; font-weight:600; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em; position:sticky; top:0; }
+  table.fleet td.model-name { text-align:left !important; font-family:'SF Mono',Consolas,monospace; font-weight:600; color:#e6edf3; white-space:nowrap; }
+  table.fleet td.detail-cell { text-align:left !important; max-width:520px; white-space:normal; word-break:break-word; font-family:'SF Mono',Consolas,monospace; font-size:0.78rem; color:#8b949e; }
+  table.fleet td.last-seen { color:#6e7681; font-size:0.75rem; white-space:nowrap; }
+  .cell-safe { background:#14432a; color:#4ade80; font-weight:700; }
+  .cell-unsafe { background:#4c1d1d; color:#f87171; font-weight:700; }
+  .cell-flaky { background:#4d3800; color:#fbbf24; font-weight:700; }
+  .cell-other { background:#21262d; color:#8b949e; }
+  .cell-empty { color:#30363d; }
+  table.fleet tr:hover td { filter:brightness(1.15); }
+  .legend { display:flex; gap:18px; margin-top:14px; font-size:0.84rem; color:#8b949e; flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .footer { margin-top:18px; color:#6e7681; font-size:0.78rem; }
+  .refresh{color:#8b949e;font-size:0.8rem}
+  a{color:#58a6ff;text-decoration:none}
+  .provider-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.76rem; font-weight:600; }
+  .provider-lmstudio { background:#1a3a5c; color:#58a6ff; }
+  .provider-nous { background:#3c1d6e; color:#c084fc; }
+  .provider-openrouter { background:#1a3c3c; color:#2dd4bf; }
+  .provider-local { background:#21262d; color:#8b949e; }
+</style>
+</head>
+<body>
+<h1><img src="/assets/owl.png" alt="Owl Semaphore" style="height:32px"> Archetype Mesh Benchmark</h1>
+<div class="subtitle">Scientific live dashboard — historical benchmarking data with auto-refresh</div>
+
+<div class="controls">
+  <label>Provider
+    <select id="provider"><option value="">All</option><option>lmstudio</option><option>nous</option><option>openrouter</option><option>local</option></select>
+  </label>
+  <label>Model
+    <select id="model"><option value="">All</option></select>
+  </label>
+  <button id="refreshBtn">Refresh now</button>
+  <span class="refresh" id="refreshStatus">Loading…</span>
+</div>
+
+<div class="stats">
+  <div class="stat-card"><div class="num" id="totalModels">0</div><div class="label">Data points</div></div>
+  <div class="stat-card"><div class="num num-safe" id="safe">0</div><div class="label">SAFE</div></div>
+  <div class="stat-card"><div class="num num-unsafe" id="unsafe">0</div><div class="label">UNSAFE</div></div>
+  <div class="stat-card"><div class="num num-flaky" id="flaky">0</div><div class="label">FLAKY</div></div>
+</div>
+
+<div style="overflow-x:auto">
+  <table class="fleet">
+    <thead>
+      <tr>
+        <th style="text-align:left">Model</th>
+        <th>Provider</th>
+        <th>Verdict</th>
+        <th style="text-align:left">Detail</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#4ade80"></span> SAFE</span>
+  <span><span class="dot" style="background:#f87171"></span> UNSAFE</span>
+  <span><span class="dot" style="background:#fbbf24"></span> FLAKY</span>
+  <span><span class="dot" style="background:#8b949e"></span> Pending</span>
+</div>
+
+<div class="footer">Live reload every 8s • Local Zig backend • Archetype Mesh Benchmark</div>
+
+<script>
+const state = { provider: '', model: '' };
+const el = id => document.getElementById(id);
+
+function verdictClass(v) {
+  v = (v || '').toUpperCase();
+  if (v === 'SAFE') return 'cell-safe';
+  if (v === 'UNSAFE') return 'cell-unsafe';
+  if (v === 'FLAKY') return 'cell-flaky';
+  return 'cell-other';
+}
+
+function providerClass(p) {
+  p = (p || '').toLowerCase();
+  if (p === 'lmstudio') return 'provider-lmstudio';
+  if (p === 'nous') return 'provider-nous';
+  if (p === 'openrouter') return 'provider-openrouter';
+  return 'provider-local';
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/summary');
+    if (!r.ok) throw new Error('summary fetch failed: ' + r.status);
+    const data = await r.json();
+    const rows = Array.isArray(data) ? data : [];
+    const tbody = el('rows');
+    tbody.innerHTML = '';
+    const filtered = rows.filter(row => {
+      if (state.provider && (row.provider || '').toLowerCase() !== state.provider.toLowerCase()) return false;
+      if (state.model && (row.model || '').toLowerCase() !== state.model.toLowerCase()) return false;
+      return true;
+    });
+    for (const row of filtered) {
+      const tr = document.createElement('tr');
+
+      const model = document.createElement('td'); model.className='model-name'; model.textContent=row.model||'';
+      tr.appendChild(model);
+
+      const prov = document.createElement('td');
+      const provSpan = document.createElement('span');
+      provSpan.className = 'provider-tag ' + providerClass(row.provider);
+      provSpan.textContent = row.provider || '';
+      prov.appendChild(provSpan);
+      tr.appendChild(prov);
+
+      const verdict = document.createElement('td'); verdict.className = verdictClass(row.verdict); verdict.textContent=(row.verdict||'').toUpperCase();
+      tr.appendChild(verdict);
+
+      const detail = document.createElement('td'); detail.className='detail-cell';
+      detail.textContent = row.detail || '';
+      detail.title = row.detail || '';
+      tr.appendChild(detail);
+
+      const last = document.createElement('td'); last.className='last-seen'; last.textContent=(row.date||'');
+      tr.appendChild(last);
+
+      tbody.appendChild(tr);
+    }
+    if (filtered.length === 0) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 5; td.className='cell-empty'; td.textContent='No matching data.';
+      tr.appendChild(td); tbody.appendChild(tr);
+    }
+    el('totalModels').textContent = rows.length || 0;
+    el('safe').textContent = rows.filter(r => (r.verdict||'').toUpperCase() === 'SAFE').length || 0;
+    el('unsafe').textContent = rows.filter(r => (r.verdict||'').toUpperCase() === 'UNSAFE').length || 0;
+    el('flaky').textContent = rows.filter(r => (r.verdict||'').toUpperCase() === 'FLAKY').length || 0;
+    el('refreshStatus').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    el('refreshStatus').textContent = 'Update failed: ' + (e.message || e);
+  }
+}
+
+async function populateModels() {
+  try {
+    const r = await fetch('/api/models');
+    if (!r.ok) return;
+    const data = await r.json();
+    const sel = el('model');
+    sel.innerHTML = '<option value="">All</option>';
+    const rows = Array.isArray(data) ? data : [];
+    const seen = new Set();
+    for (const m of rows) {
+      const key = (m.key || m.name || m.model || '').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = m.name || m.key || m.model || '';
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    // ignore model population failures
+  }
+}
+
+el('provider').onchange = e => { state.provider = e.target.value; state.model=''; el('model').value=''; load(); };
+el('model').onchange = e => { state.model = e.target.value; load(); };
+el('refreshBtn').onclick = load;
+
+setInterval(load, 8000);
+populateModels().then(load);
+</script>
+</body>
+</html>

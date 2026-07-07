@@ -11,6 +11,7 @@ from datetime import datetime
 
 PORT = 8766
 DB_PATH = os.path.expanduser("~/Documents/GitHub/archetype-mesh-benchmark/data/archetype_mesh_benchmark.sqlite")
+ASSETS_DIR = os.path.expanduser("~/Documents/GitHub/archetype-mesh-benchmark/zig-backend/assets")
 
 FAMILY_LABELS = {
     "1_nested_tool_calling": "1. Nested Tool Calls",
@@ -247,6 +248,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             body = json.dumps(data, indent=2).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/assets/owl.png":
+            asset_path = os.path.join(ASSETS_DIR, "owl.png")
+            if not os.path.isfile(asset_path):
+                self.send_response(404)
+                self.end_headers()
+                return
+            with open(asset_path, "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
         else:
