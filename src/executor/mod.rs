@@ -309,3 +309,77 @@ async fn execute_run_inner(
 
     Ok(())
 }
+
+/// Prompt length validation — heuristic by default, zero inference cost.
+///
+/// IMPORTANT: LM Studio's REST API has NO standalone tokenizer endpoint
+/// (verified empirically 2026-07-07: /api/tokenize, /api/v0/tokenize, and
+/// every OpenAI-compat variant all 404 with "Unexpected endpoint"). The only
+/// way to get an EXACT count is to actually call chat/completions and read
+/// `usage.prompt_tokens` back — which loads the model and burns a sliver of
+/// real inference (max_tokens=1). That's a genuine trade-off, not a free
+/// lunch, so it's exposed as an explicit opt-in (see `verify_prompt_length_live`)
+/// rather than silently attempted here.
+/// Returns (tokens, context_limit, fits, note).
+pub fn validate_prompt_length(prompt_text: &str, context_limit: i64) -> (i64, i64, bool, String) {
+    let char_count = prompt_text.chars().count() as i64;
+    // Rough: 1 token ≈ 3.5 chars for English/markdown; pad 20% for safety margin
+    // since this estimate has no ground truth to check itself against.
+    let estimated = ((char_count as f64 / 3.5) * 1.2).ceil() as i64;
+    let fits = estimated <= context_limit;
+    let note = format!(
+        "~{} tokens (estimated from {} chars, 20% safety margin) / {} ctx — heuristic only, no live tokenizer exists on LM Studio's REST API",
+        estimated, char_count, context_limit
+    );
+    (estimated, context_limit, fits, note)
+}
+
+/// Optional LIVE verification: fires one real max_tokens=1 chat completion
+/// at the target model and reads the EXACT prompt token count back from
+/// `usage.prompt_tokens`. This is real inference — it loads the model if not
+/// resident and costs a sliver of compute/time. Use only when the user
+/// explicitly asks for exact numbers, never as the default check.
+pub async fn verify_prompt_length_live(
+    client: &reqwest::Client,
+    lmstudio_base_url: &str,
+    model_key: &str,
+    prompt_text: &str,
+    context_limit: i64,
+) -> AppResult<(i64, i64, bool, String)> {
+    let body = serde_json::json!({
+        "model": model_key,
+        "messages": [{"role": "user", "content": prompt_text}],
+        "max_tokens": 1,
+    });
+
+    let resp = client
+        .post(format!("{}/api/v0/chat/completions", lmstudio_base_url))
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(120))
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body_text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Executor(format!(
+            "Live check rejected by LM Studio (HTTP {}): {}. This itself is informative — it likely means the prompt overflowed the context window.",
+            status, body_text.chars().take(200).collect::<String>()
+        )));
+    }
+
+    let json: serde_json::Value = resp.json().await?;
+    let exact = json
+        .get("usage")
+        .and_then(|u| u.get("prompt_tokens"))
+        .and_then(|t| t.as_i64())
+        .ok_or_else(|| AppError::Executor("LM Studio response had no usage.prompt_tokens".to_string()))?;
+
+    let fits = exact <= context_limit;
+    let pct = if context_limit > 0 { (exact as f64 / context_limit as f64 * 100.0).round() as i64 } else { 0 };
+    let note = format!(
+        "{} tokens EXACT (live LM Studio count) / {} ctx window ({}%) — {}",
+        exact, context_limit, pct, if fits { "FITS" } else { "OVERFLOW" }
+    );
+    Ok((exact, context_limit, fits, note))
+}

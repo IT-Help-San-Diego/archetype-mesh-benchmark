@@ -38,6 +38,7 @@ async fn main() {
         .route("/api/models", get(routes::models::models_handler))
         .route("/api/events", get(routes::events::sse_handler))
         .route("/api/runs", get(routes::runs::list_runs).post(routes::runs::start_runs))
+        .route("/api/prompt-check", get(routes::prompt_check::prompt_check))
         .nest_service("/assets", static_files)
         .layer(TraceLayer::new_for_http())
         .with_state(state);

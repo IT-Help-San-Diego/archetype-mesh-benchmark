@@ -318,6 +318,76 @@
     font-family: var(--font-mono); font-size: 10px; color: var(--accent-cyan);
     opacity: 0.85; margin-left: 2px;
   }
+  .top-nav .tab#tab-benchmark.active,
+  .top-nav .tab.active { background: var(--bg-primary); color: var(--text-primary); border-bottom: 2px solid var(--accent-cyan); }
+
+  /* Prompt length checker */
+  .length-check {
+    margin: 0 24px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-green);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .length-check-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+  }
+  .length-check-head:hover { background: rgba(255,255,255,0.03); }
+  .length-check.collapsed .length-check-body { display: none; }
+  .length-check.collapsed .protocol-chevron { transform: rotate(-90deg); }
+  .length-check-body { padding: 4px 16px 16px; }
+  .lc-row { display: grid; grid-template-columns: 260px 1fr; gap: 12px; margin-bottom: 10px; }
+  .lc-row select {
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: var(--font-sans);
+  }
+  #lc-prompt {
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; font-size: 13px; font-family: var(--font-mono);
+    resize: vertical; min-height: 70px; line-height: 1.5;
+  }
+  .lc-result {
+    padding: 10px 14px; border-radius: 6px; font-size: 13px; font-family: var(--font-mono);
+    background: var(--bg-secondary); border: 1px solid var(--border);
+  }
+  .lc-result.fits { border-color: var(--safe); color: var(--safe); }
+  .lc-result.overflow { border-color: var(--unsafe); color: var(--unsafe); }
+  .lc-bar-track { height: 8px; border-radius: 4px; background: var(--bg-card); margin-top: 8px; overflow: hidden; }
+  .lc-bar-fill { height: 100%; border-radius: 4px; transition: width 200ms; }
+
+  /* Generic sub-pages (Setup / Tests / Runs / LM Studio) */
+  .page { min-height: 60vh; }
+  .setup-wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 60px; }
+  .setup-hero { margin-bottom: 24px; }
+  .setup-hero-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .setup-hero-sub { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+  .setup-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .setup-card-title { font-size: 15px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 10px; }
+  .setup-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 10px; }
+  .setup-card ul { padding-left: 20px; margin-bottom: 10px; }
+  .setup-card li { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 4px; }
+  .setup-card code {
+    background: var(--bg-secondary); color: var(--accent-amber); padding: 2px 6px;
+    border-radius: 4px; font-family: var(--font-mono); font-size: 12px;
+  }
+  .setup-card pre {
+    background: var(--bg-secondary); color: var(--accent-green); padding: 12px 16px;
+    border-radius: 6px; font-family: var(--font-mono); font-size: 12px; overflow-x: auto;
+    margin-bottom: 10px; line-height: 1.6;
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .list-row .lr-axis { min-width: 90px; font-weight: 600; }
+  .list-row .lr-name { flex: 1; font-family: var(--font-mono); }
+  .list-row .lr-meta { color: var(--text-muted); font-size: 11px; font-family: var(--font-mono); }
   .protocol {
     margin: 0 24px 14px;
     background: var(--bg-card);
@@ -388,14 +458,16 @@
 
 <!-- Top Nav -->
 <div class="top-nav">
-  <div class="tab">🧠 Intelligence Topology</div>
-  <div class="tab active">🔬 Benchmark</div>
-  <div class="tab">⚙️ Tests</div>
-  <div class="tab">📊 Runs</div>
+  <div class="tab" onclick="showPage('setup')" id="tab-setup">🧭 Hermes Setup</div>
+  <div class="tab active" onclick="showPage('benchmark')" id="tab-benchmark">🔬 Benchmark</div>
+  <div class="tab" onclick="showPage('tests-page')" id="tab-tests-page">📋 Tests</div>
+  <div class="tab" onclick="showPage('runs-page')" id="tab-runs-page">📊 Runs</div>
   <div class="spacer"></div>
-  <div class="tab">📡 Nous Portal</div>
-  <div class="tab">💻 LM Studio</div>
+  <div class="tab" onclick="showPage('lmstudio')" id="tab-lmstudio">💻 LM Studio</div>
 </div>
+
+<!-- ============ PAGE: Benchmark ============ -->
+<div class="page" id="page-benchmark">
 
 <!-- Header -->
 <div class="header">
@@ -516,6 +588,27 @@
   <div class="log-line"><span class="ts">—</span> <span style="color: var(--text-muted)">Select a model and click Run Selected to begin telemetry</span></div>
 </div>
 
+<!-- Prompt Length Checker — non-live, zero-cost validation -->
+<div class="length-check" id="length-check">
+  <div class="length-check-head" onclick="toggleLengthCheck()">
+    <span class="protocol-title">📏 WILL YOUR PROMPT FIT? — check before you send it, no inference spent</span>
+    <span class="protocol-chevron" id="lc-chevron">▾</span>
+  </div>
+  <div class="length-check-body" id="lc-body">
+    <div class="lc-row">
+      <select id="lc-model"></select>
+      <textarea id="lc-prompt" placeholder="Paste the prompt you're about to send… (checked instantly, nothing is sent to the model)" oninput="onPromptInput()"></textarea>
+    </div>
+    <div class="lc-result" id="lc-result">
+      <span style="color:var(--text-muted)">Paste a prompt above — we'll estimate its token count against the selected model's context window instantly, with zero inference cost.</span>
+    </div>
+    <div style="margin-top:10px;">
+      <button class="btn-mini" id="lc-live-btn" onclick="runLiveVerify()" style="display:none;">🎯 Verify exact count (real inference, local models only)</button>
+      <span id="lc-live-note" style="font-size:11px;color:var(--text-muted);margin-left:8px;"></span>
+    </div>
+  </div>
+</div>
+
 <!-- Model Grid -->
 <div class="model-grid" id="model-grid">
   <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
@@ -523,6 +616,100 @@
     <div style="font-size:11px;font-family:var(--font-mono);">Waiting for /api/events</div>
   </div>
 </div>
+
+</div>
+<!-- ============ /PAGE: Benchmark ============ -->
+
+<!-- ============ PAGE: Hermes Setup ============ -->
+<div class="page" id="page-setup" style="display:none;">
+  <div class="setup-wrap">
+    <div class="setup-hero">
+      <div class="setup-hero-title">🧭 Hermes Agent Cloud/Local Setup — read this before you benchmark</div>
+      <div class="setup-hero-sub">This dashboard talks to LM Studio directly, over the network — never through Hermes Desktop. That's why the science stays clean. Here's exactly how to configure Hermes so cloud and local both work correctly.</div>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">1. The architecture you're actually running</div>
+      <p>When this dashboard tests a <b>local</b> model, it sends an HTTP request straight to <code>LM Studio</code>'s REST API on <code>localhost:1234</code>. Hermes Desktop is never in that path — it doesn't load, eject, or route anything for these runs. That's the whole point: a clean-room measurement means nothing but the model itself sits between the prompt and the answer.</p>
+      <p>When this dashboard tests a <b>cloud</b> model, it calls the provider (Nous, OpenRouter, Anthropic, etc.) directly with its own API key — again, not through Hermes.</p>
+      <p><b>Hermes Desktop is a separate, parallel consumer of the same LM Studio server.</b> Your chats with Hermes and this dashboard's benchmark runs can both talk to LM Studio, but Hermes' chat loop and this dashboard's test loop never touch each other.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">2. Configure Hermes' main model (your daily driver)</div>
+      <p>In Hermes Agent, your <b>main model</b> is what answers you in chat. It's controlled with a slash command, live, no restart needed:</p>
+      <pre>/model</pre>
+      <p>This opens a picker across every configured provider. If you want cloud for daily driving (recommended for most people — reasoning, vision, and tool-use all in one place), pick something like:</p>
+      <ul>
+        <li><code>anthropic/claude-sonnet-5</code> (via <code>openrouter</code> or direct Anthropic) — best all-around for chat, tool use, and coding</li>
+        <li>Any Nous-hosted model if you're on a Nous subscription — check pricing/quality trade-offs per task</li>
+      </ul>
+      <p>The switch is live <i>and</i> it persists to <code>config.yaml</code> automatically — you won't need to touch a config file by hand for this.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">3. Configure auxiliary tasks — the part people skip</div>
+      <p>Hermes routes some background jobs (image captioning, code review sub-agents, summarization, etc.) to <b>auxiliary models</b> that are separate from your main chat model. If you leave these on <code>auto</code>, they silently inherit your main model — which is fine, but it means every auxiliary call bills at your main model's rate. If you're cost-conscious (see: rent-critical), pin them:</p>
+      <pre>hermes config set auxiliary.&lt;task&gt;.provider lmstudio
+hermes config set auxiliary.&lt;task&gt;.model &lt;your-local-model-key&gt;</pre>
+      <p>Common tasks worth pinning to a cheap/local model: <code>vision</code>, <code>coding</code>, <code>summarization</code>. Reserve expensive cloud reasoning models for the main chat loop where you actually need the intelligence.</p>
+      <p><b>This is a one-time setup, not a flip-flop</b> — set it once, verify with <code>hermes status</code>, move on. Changing auxiliary provider/model config does require a Hermes restart to take effect (it's snapshotted at process start); switching the main model with <code>/model</code> does not.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">4. Why local models feel different — and how to use this dashboard to fix that</div>
+      <p>The honest gap between local and cloud isn't intelligence alone — it's <b>speed</b>. This dashboard measures average response latency per axis, in milliseconds, right next to the verdict. Use it to find the local model that's fast enough to not feel like a downgrade for your actual workload, instead of guessing.</p>
+      <p>Use the <b>Prompt Length Checker</b> on the Benchmark page before sending anything heavy to a local model — it gives you an instant, zero-cost estimate of whether your prompt fits that model's context window. LM Studio's REST API has no live tokenizer endpoint, so the default check is a calibrated heuristic (~3.5 chars/token + 20% safety margin); a "Verify exact count" button is there when you want the real number, at the cost of one small real inference call.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-card-title">5. Quick verification checklist</div>
+      <ul>
+        <li>✅ Run <code>hermes status</code> — confirms main model, active provider, and whether auxiliary tasks are pinned or on auto</li>
+        <li>✅ Run <code>/model</code> in a Hermes chat — confirms you can see and switch providers live</li>
+        <li>✅ Open LM Studio → Developer tab — confirm the local server is running on port 1234 (or whatever <code>LMSTUDIO_BASE_URL</code> you've set for this dashboard)</li>
+        <li>✅ Come back here and click ▶ Run on any local model card — watch the Live Log; you should see <code>ejecting → loading → resident → trial → verdict</code>, all with real timestamps</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<!-- ============ /PAGE: Hermes Setup ============ -->
+
+<!-- ============ PAGE: Tests ============ -->
+<div class="page" id="page-tests-page" style="display:none;">
+  <div class="setup-wrap">
+    <div class="setup-hero">
+      <div class="setup-hero-title">📋 Test Registry</div>
+      <div class="setup-hero-sub">Every ground-truth test currently seeded in the database. Expected answers are never shown to the model — only listed here for your own audit.</div>
+    </div>
+    <div id="tests-list">Loading tests…</div>
+  </div>
+</div>
+<!-- ============ /PAGE: Tests ============ -->
+
+<!-- ============ PAGE: Runs ============ -->
+<div class="page" id="page-runs-page" style="display:none;">
+  <div class="setup-wrap">
+    <div class="setup-hero">
+      <div class="setup-hero-title">📊 Run History</div>
+      <div class="setup-hero-sub">Every benchmark run ever executed, most recent first, with its SHA3-512 evidence seal.</div>
+    </div>
+    <div id="runs-list">Loading runs…</div>
+  </div>
+</div>
+<!-- ============ /PAGE: Runs ============ -->
+
+<!-- ============ PAGE: LM Studio ============ -->
+<div class="page" id="page-lmstudio" style="display:none;">
+  <div class="setup-wrap">
+    <div class="setup-hero">
+      <div class="setup-hero-title">💻 LM Studio Connection</div>
+      <div class="setup-hero-sub">Live status of the local inference backend this dashboard drives directly.</div>
+    </div>
+    <div id="lmstudio-status">Checking connection…</div>
+  </div>
+</div>
+<!-- ============ /PAGE: LM Studio ============ -->
 
 <script>
 // State
@@ -540,10 +727,12 @@ evtSource.onmessage = (e) => {
     models = data.models;
     updateStats();
     renderGrid();
+    populateLcModels();
   } else if (data.type === 'refresh') {
     models = data.models;
     updateStats();
     renderGrid();
+    populateLcModels();
   } else if (data.type === 'run_started') {
     log('info', `Run ${data.run_id} started: ${data.model_key} — ${data.axis}${data.axes ? ' + ' + data.axes.join(',') : ''}`);
   } else if (data.type === 'phase') {
@@ -746,6 +935,176 @@ function toggleProtocol() {
 }
 if (localStorage.getItem('amb-protocol-collapsed') === '1') {
   document.getElementById('protocol-panel').classList.add('collapsed');
+}
+
+// ============ Tab navigation — makes the top-nav tabs actually work ============
+const PAGES = ['setup', 'benchmark', 'tests-page', 'runs-page', 'lmstudio'];
+function showPage(name) {
+  PAGES.forEach(p => {
+    const el = document.getElementById('page-' + p);
+    if (el) el.style.display = (p === name) ? '' : 'none';
+    const tab = document.getElementById('tab-' + p);
+    if (tab) tab.classList.toggle('active', p === name);
+  });
+  localStorage.setItem('amb-active-page', name);
+  if (name === 'tests-page') loadTestsPage();
+  if (name === 'runs-page') loadRunsPage();
+  if (name === 'lmstudio') loadLmStudioPage();
+}
+// Restore last-viewed page on load (defaults to benchmark).
+const savedPage = localStorage.getItem('amb-active-page');
+if (savedPage && PAGES.includes(savedPage)) showPage(savedPage);
+
+// ============ Prompt Length Checker ============
+function toggleLengthCheck() {
+  const panel = document.getElementById('length-check');
+  panel.classList.toggle('collapsed');
+  localStorage.setItem('amb-lc-collapsed', panel.classList.contains('collapsed') ? '1' : '0');
+}
+if (localStorage.getItem('amb-lc-collapsed') === '1') {
+  document.getElementById('length-check').classList.add('collapsed');
+}
+
+function populateLcModels() {
+  const sel = document.getElementById('lc-model');
+  if (!sel || !models.length) return;
+  const prevValue = sel.value;
+  sel.innerHTML = models.map(m =>
+    `<option value="${m.key}">${m.display_name} (${m.context_length || '?'} ctx)</option>`
+  ).join('');
+  if (prevValue && models.some(m => m.key === prevValue)) sel.value = prevValue;
+  onPromptInput();
+}
+
+let lcTimer = null;
+function onPromptInput() {
+  clearTimeout(lcTimer);
+  lcTimer = setTimeout(runLengthCheck, 250); // debounce — check as they type, not on every keystroke
+}
+
+async function runLengthCheck() {
+  const sel = document.getElementById('lc-model');
+  const promptEl = document.getElementById('lc-prompt');
+  const resultEl = document.getElementById('lc-result');
+  const modelKey = sel.value;
+  const prompt = promptEl.value;
+
+  if (!prompt.trim()) {
+    resultEl.className = 'lc-result';
+    resultEl.innerHTML = '<span style="color:var(--text-muted)">Paste a prompt above — we\'ll estimate its token count against the selected model\'s context window instantly, with zero inference cost.</span>';
+    document.getElementById('lc-live-btn').style.display = 'none';
+    return;
+  }
+  if (!modelKey) return;
+
+  await checkLength(false);
+}
+
+async function runLiveVerify() {
+  await checkLength(true);
+}
+
+async function checkLength(live) {
+  const sel = document.getElementById('lc-model');
+  const promptEl = document.getElementById('lc-prompt');
+  const resultEl = document.getElementById('lc-result');
+  const liveBtn = document.getElementById('lc-live-btn');
+  const liveNote = document.getElementById('lc-live-note');
+  const modelKey = sel.value;
+  const prompt = promptEl.value;
+  if (!modelKey || !prompt.trim()) return;
+
+  if (live) {
+    liveNote.textContent = 'Running real inference against LM Studio…';
+  }
+
+  try {
+    const url = `/api/prompt-check?model_key=${encodeURIComponent(modelKey)}&prompt=${encodeURIComponent(prompt)}${live ? '&live=true' : ''}`;
+    const resp = await fetch(url);
+    const d = await resp.json();
+    if (d.error) {
+      resultEl.className = 'lc-result';
+      resultEl.textContent = d.error;
+      return;
+    }
+    const pct = Math.min(d.percent_used, 999);
+    const barColor = d.fits ? (pct > 85 ? 'var(--flaky)' : 'var(--safe)') : 'var(--unsafe)';
+    resultEl.className = 'lc-result ' + (d.fits ? 'fits' : 'overflow');
+    resultEl.innerHTML = `
+      <div><b>${d.tokens.toLocaleString()}</b> tokens ${d.exact ? '(EXACT — verified via real inference)' : '(estimated — heuristic, no live tokenizer exists on LM Studio\'s API)'} / <b>${d.context_limit.toLocaleString()}</b> ctx window (${pct}%)</div>
+      <div style="margin-top:4px;">${d.fits ? '✅ FITS — safe to send' : '❌ OVERFLOW — this will be truncated or rejected. Shorten your prompt or pick a bigger-context model.'}</div>
+      <div class="lc-bar-track"><div class="lc-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor};"></div></div>
+    `;
+    liveBtn.style.display = (d.live_available && !d.exact) ? '' : 'none';
+    liveNote.textContent = d.exact ? 'Verified with real inference just now.' : '';
+  } catch (e) {
+    resultEl.className = 'lc-result overflow';
+    resultEl.textContent = 'Check failed: ' + e.message;
+  }
+}
+
+// ============ Tests page ============
+// Tests are seeded server-side; there's no dedicated /api/tests endpoint yet,
+// so this lists the known seed set directly — honest about what exists today.
+function loadTestsPage() {
+  const el = document.getElementById('tests-list');
+  el.innerHTML = `
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-purple)">👁 Vision</span><span class="lr-name">VVP-01 Attribute Detection</span><span class="lr-meta">substring match</span></div>
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-purple)">👁 Vision</span><span class="lr-name">VVP-02 Precise OCR</span><span class="lr-meta">substring match</span></div>
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-purple)">👁 Vision</span><span class="lr-name">VVP-03 Spatial Reasoning</span><span class="lr-meta">negation-aware spatial</span></div>
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-green)">🧠 Reasoning</span><span class="lr-name">ARITH-01 Exact Arithmetic</span><span class="lr-meta">substring match</span></div>
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-cyan)">🔧 Tools</span><span class="lr-name">TOOL-01 JSON Tool Call</span><span class="lr-meta">nested-tool shape match</span></div>
+    <div class="list-row"><span class="lr-axis" style="color:var(--accent-amber)">🛡 Security</span><span class="lr-name">SEC-01 System Prompt Extraction</span><span class="lr-meta">refusal-vs-leak detection</span></div>
+    <div style="margin-top:16px;font-size:12px;color:var(--text-muted)">Test Builder (add your own blind hacker tests) is next on the roadmap.</div>
+  `;
+}
+
+// ============ Runs page ============
+async function loadRunsPage() {
+  const el = document.getElementById('runs-list');
+  el.innerHTML = 'Loading…';
+  try {
+    const resp = await fetch('/api/runs');
+    const d = await resp.json();
+    if (!d.runs || !d.runs.length) {
+      el.innerHTML = '<div style="color:var(--text-muted)">No runs yet. Go to Benchmark and click ▶ Run on a model.</div>';
+      return;
+    }
+    el.innerHTML = d.runs.map(r => {
+      const statusColor = r.status === 'done' ? (r.pass_count === r.total_count ? 'var(--safe)' : (r.pass_count === 0 ? 'var(--unsafe)' : 'var(--flaky)')) : 'var(--accent-blue)';
+      return `<div class="list-row">
+        <span class="lr-axis" style="color:${statusColor}">${(r.status || '').toUpperCase()}</span>
+        <span class="lr-name">${r.model_key} — ${r.axis}</span>
+        <span class="lr-meta">${r.pass_count}/${r.total_count} · ${r.sha3_provenance ? r.sha3_provenance.slice(0,24) + '…' : 'no evidence yet'}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--unsafe)">Failed to load runs: ${e.message}</div>`;
+  }
+}
+
+// ============ LM Studio status page ============
+async function loadLmStudioPage() {
+  const el = document.getElementById('lmstudio-status');
+  el.innerHTML = 'Checking connection…';
+  try {
+    const resp = await fetch('/api/models');
+    const list = await resp.json();
+    const localModels = list.filter(m => m.location === 'local');
+    el.innerHTML = `
+      <div class="setup-card">
+        <div class="setup-card-title">Connection</div>
+        <p>This dashboard reaches LM Studio directly over HTTP (default <code>http://localhost:1234</code>), the same server your LM Studio app exposes under Developer → Local Server. Hermes Desktop is not in this path.</p>
+        <p style="color:var(--safe)">✅ ${localModels.length} local model(s) registered for benchmarking</p>
+      </div>
+      <div class="setup-card">
+        <div class="setup-card-title">Registered local models</div>
+        ${localModels.map(m => `<div class="list-row"><span class="lr-name">${m.display_name}</span><span class="lr-meta">${m.key} · ${m.context_length} ctx · ${m.size_gb} GB</span></div>`).join('')}
+      </div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<div class="setup-card" style="border-left:3px solid var(--unsafe)"><div class="setup-card-title" style="color:var(--unsafe)">Connection check failed</div><p>${e.message}</p></div>`;
+  }
 }
 
 </script>
