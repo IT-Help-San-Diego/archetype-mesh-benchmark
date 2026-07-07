@@ -17,9 +17,12 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Self {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://REDACTED:REDACTED@localhost:5432/archetype_mesh".to_string()
-        });
+        // No hardcoded fallback — a real secret belongs in the environment
+        // (launchd EnvironmentVariables locally, .env for dev), never in source.
+        // Fails loudly and immediately if unset rather than silently using a
+        // baked-in credential that would otherwise sit in git history forever.
+        let database_url = std::env::var("DATABASE_URL")
+            .expect("DATABASE_URL must be set (see .env.example) — no default is baked into source");
 
         let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let assets_dir = project_root.join("assets");

@@ -3,9 +3,7 @@ use sqlx::PgPool;
 
 pub async fn test_app() -> Router {
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| {
-            "postgres://REDACTED:REDACTED@localhost:5432/archetype_mesh".to_string()
-        });
+        .expect("DATABASE_URL must be set to run integration tests (see .env.example)");
 
     let db = PgPool::connect(&database_url)
         .await
