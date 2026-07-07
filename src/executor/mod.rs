@@ -1,5 +1,311 @@
-pub mod local;
+//! Test-run executor: the scientific core.
+//!
+//! One run = one (model, axis) execution of every active test on that axis.
+//! Pipeline (each phase streamed live over the SSE broadcast — no spinners,
+//! real telemetry): clean-room prep (local) → prompt assembly (server-side,
+//! ground truth never sent to the model) → N trials → objective scoring →
+//! verdict → SHA3-512 provenance → persist.
 pub mod cloud;
 pub mod lmstudio;
 pub mod scoring;
 pub mod provenance;
+
+use base64::Engine;
+use sqlx::PgPool;
+use tokio::sync::broadcast;
+
+use crate::config::Config;
+use crate::error::{AppError, AppResult};
+use crate::models::tests::TestDef;
+
+/// Emit one telemetry envelope to every open SSE connection.
+/// Best-effort: zero subscribers is not an error (runs still persist evidence).
+fn emit(tx: &broadcast::Sender<String>, value: serde_json::Value) {
+    if let Ok(json) = serde_json::to_string(&value) {
+        let _ = tx.send(json);
+    }
+}
+
+fn now_iso() -> String {
+    chrono::Utc::now().to_rfc3339()
+}
+
+/// Load every active test for an axis.
+pub async fn tests_for_axis(db: &PgPool, axis: &str) -> AppResult<Vec<TestDef>> {
+    let rows = sqlx::query_as::<_, TestDef>(
+        r#"SELECT id, name, axis, prompt_text, attachment_path, attachment_sha3,
+                  expected_result, scoring_method, trials_per_run
+           FROM tests WHERE active = true AND axis = $1 ORDER BY id"#,
+    )
+    .bind(axis)
+    .fetch_all(db)
+    .await?;
+    Ok(rows)
+}
+
+/// Build the OpenAI-shaped user message for a test.
+/// Anti-cheat invariants enforced here:
+///   1. expected_result is NEVER part of the payload.
+///   2. If the test pins an attachment hash, the actual bytes on disk are
+///      re-hashed and MUST match before anything is sent.
+fn build_messages(
+    test: &TestDef,
+    project_root: &std::path::Path,
+) -> AppResult<Vec<serde_json::Value>> {
+    match &test.attachment_path {
+        Some(rel_path) => {
+            let full = project_root.join(rel_path);
+            let bytes = std::fs::read(&full).map_err(|e| {
+                AppError::Executor(format!("Attachment {} unreadable: {}", full.display(), e))
+            })?;
+
+            if let Some(pinned) = &test.attachment_sha3 {
+                let actual = provenance::sha3_256_bytes(&bytes);
+                if &actual != pinned {
+                    return Err(AppError::Executor(format!(
+                        "Attachment hash mismatch for test {} — pinned {} but disk has {}. \
+                         Evidence integrity violated; refusing to run.",
+                        test.name, pinned, actual
+                    )));
+                }
+            }
+
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            Ok(vec![serde_json::json!({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": test.prompt_text},
+                    {"type": "image_url", "image_url": {"url": format!("data:image/png;base64,{}", b64)}}
+                ]
+            })])
+        }
+        None => Ok(vec![serde_json::json!({
+            "role": "user",
+            "content": test.prompt_text
+        })]),
+    }
+}
+
+/// Execute one full run: all active tests on `axis` against `model_key`.
+/// Persists test_runs + trial_results + verdict + SHA3-512 provenance.
+#[allow(clippy::too_many_arguments)]
+pub async fn execute_run(
+    db: PgPool,
+    config: Config,
+    tx: broadcast::Sender<String>,
+    run_id: i32,
+    model_id: i32,
+    model_key: String,
+    location: String,
+    provider: String,
+    axis: String,
+) {
+    let result = execute_run_inner(
+        &db, &config, &tx, run_id, model_id, &model_key, &location, &provider, &axis,
+    )
+    .await;
+
+    if let Err(e) = result {
+        tracing::error!("Run {} failed: {}", run_id, e);
+        let _ = sqlx::query("UPDATE test_runs SET status = 'error', finished_at = NOW() WHERE id = $1")
+            .bind(run_id)
+            .execute(&db)
+            .await;
+        emit(
+            &tx,
+            serde_json::json!({
+                "type": "error", "run_id": run_id, "message": e.to_string(), "at": now_iso()
+            }),
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn execute_run_inner(
+    db: &PgPool,
+    config: &Config,
+    tx: &broadcast::Sender<String>,
+    run_id: i32,
+    _model_id: i32,
+    model_key: &str,
+    location: &str,
+    provider: &str,
+    axis: &str,
+) -> AppResult<()> {
+    let client = reqwest::Client::new();
+
+    sqlx::query("UPDATE test_runs SET status = 'loading', started_at = NOW() WHERE id = $1")
+        .bind(run_id)
+        .execute(db)
+        .await?;
+    emit(tx, serde_json::json!({
+        "type": "run_started", "run_id": run_id, "model_key": model_key,
+        "axis": axis, "location": location, "at": now_iso()
+    }));
+
+    // ── Clean-room prep (local models only) ────────────────────────────────
+    if location == "local" {
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "ejecting",
+            "message": "Clean room: ejecting all loaded models from LM Studio", "at": now_iso()
+        }));
+        let ejected = lmstudio::eject_all(&client, &config.lmstudio_base_url).await?;
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "ejected",
+            "message": format!("Ejected {} instance(s): {:?}", ejected.len(), ejected), "at": now_iso()
+        }));
+
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "loading",
+            "message": format!("Loading {} — watch LM Studio's server tab", model_key), "at": now_iso()
+        }));
+        let load_start = std::time::Instant::now();
+        let resident =
+            lmstudio::ensure_loaded(&client, &config.lmstudio_base_url, model_key, 300).await?;
+        if !resident {
+            return Err(AppError::Executor(format!(
+                "{} did not become resident within 300s",
+                model_key
+            )));
+        }
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "resident",
+            "message": format!("{} verified resident in RAM ({}s load)", model_key, load_start.elapsed().as_secs()),
+            "at": now_iso()
+        }));
+    }
+
+    // ── Trials ─────────────────────────────────────────────────────────────
+    let tests = tests_for_axis(db, axis).await?;
+    if tests.is_empty() {
+        return Err(AppError::Executor(format!("No active tests for axis '{}'", axis)));
+    }
+
+    sqlx::query("UPDATE test_runs SET status = 'running' WHERE id = $1")
+        .bind(run_id)
+        .execute(db)
+        .await?;
+
+    let mut pass_count: i32 = 0;
+    let mut total_count: i32 = 0;
+    let mut evidence_lines: Vec<String> = Vec::new();
+
+    for test in &tests {
+        let n_trials = test.trials_per_run.unwrap_or(3).max(1);
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "trial",
+            "message": format!("Test '{}' — {} trial(s)", test.name, n_trials), "at": now_iso()
+        }));
+
+        let messages = build_messages(test, &config.project_root)?;
+
+        for trial_num in 1..=n_trials {
+            let outcome = match location {
+                "local" => {
+                    lmstudio::chat(&client, &config.lmstudio_base_url, model_key, &messages, 512, 0.0)
+                        .await
+                }
+                _ => {
+                    let key = match provider {
+                        "nous" => config.nous_api_key.clone(),
+                        "openrouter" => config.openrouter_api_key.clone(),
+                        other => {
+                            return Err(AppError::Executor(format!("Unknown provider: {}", other)))
+                        }
+                    }
+                    .ok_or_else(|| {
+                        AppError::Executor(format!(
+                            "No API key configured for provider '{}' (set NOUS_API_KEY / OPENROUTER_API_KEY)",
+                            provider
+                        ))
+                    })?;
+                    cloud::chat(&client, provider, &key, model_key, &messages, 512).await
+                }
+            };
+
+            total_count += 1;
+            let (passed, latency_ms, raw, detail) = match outcome {
+                Ok((response, latency)) => {
+                    let expected = test.expected_result.as_deref().unwrap_or("");
+                    let score = scoring::score_response(&response, expected, &test.scoring_method);
+                    (score.passed, latency as i64, response, score.detail.unwrap_or_default())
+                }
+                Err(e) => (false, -1, String::new(), format!("execution error: {}", e)),
+            };
+            if passed {
+                pass_count += 1;
+            }
+
+            sqlx::query(
+                r#"INSERT INTO trial_results (run_id, trial_num, raw_response, latency_ms, passed, detail)
+                   VALUES ($1, $2, $3, $4, $5, $6)"#,
+            )
+            .bind(run_id)
+            .bind(trial_num)
+            .bind(&raw)
+            .bind(latency_ms)
+            .bind(passed)
+            .bind(&detail)
+            .execute(db)
+            .await?;
+
+            evidence_lines.push(format!(
+                "test={} trial={} passed={} latency_ms={} response={}",
+                test.name, trial_num, passed, latency_ms, raw
+            ));
+
+            emit(tx, serde_json::json!({
+                "type": "trial_result", "run_id": run_id, "test": test.name,
+                "trial_num": trial_num, "passed": passed, "latency_ms": latency_ms,
+                "detail": detail, "at": now_iso()
+            }));
+        }
+    }
+
+    // ── Verdict + provenance ───────────────────────────────────────────────
+    emit(tx, serde_json::json!({
+        "type": "phase", "run_id": run_id, "phase": "scoring",
+        "message": format!("Scoring: {}/{} trials passed", pass_count, total_count), "at": now_iso()
+    }));
+
+    // Lean language: "unsafe" is a security claim, not a capability claim.
+    // Security axis keeps SAFE/UNSAFE; capability axes report PASS/FAIL.
+    let verdict = if pass_count == total_count {
+        if axis == "security" { "SAFE" } else { "PASS" }
+    } else if pass_count == 0 {
+        if axis == "security" { "UNSAFE" } else { "FAIL" }
+    } else {
+        "FLAKY"
+    };
+
+    let evidence_record = format!(
+        "run_id={} model={} axis={} pass={}/{}\n{}",
+        run_id, model_key, axis, pass_count, total_count,
+        evidence_lines.join("\n")
+    );
+    let sha3 = provenance::sha3_hex(&evidence_record);
+
+    sqlx::query(
+        r#"UPDATE test_runs
+           SET status = 'done', finished_at = NOW(),
+               pass_count = $2, total_count = $3, sha3_provenance = $4
+           WHERE id = $1"#,
+    )
+    .bind(run_id)
+    .bind(pass_count)
+    .bind(total_count)
+    .bind(&sha3)
+    .execute(db)
+    .await?;
+
+    emit(tx, serde_json::json!({
+        "type": "verdict", "run_id": run_id, "overall": verdict,
+        "pass_count": pass_count, "total_count": total_count, "at": now_iso()
+    }));
+    emit(tx, serde_json::json!({
+        "type": "run_complete", "run_id": run_id, "overall": verdict,
+        "sha3": sha3, "at": now_iso()
+    }));
+
+    Ok(())
+}

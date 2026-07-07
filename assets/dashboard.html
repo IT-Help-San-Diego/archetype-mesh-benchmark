@@ -314,6 +314,46 @@
   .judge-dot.flaky { background: var(--flaky); box-shadow: 0 0 6px var(--flaky); }
 
   /* Live log area */
+  .v-ms {
+    font-family: var(--font-mono); font-size: 10px; color: var(--accent-cyan);
+    opacity: 0.85; margin-left: 2px;
+  }
+  .protocol {
+    margin: 0 24px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .protocol-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+  }
+  .protocol-head:hover { background: rgba(255,255,255,0.03); }
+  .protocol-title {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--accent-cyan); font-family: var(--font-mono);
+  }
+  .protocol-chevron { color: var(--text-muted); font-size: 12px; transition: transform .2s; }
+  .protocol.collapsed .protocol-chevron { transform: rotate(-90deg); }
+  .protocol-body {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    padding: 4px 16px 14px;
+  }
+  .protocol.collapsed .protocol-body { display: none; }
+  .protocol-h {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .protocol-body ul { margin: 0; padding-left: 16px; }
+  .protocol-body li {
+    font-size: 12px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .protocol-body li b { color: var(--text-primary); }
+  @media (max-width: 900px) {
+    .protocol-body { grid-template-columns: 1fr; }
+  }
   .live-log {
     background: var(--bg-secondary);
     border-top: 1px solid var(--border);
@@ -390,11 +430,11 @@
   </div>
   <div class="stat">
     <div class="stat-value" id="stat-safe" style="color: var(--safe)">—</div>
-    <div class="stat-label">SAFE</div>
+    <div class="stat-label">PASS / SAFE</div>
   </div>
   <div class="stat">
     <div class="stat-value" id="stat-unsafe" style="color: var(--unsafe)">—</div>
-    <div class="stat-label">UNSAFE</div>
+    <div class="stat-label">FAIL / UNSAFE</div>
   </div>
   <div class="stat">
     <div class="stat-value" id="stat-flaky" style="color: var(--flaky)">—</div>
@@ -425,13 +465,50 @@
   </select>
   <select id="filter-verdict" onchange="applyFilters()">
     <option value="all">All Verdicts</option>
-    <option value="SAFE">SAFE</option>
-    <option value="UNSAFE">UNSAFE</option>
+    <option value="good">PASS / SAFE</option>
+    <option value="bad">FAIL / UNSAFE</option>
     <option value="FLAKY">FLAKY</option>
     <option value="untested">Untested</option>
   </select>
   <input type="text" id="filter-search" placeholder="Search model…" oninput="applyFilters()"
          style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:180px;">
+</div>
+
+<!-- Scientific Protocol — procedures & controls for consistent, honest results -->
+<div class="protocol" id="protocol-panel">
+  <div class="protocol-head" onclick="toggleProtocol()">
+    <span class="protocol-title">🔬 TEST PROTOCOL — read before running</span>
+    <span class="protocol-chevron" id="protocol-chevron">▾</span>
+  </div>
+  <div class="protocol-body" id="protocol-body">
+    <div class="protocol-col">
+      <div class="protocol-h">Environment controls</div>
+      <ul>
+        <li>Open <b>LM Studio → Developer (local server) tab</b> and watch models load and eject in real time. Observe — don't touch. Loading or ejecting models by hand mid-run invalidates the measurement.</li>
+        <li>Close heavyweight apps before a run. Every GB another app holds is a GB the model under test can't use, and background CPU spikes contaminate latency numbers.</li>
+        <li>Testing your working setup instead? That's a valid experiment — just keep the <i>same</i> apps open across every model so runs stay comparable. Consistency is the control.</li>
+      </ul>
+    </div>
+    <div class="protocol-col">
+      <div class="protocol-h">How the measurement works</div>
+      <ul>
+        <li><b>Clean room:</b> before each local run, every loaded model is ejected, only the target is loaded, and residency in RAM is verified by polling — never assumed.</li>
+        <li><b>No answer leakage:</b> the expected answer lives only in the database. The model is never shown the ground truth it's scored against.</li>
+        <li><b>Objective scoring:</b> verdicts come from comparing the model's actual output to ground truth (exact text, spatial relations, tool-call shape) — never from asking a model its opinion.</li>
+        <li><b>N=3 trials per test:</b> one pass can be luck. Capability axes (Vision / Tools / Reasoning) score <b>PASS / FAIL / FLAKY</b> — can it do the job? Security scores <b>SAFE / UNSAFE / FLAKY</b> — did it resist? Different questions, different words.</li>
+        <li><b>Speed is a measurement, not a footnote:</b> every axis shows average response time. A model that's right but takes 30 seconds is a different answer than one that's right in 2 — that's the ChatGPT-feel gap, measured honestly.</li>
+        <li><b>Evidence, not claims:</b> every trial stores the exact prompt, raw response, and latency, sealed with a SHA-3 hash. You can audit every verdict.</li>
+      </ul>
+    </div>
+    <div class="protocol-col">
+      <div class="protocol-h">Why this exists</div>
+      <ul>
+        <li>Standardized benchmarks (MMLU &amp; friends) are public — models have seen them, so cheating is possible. We still watch those numbers, but we don't trust them alone.</li>
+        <li>The cross-check is <b>your own human test</b>: build one in the Test Builder with your own image and question the model has never seen. A good test has one objective, verifiable answer that isn't contained in the question.</li>
+        <li>Local AI on your own hardware is real. The people saying it can't be done are missing method, not hardware. This page <i>is</i> the method — every number on it is one you can reproduce yourself.</li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <!-- Live Log -->
@@ -486,16 +563,26 @@ evtSource.onerror = () => {
   log('err', 'SSE connection lost — will auto-reconnect');
 };
 
-// Verdict color helper
+// Verdict helpers — lean language: capability axes PASS/FAIL, security SAFE/UNSAFE.
+// Each verdict entry is {v: "PASS"|"FAIL"|"SAFE"|"UNSAFE"|"FLAKY", ms: <avg latency>}.
+const GOOD = ['PASS', 'SAFE'];
+const BAD = ['FAIL', 'UNSAFE'];
+function vOf(entry) { return entry && typeof entry === 'object' ? (entry.v || '') : (entry || ''); }
+function msOf(entry) { return entry && typeof entry === 'object' && entry.ms != null ? entry.ms : null; }
+function fmtMs(ms) {
+  if (ms == null) return '';
+  return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms';
+}
 function verdictColor(v) {
   if (!v || v === '') return 'v-empty';
-  const map = { 'SAFE': 'v-safe', 'UNSAFE': 'v-unsafe', 'FLAKY': 'v-flaky' };
+  const map = { 'SAFE': 'v-safe', 'PASS': 'v-safe', 'UNSAFE': 'v-unsafe', 'FAIL': 'v-unsafe', 'FLAKY': 'v-flaky' };
   return map[v] || 'v-empty';
 }
-function verdictIcon(v) {
-  if (!v || v === '') return '<span class="judge-dot" style="background:var(--text-muted);box-shadow:none"></span>';
-  const cls = v.toLowerCase();
-  return `<span class="judge-dot ${cls}"></span>`;
+function dotClass(v) {
+  if (GOOD.includes(v)) return 'safe';
+  if (BAD.includes(v)) return 'unsafe';
+  if (v === 'FLAKY') return 'flaky';
+  return '';
 }
 function axisLabel(axis) {
   const map = { vision: '👁 Vision', tools: '🔧 Tools', reasoning: '🧠 Reasoning', security: '🛡 Security' };
@@ -523,14 +610,19 @@ function renderGrid() {
       let verdicts = {};
       try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
       if (fAxis !== 'all') {
-        const v = verdicts[fAxis];
+        const v = vOf(verdicts[fAxis]);
         if (fVerd === 'all') return true;
-        if (v && v === fVerd) return true;
-        if (!v && fVerd === 'untested') return true;
+        if (fVerd === 'good') return GOOD.includes(v);
+        if (fVerd === 'bad') return BAD.includes(v);
+        if (fVerd === 'FLAKY') return v === 'FLAKY';
+        if (fVerd === 'untested') return !v;
         return false;
       }
-      if (fVerd === 'untested') return Object.keys(verdicts).length === 0;
-      return Object.values(verdicts).some(v => v === fVerd);
+      const vs = Object.values(verdicts).map(vOf);
+      if (fVerd === 'untested') return vs.length === 0;
+      if (fVerd === 'good') return vs.some(v => GOOD.includes(v));
+      if (fVerd === 'bad') return vs.some(v => BAD.includes(v));
+      return vs.some(v => v === fVerd);
     });
   }
 
@@ -544,10 +636,13 @@ function renderGrid() {
     try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
     const axes = ['vision','tools','reasoning','security'];
     const verdictCells = axes.map(a => {
-      const v = verdicts[a] || '';
+      const entry = verdicts[a];
+      const v = vOf(entry);
+      const ms = msOf(entry);
+      const speed = ms != null ? ` <span class="v-ms">${fmtMs(ms)}</span>` : '';
       return `<div class="verdict-cell ${a}">
-        <span class="judge-dot ${v.toLowerCase() || 'safe'}" style="${!v ? 'background:var(--text-muted);box-shadow:none' : ''}"></span>
-        <span class="${verdictColor(v)}">${axisLabel(a)}: ${v || 'untested'}</span>
+        <span class="judge-dot ${dotClass(v) || 'safe'}" style="${!v ? 'background:var(--text-muted);box-shadow:none' : ''}"></span>
+        <span class="${verdictColor(v)}">${axisLabel(a)}: ${v || 'untested'}</span>${speed}
       </div>`;
     }).join('');
 
@@ -575,12 +670,24 @@ function updateStats() {
   document.getElementById('stat-total').textContent = models.length;
   document.getElementById('stat-local').textContent = models.filter(m => m.location === 'local').length;
   document.getElementById('stat-cloud').textContent = models.filter(m => m.location === 'cloud').length;
-  let verdicts = {};
-  models.forEach(m => { try { Object.assign(verdicts, JSON.parse(m.verdicts || '{}')); } catch(e) {} });
-  document.getElementById('stat-tested').textContent = Object.keys(verdicts).length ? `${Object.keys(verdicts).length} axes` : '—';
-  document.getElementById('stat-safe').textContent = Object.values(verdicts).filter(v => v === 'SAFE').length;
-  document.getElementById('stat-unsafe').textContent = Object.values(verdicts).filter(v => v === 'UNSAFE').length;
-  document.getElementById('stat-flaky').textContent = Object.values(verdicts).filter(v => v === 'FLAKY').length;
+  // Count per-model-axis verdict entries (not merged keys — each model's axes count).
+  let good = 0, bad = 0, flaky = 0, tested = 0;
+  models.forEach(m => {
+    let verdicts = {};
+    try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
+    Object.values(verdicts).forEach(entry => {
+      const v = vOf(entry);
+      if (!v) return;
+      tested++;
+      if (GOOD.includes(v)) good++;
+      else if (BAD.includes(v)) bad++;
+      else if (v === 'FLAKY') flaky++;
+    });
+  });
+  document.getElementById('stat-tested').textContent = tested ? `${tested} axes` : '—';
+  document.getElementById('stat-safe').textContent = good;
+  document.getElementById('stat-unsafe').textContent = bad;
+  document.getElementById('stat-flaky').textContent = flaky;
 }
 
 function applyFilters() { renderGrid(); }
@@ -629,6 +736,16 @@ function runSelected() {
 }
 function openTestBuilder() {
   log('info', 'Test builder — coming next');
+}
+
+// Protocol panel: open on first visit, remember collapse choice locally.
+function toggleProtocol() {
+  const panel = document.getElementById('protocol-panel');
+  panel.classList.toggle('collapsed');
+  localStorage.setItem('amb-protocol-collapsed', panel.classList.contains('collapsed') ? '1' : '0');
+}
+if (localStorage.getItem('amb-protocol-collapsed') === '1') {
+  document.getElementById('protocol-panel').classList.add('collapsed');
 }
 
 </script>

@@ -4,10 +4,11 @@ mod state;
 mod models;
 mod db;
 mod routes;
+mod executor;
 
 use config::Config;
 use state::AppState;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
@@ -36,6 +37,7 @@ async fn main() {
         .route("/api/summary", get(routes::summary::summary_handler))
         .route("/api/models", get(routes::models::models_handler))
         .route("/api/events", get(routes::events::sse_handler))
+        .route("/api/runs", get(routes::runs::list_runs).post(routes::runs::start_runs))
         .nest_service("/assets", static_files)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
