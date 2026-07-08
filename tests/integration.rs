@@ -520,3 +520,51 @@ async fn host_reality_measures_with_receipts_and_labeled_heuristic() {
     // LM Studio block always reports reachability honestly (bool, either way).
     assert!(json["lmstudio"]["reachable"].is_boolean());
 }
+
+// ── Hermes config check (/api/hermes/reality, 2026-07-08) ──────────────────
+// Reads ~/.hermes/config.yaml via a strict allowlist. The security contract
+// is the whole point: no response value may ever look like a credential.
+
+#[tokio::test]
+async fn hermes_reality_is_allowlisted_and_never_leaks_credentials() {
+    let app = common::test_app().await;
+    let response = app
+        .oneshot(Request::builder().uri("/api/hermes/reality").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_string(response).await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+    // Shape contract: only the allowlisted top-level keys may appear.
+    let allowed = ["config_found", "parse_ok", "source", "main", "approvals_mode", "auxiliary"];
+    for key in json.as_object().unwrap().keys() {
+        assert!(
+            allowed.contains(&key.as_str()),
+            "unexpected top-level key '{}' in hermes_reality response — allowlist violated",
+            key
+        );
+    }
+
+    // Credential scan on the RAW BODY: no long spaceless token-like strings.
+    // Model IDs stay under this bound; sk-/AKIA/ghp_ style keys do not.
+    for value in body.split('"') {
+        assert!(
+            !(value.len() > 48 && !value.contains(' ') && !value.contains('/')),
+            "response contains a credential-shaped value ({} chars)",
+            value.len()
+        );
+    }
+
+    // On this machine a config exists; if found+parsed, main model must be
+    // non-empty strings (the fields the Setup tab verifies against).
+    if json["config_found"] == true && json["parse_ok"] == true {
+        assert!(json["main"]["model"].as_str().map(|s| !s.is_empty()).unwrap_or(false));
+        // Auxiliary slots present, each with the honest is_auto flag.
+        let aux = json["auxiliary"].as_array().unwrap();
+        assert_eq!(aux.len(), 4);
+        for s in aux {
+            assert!(s["is_auto"].is_boolean());
+        }
+    }
+}

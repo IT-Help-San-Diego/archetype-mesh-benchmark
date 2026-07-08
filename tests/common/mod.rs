@@ -60,6 +60,10 @@ pub async fn test_app() -> Router {
             "/api/host/reality",
             axum::routing::get(archetype_mesh_dashboard::routes::host::host_reality),
         )
+        .route(
+            "/api/hermes/reality",
+            axum::routing::get(archetype_mesh_dashboard::routes::hermes_check::hermes_reality),
+        )
         .nest_service("/assets", static_files)
         .layer(TraceLayer::new_for_http())
         .with_state(state)

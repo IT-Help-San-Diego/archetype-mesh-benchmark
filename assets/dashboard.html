@@ -452,6 +452,9 @@
   .rc-formula { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 6px; }
   .squad-slot-hermes, .router-hermes { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
   .router-hermes { margin-top: 0; margin-left: auto; text-align: right; max-width: 55%; }
+  .hermes-verify { font-size: 12px; font-family: var(--font-mono); padding: 8px 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-muted); line-height: 1.7; }
+  .hermes-verify .hv-ok { color: var(--accent-green, #34d399); }
+  .hermes-verify .hv-warn { color: var(--accent-amber, #fbbf24); }
   .loot-sort-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
   .loot-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .loot-table th {
@@ -822,6 +825,7 @@
 
     <div class="setup-card">
       <div class="setup-card-title">2. Configure Hermes' main model (your daily driver)</div>
+      <div class="hermes-verify" id="verify-main">checking your actual config…</div>
       <p>In Hermes Agent, your <b>main model</b> is what answers you in chat. Two equivalent ways to set it:</p>
       <ul>
         <li><b>Desktop app:</b> Settings → Model Settings → <b>MAIN MODEL</b> row → <b>CHANGE</b>. Shown as <code>provider · model</code>, e.g. <code>openrouter · anthropic/claude-sonnet-5</code>.</li>
@@ -832,6 +836,7 @@
 
     <div class="setup-card">
       <div class="setup-card-title">3. Configure auxiliary tasks — the part people skip</div>
+      <div class="hermes-verify" id="verify-aux">checking your actual config…</div>
       <p>Hermes routes 11 background jobs (vision, web extract, context compression, skill search, command-approval scoring, MCP tool routing, session titles, and several Kanban/curator jobs) to <b>auxiliary models</b> that are separate from your main chat model. Every task defaults to <code>auto</code> — meaning it silently rides your main model, at your main model's price.</p>
       <p><b>Best place to configure this: Desktop app → Settings → Model Settings → AUXILIARY TASKS row → CONFIGURE.</b> That opens the full 11-slot panel where each row shows its current assignment (<code>auto (use main model)</code> or <code>provider · model</code>) with its own <b>Change</b> button — no CLI needed.</p>
       <p>Real, typical examples — the kind of pairing most Hermes users actually run:</p>
@@ -1462,7 +1467,7 @@ function showPage(name) {
     if (tab) tab.classList.toggle('active', p === name);
   });
   localStorage.setItem('amb-active-page', name);
-  if (name === 'setup') loadRealityCheck();
+  if (name === 'setup') { loadRealityCheck(); loadHermesVerify(); }
   if (name === 'loot-page') loadLootPage();
   if (name === 'tests-page') loadTestsPage();
   if (name === 'runs-page') loadRunsPage();
@@ -1539,6 +1544,45 @@ async function loadRealityCheck() {
   } else {
     budgetEl.innerHTML = '';
   }
+}
+
+// ── Setup steps 2+3: verify against Hermes' ACTUAL config, not assertions ──
+async function loadHermesVerify() {
+  const mainEl = document.getElementById('verify-main');
+  const auxEl = document.getElementById('verify-aux');
+  if (!mainEl || !auxEl) return;
+  const r = await apiFetch('/api/hermes/reality');
+  if (!r.ok) {
+    mainEl.innerHTML = auxEl.innerHTML = `<span class="hv-warn">⚠️ couldn't read Hermes config: ${r.error}</span>`;
+    return;
+  }
+  const d = r.data;
+  if (!d.config_found) {
+    mainEl.innerHTML = auxEl.innerHTML = `<span class="hv-warn">⚠️ No ~/.hermes/config.yaml on this machine — Hermes isn't set up here yet. The steps below are how you get there.</span>`;
+    return;
+  }
+  if (!d.parse_ok) {
+    mainEl.innerHTML = auxEl.innerHTML = `<span class="hv-warn">⚠️ Found config.yaml but couldn't parse it — check the file for syntax damage.</span>`;
+    return;
+  }
+  // Step 2 — main model, read from the file the step tells you to configure.
+  if (d.main.provider && d.main.model) {
+    mainEl.innerHTML = `<span class="hv-ok">✅ VERIFIED on this machine:</span> your main model is <b>${d.main.provider} · ${d.main.model}</b> <span title="read live from ${d.source}">(read from your actual config just now — if you change it, reopen this tab and watch this line follow)</span>`;
+  } else {
+    mainEl.innerHTML = `<span class="hv-warn">⚠️ config.yaml exists but has no main model set — follow the steps below, then reopen this tab to see this line flip to ✅.</span>`;
+  }
+  // Step 3 — auxiliary slots: show real assignment per slot, auto is honest.
+  const slot = t => {
+    const s = (d.auxiliary || []).find(x => x.task === t);
+    if (!s) return `<span class="hv-warn">⚠️ ${t}: not present in config</span>`;
+    return s.is_auto
+      ? `⚪ <b>${t}</b>: auto — rides your main model (${d.main.model || '?'}), at its price`
+      : `<span class="hv-ok">✅ <b>${t}</b>: pinned to ${s.provider} · ${s.model || '(default)'}</span>`;
+  };
+  const approvalNote = d.approvals_mode
+    ? `<br>🛡 approvals.mode is <b>${d.approvals_mode}</b>${d.approvals_mode === 'smart' ? ' — the approval slot above is live judging your shell commands right now' : ''}`
+    : '';
+  auxEl.innerHTML = `<span class="hv-ok">✅ Read from your actual config:</span><br>${['vision','mcp','approval','web_extract'].map(slot).join('<br>')}${approvalNote}`;
 }
 
 // ============ Prompt Length Checker ============
