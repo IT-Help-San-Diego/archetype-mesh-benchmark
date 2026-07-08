@@ -11,7 +11,12 @@ pub async fn test_app() -> Router {
 
     let config = archetype_mesh_dashboard::config::Config::from_env();
     let (events_tx, _) = tokio::sync::broadcast::channel(16);
-    let state = archetype_mesh_dashboard::state::AppState { db, config, events_tx };
+    let state = archetype_mesh_dashboard::state::AppState {
+        db,
+        config,
+        events_tx,
+        cancellations: archetype_mesh_dashboard::lm_guard::CancellationRegistry::new(),
+    };
 
     use tower_http::services::ServeDir;
     use tower_http::trace::TraceLayer;
@@ -28,6 +33,10 @@ pub async fn test_app() -> Router {
             "/api/runs",
             axum::routing::get(archetype_mesh_dashboard::routes::runs::list_runs)
                 .post(archetype_mesh_dashboard::routes::runs::start_runs),
+        )
+        .route(
+            "/api/runs/{id}/abort",
+            axum::routing::post(archetype_mesh_dashboard::routes::runs::abort_run),
         )
         .route(
             "/api/tests",

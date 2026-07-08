@@ -5,6 +5,7 @@ mod models;
 mod db;
 mod routes;
 mod executor;
+mod lm_guard;
 
 use config::Config;
 use state::AppState;
@@ -33,9 +34,10 @@ async fn main() {
     // process (crash, launchd restart, reboot mid-run) — no executor task
     // exists for them anymore, so without this they'd read "running" forever.
     // Marking them 'error' is honest: their execution genuinely did not finish.
+    // ('aborted' is excluded from the reap target — it's already terminal.)
     match sqlx::query(
         "UPDATE test_runs SET status = 'error', finished_at = NOW()
-         WHERE status NOT IN ('done', 'error')",
+         WHERE status NOT IN ('done', 'error', 'aborted')",
     )
     .execute(&state.db)
     .await
@@ -56,6 +58,7 @@ async fn main() {
         .route("/api/models", get(routes::models::models_handler))
         .route("/api/events", get(routes::events::sse_handler))
         .route("/api/runs", get(routes::runs::list_runs).post(routes::runs::start_runs))
+        .route("/api/runs/{id}/abort", post(routes::runs::abort_run))
         .route("/api/prompt-check", get(routes::prompt_check::prompt_check).post(routes::prompt_check::prompt_check_post))
         .route("/api/loot", get(routes::loot::loot_handler))
         .route("/api/lmstudio/status", get(routes::lmstudio::lmstudio_status))

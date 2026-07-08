@@ -46,6 +46,10 @@ pub async fn prompt_check(
     };
 
     let (tokens, limit, fits, note, exact) = if q.live && model.location == "local" {
+        // Same gate every LM Studio-touching route uses (see lm_guard.rs) —
+        // this call used to fire completely unserialized; that was the
+        // real self-harm gap, not a hypothetical one.
+        let _permit = crate::lm_guard::acquire().await;
         let client = reqwest::Client::new();
         match executor::verify_prompt_length_live(
             &client,
@@ -144,6 +148,11 @@ pub async fn prompt_check_post(
         "temperature": 0.0,
     });
 
+    // Same gate every LM Studio-touching route uses (see lm_guard.rs) — this
+    // was the actual self-harm mechanism an audit found: the Prompt Builder
+    // called LM Studio directly with zero serialization, so N concurrent
+    // clicks/retries meant N concurrent model loads on shared hardware.
+    let _permit = crate::lm_guard::acquire().await;
     let client = reqwest::Client::new();
     let resp = client
         .post(format!("{}/api/v0/chat/completions", base_url))

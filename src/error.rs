@@ -22,6 +22,9 @@ pub enum AppError {
 
     #[error("Executor error: {0}")]
     Executor(String),
+
+    #[error("Run aborted by operator request")]
+    Aborted,
 }
 
 impl axum::response::IntoResponse for AppError {
@@ -58,6 +61,9 @@ impl axum::response::IntoResponse for AppError {
                 // act on it, instead of a swallowed generic 500. Messages are
                 // built server-side from validated data; nothing sensitive.
                 return (axum::http::StatusCode::BAD_REQUEST, msg.clone()).into_response();
+            }
+            AppError::Aborted => {
+                (axum::http::StatusCode::OK, "Run aborted by operator request")
             }
         };
 

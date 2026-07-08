@@ -7,14 +7,9 @@
 use axum::extract::State;
 use axum::response::Json;
 use serde::Deserialize;
-use tokio::sync::Mutex;
 
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-
-/// Global clean-room lock: only one LOCAL run may drive LM Studio at a time.
-/// Cloud runs don't take it (no shared hardware to contaminate).
-static LOCAL_RUN_LOCK: Mutex<()> = Mutex::const_new(());
 
 // "auxiliary" is an experimental axis (added 2026-07-07) tracking whether
 // non-frontier / local models are reliable enough for Hermes' auxiliary
@@ -69,10 +64,15 @@ pub async fn start_runs(
     // queued/running: the clean-room lock serializes local runs, so a repeat
     // click (or an impatient script) would silently commit HOURS of extra
     // grind. Finished runs don't block — re-measurement is always allowed.
+    // 'aborted' is ALSO terminal here — an operator-stopped run must not
+    // permanently block re-running that (model, axis) pair. Found live
+    // 2026-07-08: this predicate was written before the 'aborted' status
+    // existed and wasn't updated when it landed, so an aborted run looked
+    // permanently "in flight" to this check.
     for axis in &axes {
         let (in_flight,): (i64,) = sqlx::query_as(
             r#"SELECT COUNT(*) FROM test_runs
-               WHERE model_id = $1 AND axis = $2 AND status NOT IN ('done', 'error')"#,
+               WHERE model_id = $1 AND axis = $2 AND status NOT IN ('done', 'error', 'aborted')"#,
         )
         .bind(model.id)
         .bind(axis)
@@ -116,6 +116,7 @@ pub async fn start_runs(
         let db = state.db.clone();
         let config = state.config.clone();
         let tx = state.events_tx.clone();
+        let cancellations = state.cancellations.clone();
         let model_id = model.id;
         let model_key = model.key.clone();
         let location = model.location.clone();
@@ -123,14 +124,22 @@ pub async fn start_runs(
         let axis = axis.to_string();
 
         tokio::spawn(async move {
-            // Serialize local runs — clean-room integrity.
-            let _guard = if location == "local" {
-                Some(LOCAL_RUN_LOCK.lock().await)
+            // Serialize LOCAL LM Studio access via the shared process-wide
+            // gate (lm_guard::acquire) — NOT a route-local mutex. Prior to
+            // 2026-07-08 this used a private LOCAL_RUN_LOCK that only
+            // benchmark runs took; POST /api/prompt-check and the Prompt
+            // Builder called LM Studio directly with zero serialization —
+            // the actual self-harm gap an audit found (unbounded concurrent
+            // local model loads on a daily-driver machine). Every LM
+            // Studio-touching route now goes through the same gate.
+            let _permit = if location == "local" {
+                Some(crate::lm_guard::acquire().await)
             } else {
                 None
             };
             crate::executor::execute_run(
-                db, config, tx, run_id, model_id, model_key, location, provider, axis,
+                db, config, tx, cancellations, run_id, model_id, model_key, location, provider,
+                axis,
             )
             .await;
         });
@@ -181,4 +190,24 @@ pub async fn list_runs(State(state): State<AppState>) -> AppResult<Json<serde_js
         .collect();
 
     Ok(Json(serde_json::json!({ "runs": runs })))
+}
+
+/// POST /api/runs/:id/abort — the abort button.
+///
+/// Signals the run's CancellationToken (registered by execute_run_inner at
+/// start). The executor's select! around every LM Studio/cloud call reacts
+/// within one HTTP round-trip's time, drops the outbound connection, and
+/// LM Studio itself stops the GPU work — verified live 2026-07-08 (killing
+/// a streaming client caused the llmworker process's CPU to drop from
+/// 11.2% to 0.1% within 1 second). This is a real abort, not a UI-only one.
+///
+/// Idempotent: aborting a run that's already done/error/aborted, or that
+/// never existed, returns {aborted: false} rather than an error — asking to
+/// stop something that isn't running anymore is not a mistake to punish.
+pub async fn abort_run(
+    State(state): State<AppState>,
+    axum::extract::Path(run_id): axum::extract::Path<i32>,
+) -> AppResult<Json<serde_json::Value>> {
+    let signaled = state.cancellations.cancel(run_id).await;
+    Ok(Json(serde_json::json!({ "run_id": run_id, "aborted": signaled })))
 }

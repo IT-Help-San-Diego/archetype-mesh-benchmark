@@ -204,3 +204,55 @@ async fn loot_has_contract_shape() {
     assert!(json.get("recommended_squad").is_some());
     assert!(json.get("missing_axes").is_some());
 }
+
+// ── Abort endpoint (self-harm audit follow-up, 2026-07-08) ─────────────────
+// The end-to-end "actually cancels real inference" behavior is proven live
+// against the real LM Studio process (see the session's manual verification:
+// killing a streaming client dropped the llmworker process's CPU from 11.2%
+// to 0.1% within 1s). What the integration suite CAN verify without spinning
+// up real inference is the HTTP contract: idempotent, never an error for a
+// run that isn't in flight (asking to stop something already stopped is not
+// a mistake to punish).
+
+#[tokio::test]
+async fn abort_run_is_a_clean_noop_for_unknown_run_id() {
+    let app = common::test_app().await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/runs/999999/abort")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_string(response).await;
+    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(json["run_id"], 999999);
+    assert_eq!(json["aborted"], false, "aborting a non-existent run must not claim success");
+}
+
+#[tokio::test]
+async fn abort_run_is_idempotent_when_called_twice() {
+    let app = common::test_app().await;
+    // Same run_id, two abort calls in a row — neither should error, and
+    // neither claims to have signaled a run that was never registered.
+    for _ in 0..2 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/runs/424242/abort")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let json: serde_json::Value = serde_json::from_str(&body_string(response).await).unwrap();
+        assert_eq!(json["aborted"], false);
+    }
+}

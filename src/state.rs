@@ -5,6 +5,7 @@ use tokio::sync::broadcast;
 use crate::config::Config;
 use crate::error::AppError;
 use crate::error::AppResult;
+use crate::lm_guard::CancellationRegistry;
 
 /// Capacity of the run-event broadcast channel. Slow SSE subscribers that lag
 /// more than this many events behind simply skip ahead (documented tokio behavior);
@@ -19,6 +20,12 @@ pub struct AppState {
     /// (run_started / phase / trial_result / verdict / run_complete / error),
     /// every open SSE connection receives it. See routes::events.
     pub events_tx: broadcast::Sender<String>,
+    /// Per-run cancellation handles — lets POST /api/runs/:id/abort signal a
+    /// specific in-flight run's executor task to stop. See lm_guard.rs for
+    /// the full rationale (verified live: dropping the LM Studio connection
+    /// genuinely halts GPU work, so cancellation here is a real abort, not
+    /// a cosmetic one).
+    pub cancellations: CancellationRegistry,
 }
 
 impl AppState {
@@ -32,7 +39,7 @@ impl AppState {
         let (events_tx, _) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
 
         tracing::info!("Database connected and migrations applied");
-        Ok(AppState { db, config, events_tx })
+        Ok(AppState { db, config, events_tx, cancellations: CancellationRegistry::new() })
     }
 
     async fn connect_with_retry(url: &str, max_seconds: u64) -> AppResult<PgPool> {

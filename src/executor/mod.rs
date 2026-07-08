@@ -13,6 +13,7 @@ pub mod provenance;
 use base64::Engine;
 use sqlx::PgPool;
 use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
 
 use crate::config::Config;
 use crate::error::{AppError, AppResult};
@@ -93,6 +94,7 @@ pub async fn execute_run(
     db: PgPool,
     config: Config,
     tx: broadcast::Sender<String>,
+    cancellations: crate::lm_guard::CancellationRegistry,
     run_id: i32,
     model_id: i32,
     model_key: String,
@@ -100,10 +102,13 @@ pub async fn execute_run(
     provider: String,
     axis: String,
 ) {
+    let cancel_token = cancellations.register(run_id).await;
+
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(RUN_BUDGET_SECS),
         execute_run_inner(
-            &db, &config, &tx, run_id, model_id, &model_key, &location, &provider, &axis,
+            &db, &config, &tx, &cancel_token, run_id, model_id, &model_key, &location, &provider,
+            &axis,
         ),
     )
     .await
@@ -118,18 +123,41 @@ pub async fn execute_run(
         )))
     });
 
-    if let Err(e) = result {
-        tracing::error!("Run {} failed: {}", run_id, e);
-        let _ = sqlx::query("UPDATE test_runs SET status = 'error', finished_at = NOW() WHERE id = $1")
+    // Always unregister on every exit path — otherwise the cancellation map
+    // grows by one entry per run for the life of the process.
+    cancellations.unregister(run_id).await;
+
+    match result {
+        Ok(()) => {}
+        Err(AppError::Aborted) => {
+            tracing::info!("Run {} aborted by operator request", run_id);
+            let _ = sqlx::query(
+                "UPDATE test_runs SET status = 'aborted', finished_at = NOW() WHERE id = $1",
+            )
             .bind(run_id)
             .execute(&db)
             .await;
-        emit(
-            &tx,
-            serde_json::json!({
-                "type": "error", "run_id": run_id, "message": e.to_string(), "at": now_iso()
-            }),
-        );
+            emit(
+                &tx,
+                serde_json::json!({
+                    "type": "aborted", "run_id": run_id,
+                    "message": "Run stopped by operator request.", "at": now_iso()
+                }),
+            );
+        }
+        Err(e) => {
+            tracing::error!("Run {} failed: {}", run_id, e);
+            let _ = sqlx::query("UPDATE test_runs SET status = 'error', finished_at = NOW() WHERE id = $1")
+                .bind(run_id)
+                .execute(&db)
+                .await;
+            emit(
+                &tx,
+                serde_json::json!({
+                    "type": "error", "run_id": run_id, "message": e.to_string(), "at": now_iso()
+                }),
+            );
+        }
     }
 }
 
@@ -146,6 +174,7 @@ async fn execute_run_inner(
     db: &PgPool,
     config: &Config,
     tx: &broadcast::Sender<String>,
+    cancel_token: &CancellationToken,
     run_id: i32,
     _model_id: i32,
     model_key: &str,
@@ -164,13 +193,28 @@ async fn execute_run_inner(
         "axis": axis, "location": location, "at": now_iso()
     }));
 
+    // Every await point below that can take real wall-clock time (clean-room
+    // ejection, model load, each chat call) races against cancel_token so an
+    // operator-triggered abort takes effect within that single step instead
+    // of only at trial boundaries. select! biases neither branch — whichever
+    // resolves first wins, so a cancellation racing an already-completing
+    // call still lets the call finish and simply stops before the NEXT step.
+    macro_rules! cancellable {
+        ($fut:expr) => {
+            tokio::select! {
+                res = $fut => res,
+                _ = cancel_token.cancelled() => return Err(AppError::Aborted),
+            }
+        };
+    }
+
     // ── Clean-room prep (local models only) ────────────────────────────────
     if location == "local" {
         emit(tx, serde_json::json!({
             "type": "phase", "run_id": run_id, "phase": "ejecting",
             "message": "Clean room: ejecting all loaded models from LM Studio", "at": now_iso()
         }));
-        let ejected = lmstudio::eject_all(&client, &config.lmstudio_base_url).await?;
+        let ejected = cancellable!(lmstudio::eject_all(&client, &config.lmstudio_base_url))?;
         emit(tx, serde_json::json!({
             "type": "phase", "run_id": run_id, "phase": "ejected",
             "message": format!("Ejected {} instance(s): {:?}", ejected.len(), ejected), "at": now_iso()
@@ -181,8 +225,12 @@ async fn execute_run_inner(
             "message": format!("Loading {} — watch LM Studio's server tab", model_key), "at": now_iso()
         }));
         let load_start = std::time::Instant::now();
-        let resident =
-            lmstudio::ensure_loaded(&client, &config.lmstudio_base_url, model_key, 300).await?;
+        let resident = cancellable!(lmstudio::ensure_loaded(
+            &client,
+            &config.lmstudio_base_url,
+            model_key,
+            300
+        ))?;
         if !resident {
             return Err(AppError::Executor(format!(
                 "{} did not become resident within 300s",
@@ -221,10 +269,22 @@ async fn execute_run_inner(
         let messages = build_messages(test, &config.project_root)?;
 
         for trial_num in 1..=n_trials {
+            // Also checked here (not just inside cancellable! around the
+            // network call) so a cancel between trials doesn't have to wait
+            // for one more full trial to start before taking effect.
+            if cancel_token.is_cancelled() {
+                return Err(AppError::Aborted);
+            }
             let outcome = match location {
                 "local" => {
-                    lmstudio::chat(&client, &config.lmstudio_base_url, model_key, &messages, 512, 0.0)
-                        .await
+                    cancellable!(lmstudio::chat(
+                        &client,
+                        &config.lmstudio_base_url,
+                        model_key,
+                        &messages,
+                        512,
+                        0.0
+                    ))
                 }
                 _ => {
                     let config_key = match provider {
@@ -237,7 +297,7 @@ async fn execute_run_inner(
                     // Resolved per run (not at process start): Nous OAuth agent
                     // keys rotate on the order of hours.
                     let key = cloud::resolve_api_key(provider, config_key)?;
-                    cloud::chat(&client, provider, &key, model_key, &messages, 512).await
+                    cancellable!(cloud::chat(&client, provider, &key, model_key, &messages, 512))
                 }
             };
 
