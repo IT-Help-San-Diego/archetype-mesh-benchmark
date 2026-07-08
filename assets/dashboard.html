@@ -1062,6 +1062,47 @@ let runs = {};
 let activeRunId = null;
 let logEntries = [];
 
+// ── Unified fetch wrapper ────────────────────────────────────────────────
+// Every API caller in this file used to do `fetch(...).then(r => r.json())`
+// and assume the body was JSON. That's wrong in three ways that were
+// previously live bugs:
+//   1. Our own 400s (invalid axis, duplicate in-flight run, etc.) are
+//      text/plain, not JSON — r.json() on them throws a SyntaxError that
+//      SWALLOWS the actionable message we specifically built server-side
+//      to be shown to the user.
+//   2. A dropped connection (backend restart, network blip, laptop sleep)
+//      throws from fetch() itself — several call sites (toggleTestDetail,
+//      deactivateTest) had NO try/catch at all, so this was an unhandled
+//      promise rejection with zero user-visible feedback.
+//   3. Every catch block hand-rolled its own error string, inconsistently.
+// apiFetch() normalizes all three into one shape: never throws for HTTP
+// errors, always returns {ok, status, data, error}. data is best-effort
+// JSON-parsed (falls back to the raw text body so a plain-text 400 still
+// surfaces its real message); error is set for network failures.
+async function apiFetch(url, options) {
+  let resp;
+  try {
+    resp = await fetch(url, options);
+  } catch (e) {
+    // Network-level failure — backend down, DNS blip, laptop asleep.
+    return { ok: false, status: 0, data: null, error: `Network error: ${e.message}` };
+  }
+  const raw = await resp.text();
+  let data = null;
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    data = raw; // Plain-text body (our own 400s) — keep it, don't discard it.
+  }
+  if (!resp.ok) {
+    const msg = (data && typeof data === 'object' && data.error) ? data.error
+      : (typeof data === 'string' && data) ? data
+      : `HTTP ${resp.status}`;
+    return { ok: false, status: resp.status, data, error: msg };
+  }
+  return { ok: true, status: resp.status, data, error: null };
+}
+
 // SSE — live data push, zero polling
 const evtSource = new EventSource('/api/events');
 
@@ -1251,14 +1292,14 @@ function log(tag, msg) {
 // Run actions — live against /api/runs
 function runSingle(key) {
   log('info', `Queuing test run for ${key}...`);
-  fetch('/api/runs', {
+  apiFetch('/api/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model_key: key, axes: ['vision','tools','reasoning','security'] })
-  }).then(r => r.json()).then(d => {
-    if (d.run_id) log('info', `Run ${d.run_id} queued`);
-    else log('err', `Failed: ${JSON.stringify(d)}`);
-  }).catch(e => log('err', `Error: ${e.message}`));
+  }).then(r => {
+    if (r.ok && r.data && r.data.run_id) log('info', `Run ${r.data.run_id} queued`);
+    else log('err', `Failed: ${r.error || JSON.stringify(r.data)}`);
+  });
 }
 function runSelected() {
   const cards = document.querySelectorAll('.model-card.selected');
@@ -1369,8 +1410,13 @@ async function checkLength(live) {
 
   try {
     const url = `/api/prompt-check?model_key=${encodeURIComponent(modelKey)}&prompt=${encodeURIComponent(prompt)}${live ? '&live=true' : ''}`;
-    const resp = await fetch(url);
-    const d = await resp.json();
+    const r = await apiFetch(url);
+    if (!r.ok) {
+      resultEl.className = 'lc-result';
+      resultEl.textContent = r.error;
+      return;
+    }
+    const d = r.data;
     if (d.error) {
       resultEl.className = 'lc-result';
       resultEl.textContent = d.error;
@@ -1416,48 +1462,42 @@ async function runNousExperiment() {
   const modelKey = sel.value;
   if (!modelKey) return;
   statusEl.textContent = 'Queuing…';
-  try {
-    const resp = await fetch('/api/runs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model_key: modelKey, axes: ['auxiliary'] })
-    });
-    const d = await resp.json();
-    if (d.run_id) {
-      statusEl.textContent = `Run ${d.run_id} queued — watch the Live Log above for live telemetry.`;
-      setTimeout(loadNousExpTable, 3000);
-    } else {
-      statusEl.textContent = `Failed: ${JSON.stringify(d)}`;
-    }
-  } catch (e) {
-    statusEl.textContent = 'Error: ' + e.message;
+  const r = await apiFetch('/api/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model_key: modelKey, axes: ['auxiliary'] })
+  });
+  if (r.ok && r.data && r.data.run_id) {
+    statusEl.textContent = `Run ${r.data.run_id} queued — watch the Live Log above for live telemetry.`;
+    setTimeout(loadNousExpTable, 3000);
+  } else {
+    statusEl.textContent = `Failed: ${r.error || JSON.stringify(r.data)}`;
   }
 }
 
 async function loadNousExpTable() {
   const el = document.getElementById('nous-exp-table');
-  try {
-    const resp = await fetch('/api/runs');
-    const d = await resp.json();
-    const auxRuns = (d.runs || []).filter(r => r.axis === 'auxiliary');
-    if (!auxRuns.length) {
-      el.innerHTML = 'No auxiliary-axis runs yet. Pick a model above and run the tests, or check the 📊 Runs tab for history.';
-      return;
-    }
-    const rows = auxRuns.map(r => {
-      const color = r.status !== 'done' ? 'var(--accent-blue)'
-        : r.pass_count === r.total_count ? 'var(--safe)'
-        : r.pass_count === 0 ? 'var(--unsafe)' : 'var(--flaky)';
-      return `<tr>
-        <td>${r.model_key}</td>
-        <td style="color:${color};font-weight:600;">${r.status === 'done' ? `${r.pass_count}/${r.total_count}` : r.status.toUpperCase()}</td>
-        <td style="font-size:10px;color:var(--text-muted);">${r.sha3_provenance ? r.sha3_provenance.slice(0,20) + '…' : '—'}</td>
-      </tr>`;
-    }).join('');
-    el.innerHTML = `<table><thead><tr><th>Model</th><th>Approval + MCP-sampling trials</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table>`;
-  } catch (e) {
-    el.innerHTML = `<span style="color:var(--unsafe)">Failed to load: ${e.message}</span>`;
+  const r = await apiFetch('/api/runs');
+  if (!r.ok) {
+    el.innerHTML = `<span style="color:var(--unsafe)">Failed to load: ${r.error}</span>`;
+    return;
   }
+  const auxRuns = (r.data.runs || []).filter(x => x.axis === 'auxiliary');
+  if (!auxRuns.length) {
+    el.innerHTML = 'No auxiliary-axis runs yet. Pick a model above and run the tests, or check the 📊 Runs tab for history.';
+    return;
+  }
+  const rows = auxRuns.map(x => {
+    const color = x.status !== 'done' ? 'var(--accent-blue)'
+      : x.pass_count === x.total_count ? 'var(--safe)'
+      : x.pass_count === 0 ? 'var(--unsafe)' : 'var(--flaky)';
+    return `<tr>
+      <td>${x.model_key}</td>
+      <td style="color:${color};font-weight:600;">${x.status === 'done' ? `${x.pass_count}/${x.total_count}` : x.status.toUpperCase()}</td>
+      <td style="font-size:10px;color:var(--text-muted);">${x.sha3_provenance ? x.sha3_provenance.slice(0,20) + '…' : '—'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr><th>Model</th><th>Approval + MCP-sampling trials</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 loadNousExpTable();
 
@@ -1473,15 +1513,15 @@ async function loadLootPage() {
   const tableEl = document.getElementById('loot-table-wrap');
   squadEl.innerHTML = 'Loading…';
   tableEl.innerHTML = 'Loading…';
-  try {
-    const resp = await fetch('/api/loot');
-    lootData = await resp.json();
-    renderSquad();
-    renderLootTable();
-  } catch (e) {
-    squadEl.innerHTML = `<div style="color:var(--unsafe)">Failed to load: ${e.message}</div>`;
+  const r = await apiFetch('/api/loot');
+  if (!r.ok) {
+    squadEl.innerHTML = `<div style="color:var(--unsafe)">Failed to load: ${r.error}</div>`;
     tableEl.innerHTML = '';
+    return;
   }
+  lootData = r.data;
+  renderSquad();
+  renderLootTable();
 }
 
 function renderSquad() {
@@ -1583,26 +1623,26 @@ const AXIS_META = {
 async function loadTestsPage() {
   const el = document.getElementById('tests-list');
   el.innerHTML = 'Loading tests…';
-  try {
-    const resp = await fetch('/api/tests');
-    const d = await resp.json();
-    if (!d.tests || !d.tests.length) {
-      el.innerHTML = '<div style="color:var(--text-muted)">No active tests. Click + New Test to create one.</div>';
-      return;
-    }
-    el.innerHTML = d.tests.map(t => {
-      const meta = AXIS_META[t.axis] || { icon: '❔', color: 'var(--text-muted)' };
-      return `<div class="list-row" style="cursor:pointer" onclick="toggleTestDetail(${t.id}, this)">
-        <span class="lr-axis" style="color:${meta.color}">${meta.icon} ${t.axis}</span>
-        <span class="lr-name">${t.name}</span>
-        <span class="lr-meta">${t.scoring_method} · N=${t.trials_per_run}${t.has_attachment ? ' · 📎' : ''} · #${t.id}</span>
-      </div>
-      <div class="test-detail" id="test-detail-${t.id}" style="display:none;padding:10px 14px;margin:0 0 8px;background:var(--bg-secondary);border-left:2px solid ${meta.color};font-size:12px;font-family:var(--font-mono);"></div>`;
-    }).join('')
-    + `<div style="margin-top:14px;font-size:12px;color:var(--text-muted)">${d.count} active tests. Click a row to audit its prompt and ground truth (fetched on demand — the grid stays blind).</div>`;
-  } catch (e) {
-    el.innerHTML = `<div style="color:var(--unsafe)">Failed to load tests: ${e.message}</div>`;
+  const r = await apiFetch('/api/tests');
+  if (!r.ok) {
+    el.innerHTML = `<div style="color:var(--unsafe)">Failed to load tests: ${r.error}</div>`;
+    return;
   }
+  const d = r.data;
+  if (!d.tests || !d.tests.length) {
+    el.innerHTML = '<div style="color:var(--text-muted)">No active tests. Click + New Test to create one.</div>';
+    return;
+  }
+  el.innerHTML = d.tests.map(t => {
+    const meta = AXIS_META[t.axis] || { icon: '❔', color: 'var(--text-muted)' };
+    return `<div class="list-row" style="cursor:pointer" onclick="toggleTestDetail(${t.id}, this)">
+      <span class="lr-axis" style="color:${meta.color}">${meta.icon} ${t.axis}</span>
+      <span class="lr-name">${t.name}</span>
+      <span class="lr-meta">${t.scoring_method} · N=${t.trials_per_run}${t.has_attachment ? ' · 📎' : ''} · #${t.id}</span>
+    </div>
+    <div class="test-detail" id="test-detail-${t.id}" style="display:none;padding:10px 14px;margin:0 0 8px;background:var(--bg-secondary);border-left:2px solid ${meta.color};font-size:12px;font-family:var(--font-mono);"></div>`;
+  }).join('')
+  + `<div style="margin-top:14px;font-size:12px;color:var(--text-muted)">${d.count} active tests. Click a row to audit its prompt and ground truth (fetched on demand — the grid stays blind).</div>`;
 }
 
 // On-demand audit view: ground truth is only fetched when explicitly opened.
@@ -1611,10 +1651,14 @@ async function toggleTestDetail(id, row) {
   const panel = document.getElementById('test-detail-' + id);
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
   if (!fullTestsCache) {
-    const resp = await fetch('/api/tests?full=true');
-    const d = await resp.json();
+    const r = await apiFetch('/api/tests?full=true');
+    if (!r.ok) {
+      panel.innerHTML = `<span style="color:var(--unsafe)">Failed to load: ${r.error}</span>`;
+      panel.style.display = '';
+      return;
+    }
     fullTestsCache = {};
-    (d.tests || []).forEach(t => fullTestsCache[t.id] = t);
+    (r.data.tests || []).forEach(t => fullTestsCache[t.id] = t);
   }
   const t = fullTestsCache[id];
   if (!t) { panel.textContent = 'Not found.'; panel.style.display = ''; return; }
@@ -1645,40 +1689,32 @@ async function submitNewTest() {
   };
   btn.disabled = true;
   status.textContent = 'Saving…';
-  try {
-    const resp = await fetch('/api/tests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const d = await resp.json();
-    if (d.error) {
-      status.textContent = '✗ ' + d.error;
-      status.style.color = 'var(--unsafe)';
-    } else {
-      status.textContent = `✓ Saved as test #${d.id}`;
-      status.style.color = 'var(--safe)';
-      fullTestsCache = null;
-      ['tb-name','tb-prompt','tb-expected'].forEach(i => document.getElementById(i).value = '');
-      loadTestsPage();
-    }
-  } catch (e) {
-    status.textContent = '✗ ' + e.message;
+  const r = await apiFetch('/api/tests', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok || (r.data && r.data.error)) {
+    status.textContent = '✗ ' + (r.error || r.data.error);
     status.style.color = 'var(--unsafe)';
-  } finally {
-    btn.disabled = false;
+  } else {
+    status.textContent = `✓ Saved as test #${r.data.id}`;
+    status.style.color = 'var(--safe)';
+    fullTestsCache = null;
+    ['tb-name','tb-prompt','tb-expected'].forEach(i => document.getElementById(i).value = '');
+    loadTestsPage();
   }
+  btn.disabled = false;
 }
 
 async function deactivateTest(id) {
   if (!confirm(`Deactivate test #${id}? Past runs keep their evidence; the test just stops being offered.`)) return;
-  const resp = await fetch('/api/tests/' + id, {
+  const r = await apiFetch('/api/tests/' + id, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ active: false }),
   });
-  const d = await resp.json();
-  if (d.error) { alert(d.error); return; }
+  if (!r.ok) { alert(r.error); return; }
   fullTestsCache = null;
   loadTestsPage();
 }
@@ -1687,48 +1723,47 @@ async function deactivateTest(id) {
 async function loadRunsPage() {
   const el = document.getElementById('runs-list');
   el.innerHTML = 'Loading…';
-  try {
-    const resp = await fetch('/api/runs');
-    const d = await resp.json();
-    if (!d.runs || !d.runs.length) {
-      el.innerHTML = '<div style="color:var(--text-muted)">No runs yet. Go to Benchmark and click ▶ Run on a model.</div>';
-      return;
-    }
-    el.innerHTML = d.runs.map(r => {
-      const statusColor = r.status === 'done' ? (r.pass_count === r.total_count ? 'var(--safe)' : (r.pass_count === 0 ? 'var(--unsafe)' : 'var(--flaky)')) : 'var(--accent-blue)';
-      return `<div class="list-row">
-        <span class="lr-axis" style="color:${statusColor}">${(r.status || '').toUpperCase()}</span>
-        <span class="lr-name">${r.model_key} — ${r.axis}</span>
-        <span class="lr-meta">${r.pass_count}/${r.total_count} · ${r.sha3_provenance ? r.sha3_provenance.slice(0,24) + '…' : 'no evidence yet'}</span>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    el.innerHTML = `<div style="color:var(--unsafe)">Failed to load runs: ${e.message}</div>`;
+  const r = await apiFetch('/api/runs');
+  if (!r.ok) {
+    el.innerHTML = `<div style="color:var(--unsafe)">Failed to load runs: ${r.error}</div>`;
+    return;
   }
+  const d = r.data;
+  if (!d.runs || !d.runs.length) {
+    el.innerHTML = '<div style="color:var(--text-muted)">No runs yet. Go to Benchmark and click ▶ Run on a model.</div>';
+    return;
+  }
+  el.innerHTML = d.runs.map(x => {
+    const statusColor = x.status === 'done' ? (x.pass_count === x.total_count ? 'var(--safe)' : (x.pass_count === 0 ? 'var(--unsafe)' : 'var(--flaky)')) : 'var(--accent-blue)';
+    return `<div class="list-row">
+      <span class="lr-axis" style="color:${statusColor}">${(x.status || '').toUpperCase()}</span>
+      <span class="lr-name">${x.model_key} — ${x.axis}</span>
+      <span class="lr-meta">${x.pass_count}/${x.total_count} · ${x.sha3_provenance ? x.sha3_provenance.slice(0,24) + '…' : 'no evidence yet'}</span>
+    </div>`;
+  }).join('');
 }
 
 // ============ LM Studio status page ============
 async function loadLmStudioPage() {
   const el = document.getElementById('lmstudio-status');
   el.innerHTML = 'Checking connection…';
-  try {
-    const resp = await fetch('/api/models');
-    const list = await resp.json();
-    const localModels = list.filter(m => m.location === 'local');
-    el.innerHTML = `
-      <div class="setup-card">
-        <div class="setup-card-title">Connection</div>
-        <p>This dashboard reaches LM Studio directly over HTTP (default <code>http://localhost:1234</code>), the same server your LM Studio app exposes under Developer → Local Server. Hermes Desktop is not in this path.</p>
-        <p style="color:var(--safe)">✅ ${localModels.length} local model(s) registered for benchmarking</p>
-      </div>
-      <div class="setup-card">
-        <div class="setup-card-title">Registered local models</div>
-        ${localModels.map(m => `<div class="list-row"><span class="lr-name">${m.display_name}</span><span class="lr-meta">${m.key} · ${m.context_length} ctx · ${m.size_gb} GB</span></div>`).join('')}
-      </div>
-    `;
-  } catch (e) {
-    el.innerHTML = `<div class="setup-card" style="border-left:3px solid var(--unsafe)"><div class="setup-card-title" style="color:var(--unsafe)">Connection check failed</div><p>${e.message}</p></div>`;
+  const r = await apiFetch('/api/models');
+  if (!r.ok) {
+    el.innerHTML = `<div class="setup-card" style="border-left:3px solid var(--unsafe)"><div class="setup-card-title" style="color:var(--unsafe)">Connection check failed</div><p>${r.error}</p></div>`;
+    return;
   }
+  const localModels = r.data.filter(m => m.location === 'local');
+  el.innerHTML = `
+    <div class="setup-card">
+      <div class="setup-card-title">Connection</div>
+      <p>This dashboard reaches LM Studio directly over HTTP (default <code>http://localhost:1234</code>), the same server your LM Studio app exposes under Developer → Local Server. Hermes Desktop is not in this path.</p>
+      <p style="color:var(--safe)">✅ ${localModels.length} local model(s) registered for benchmarking</p>
+    </div>
+    <div class="setup-card">
+      <div class="setup-card-title">Registered local models</div>
+      ${localModels.map(m => `<div class="list-row"><span class="lr-name">${m.display_name}</span><span class="lr-meta">${m.key} · ${m.context_length} ctx · ${m.size_gb} GB</span></div>`).join('')}
+    </div>
+  `;
 }
 
 loadNousExpTable();
@@ -1890,7 +1925,7 @@ async function runPromptTest() {
   const t0 = pbStartTimer(statusEl, label);
 
   try {
-    const resp = await fetch('/api/prompt-check', {
+    const r = await apiFetch('/api/prompt-check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1899,28 +1934,22 @@ async function runPromptTest() {
         image: pbImageData
       })
     });
-    const data = await resp.json();
     const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
     pbStopTimer();
 
     resultEl.style.display = '';
-    if (data.error) {
+    if (!r.ok || (r.data && r.data.error)) {
       resultEl.className = 'pb-result error';
-      resultEl.textContent = `ERROR (${elapsed}s wall)\n\n${data.error}`;
+      resultEl.textContent = `ERROR (${elapsed}s wall)\n\n${r.error || r.data.error}`;
       statusEl.textContent = `Failed after ${elapsed}s`;
     } else {
+      const data = r.data;
       resultEl.className = 'pb-result success';
       const tok = data.prompt_tokens != null
         ? `\n\n— tokens: ${data.prompt_tokens} prompt / ${data.completion_tokens} completion` : '';
       resultEl.textContent = `MODEL RESPONSE (${elapsed}s wall)\n\n${data.response}${tok}`;
       statusEl.textContent = `Done in ${elapsed}s`;
     }
-  } catch (e) {
-    pbStopTimer();
-    resultEl.style.display = '';
-    resultEl.className = 'pb-result error';
-    resultEl.textContent = `REQUEST FAILED\n\n${e.message}`;
-    statusEl.textContent = 'Request failed';
   } finally {
     runBtn.disabled = false;
     runBtn.textContent = '▶ Run Test';

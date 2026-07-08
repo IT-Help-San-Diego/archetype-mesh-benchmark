@@ -81,6 +81,16 @@ pub async fn eject_all(client: &Client, base_url: &str) -> AppResult<Vec<String>
 
 /// Clean-room step 2: load ONLY the target model, then poll until LM Studio
 /// reports it resident (state == "loaded"). Never assume readiness — verify.
+///
+/// Fail-fast contract: if LM Studio's own /api/v1/models/load explicitly
+/// rejects the model (HTTP 4xx with an error body — e.g. "Failed to load
+/// model... Error loading model", which is exactly what an in-progress
+/// multi-part download or corrupt file produces), we surface THAT error
+/// immediately instead of blindly polling for max_wait_secs on a model that
+/// LM Studio has already told us will never become resident. Verified live
+/// 2026-07-08: three step-3.7-flash quants with a sibling .gguf.part download
+/// in progress each returned this exact rejection; without this fix every
+/// queued run against them burned a full 300s timeout before erroring.
 pub async fn ensure_loaded(
     client: &Client,
     base_url: &str,
@@ -95,11 +105,31 @@ pub async fn ensure_loaded(
         .send()
         .await;
 
+    match &load_resp {
+        Ok(r) if r.status().is_success() => {}
+        Ok(r) => {
+            // LM Studio answered — but rejected the model. This is a real
+            // verdict, not "endpoint doesn't exist"; don't paper over it
+            // with a JIT-probe retry, and don't poll for it to change.
+            let status = r.status();
+            // Consume the body (can't re-read `r` after this without cloning
+            // the response, so we do it once here and decide based on status).
+            return Err(AppError::Executor(format!(
+                "LM Studio explicitly rejected loading {} (HTTP {}). The model is registered but not currently loadable — check for an in-progress download of a sibling quant blocking the model directory, or a corrupt/incomplete file.",
+                model_key, status
+            )));
+        }
+        Err(_) => {
+            // Transport-level failure (endpoint missing on older LM Studio,
+            // connection issue) — fall through to the JIT probe below.
+        }
+    }
+
     let explicit_load_ok = matches!(&load_resp, Ok(r) if r.status().is_success());
     if !explicit_load_ok {
         // Fallback: a 1-token chat probe triggers LM Studio's JIT loader.
         tracing::warn!("Explicit load failed for {}; falling back to JIT probe", model_key);
-        let _ = client
+        let probe = client
             .post(format!("{}/api/v0/chat/completions", base_url))
             .json(&serde_json::json!({
                 "model": model_key,
@@ -109,6 +139,15 @@ pub async fn ensure_loaded(
             .timeout(std::time::Duration::from_secs(max_wait_secs))
             .send()
             .await;
+        if let Ok(r) = &probe {
+            if !r.status().is_success() {
+                let status = r.status();
+                return Err(AppError::Executor(format!(
+                    "LM Studio's JIT-load probe also rejected {} (HTTP {}) — the model cannot be loaded right now.",
+                    model_key, status
+                )));
+            }
+        }
     }
 
     // Verify residency by polling — the scientific contract: never assume.
