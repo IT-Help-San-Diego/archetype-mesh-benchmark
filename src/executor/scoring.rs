@@ -37,7 +37,23 @@ pub fn score_response(actual: &str, expected: &str, method: &str) -> TrialScore 
     let expected_clean = expected.trim();
 
     let passed = match m {
-        ScoringMethod::Exact => actual_clean.eq_ignore_ascii_case(expected_clean),
+        ScoringMethod::Exact => {
+            // First-token exact match. Single-word-answer tests instruct
+            // "answer with exactly one word"; reasoning-trace models (e.g.
+            // Claude with extended thinking) often append an explanation after
+            // their committed answer. The leading token IS the answer — whole-
+            // response equality would score verbosity, not correctness.
+            // Token = first whitespace-delimited word, with trailing
+            // punctuation stripped ("INVALID." -> "INVALID") but interior
+            // characters kept ("391.0" stays "391.0" and correctly fails
+            // against "391" — the test suite guards this case).
+            let first_token = actual_clean
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_end_matches(|c: char| !c.is_ascii_alphanumeric());
+            first_token.eq_ignore_ascii_case(expected_clean)
+        }
         ScoringMethod::Substring => actual_clean
             .to_lowercase()
             .contains(&expected_clean.to_lowercase()),
@@ -140,6 +156,24 @@ mod tests {
     fn exact_trims_and_ignores_case() {
         assert!(score_response("  391 ", "391", "exact").passed);
         assert!(!score_response("391.0", "391", "exact").passed);
+    }
+
+    #[test]
+    fn exact_first_token_tolerates_reasoning_trace() {
+        // Reasoning models answer then explain — the committed first token is scored.
+        assert!(
+            score_response(
+                "INVALID\n\nThis is the fallacy of affirming the consequent.",
+                "INVALID",
+                "exact"
+            )
+            .passed
+        );
+        // But a wrong first word still fails even if the right word appears later.
+        assert!(!score_response("VALID — wait, actually INVALID.", "INVALID", "exact").passed);
+        // And the classic substring trap stays closed: VALID != INVALID.
+        assert!(!score_response("INVALID", "VALID", "exact").passed);
+        assert!(!score_response("", "VALID", "exact").passed);
     }
 
     #[test]

@@ -13,6 +13,50 @@ fn endpoint_for(provider: &str) -> AppResult<&'static str> {
     }
 }
 
+/// Resolve the API key for a cloud provider at RUN time (not process start).
+///
+/// Order: explicit env-derived key from Config, then — for Nous — the live
+/// Hermes OAuth agent key in ~/.hermes/auth.json. That token rotates (hours),
+/// so reading it fresh per run self-heals across rotations; a key snapshotted
+/// at service start would silently expire. Read-only access, never logged.
+pub fn resolve_api_key(provider: &str, config_key: &Option<String>) -> AppResult<String> {
+    if let Some(k) = config_key {
+        return Ok(k.clone());
+    }
+    if provider == "nous" {
+        let path = dirs_home().join(".hermes/auth.json");
+        let raw = std::fs::read_to_string(&path).map_err(|e| {
+            AppError::Executor(format!(
+                "No NOUS_API_KEY env and {} unreadable: {}",
+                path.display(),
+                e
+            ))
+        })?;
+        let json: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|e| AppError::Executor(format!("auth.json parse error: {}", e)))?;
+        if let Some(key) = json
+            .pointer("/providers/nous/agent_key")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+        {
+            return Ok(key.to_string());
+        }
+        return Err(AppError::Executor(
+            "auth.json has no providers.nous.agent_key — run `hermes setup --portal`".into(),
+        ));
+    }
+    Err(AppError::Executor(format!(
+        "No API key configured for provider '{}' (set NOUS_API_KEY / OPENROUTER_API_KEY)",
+        provider
+    )))
+}
+
+fn dirs_home() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("/"))
+}
+
 /// Execute one chat completion against a cloud provider.
 /// Returns (content, latency_ms).
 pub async fn chat(
