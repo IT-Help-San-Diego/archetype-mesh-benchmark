@@ -568,3 +568,41 @@ async fn hermes_reality_is_allowlisted_and_never_leaks_credentials() {
         }
     }
 }
+
+// ── 50/50 disclosure (user skepticism, 2026-07-08) ─────────────────────────
+// "A perfect 50/50 split can't be real, can it?" It can: for 32–128GB
+// machines life_reserve = total/2 exactly (clamp inactive), so the split is
+// exact arithmetic. The fix for looking-fake is self-explanation: the budget
+// must always name which constraint produced its numbers.
+
+#[tokio::test]
+async fn budget_always_names_its_binding_constraints() {
+    let app = common::test_app().await;
+    let response = app
+        .oneshot(Request::builder().uri("/api/host/reality").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_str(&body_string(response).await).unwrap();
+
+    let b = &json["budget"];
+    assert!(
+        !b["life_binding"].as_str().unwrap_or("").is_empty(),
+        "budget must explain which rule set the life reserve"
+    );
+    assert!(
+        !b["ai_binding"].as_str().unwrap_or("").is_empty(),
+        "budget must explain which ceiling bound the AI side"
+    );
+
+    // Cross-check the arithmetic claim itself on this host's real numbers:
+    // if the clamp was inactive, life_reserve must equal total/2 exactly.
+    let total = json["hardware"]["total_ram_gb"]["value"].as_f64().unwrap();
+    let life = b["life_reserve_gb"].as_f64().unwrap();
+    if (32.0..=128.0).contains(&total) {
+        assert!(
+            (life - total / 2.0).abs() < f64::EPSILON,
+            "midpoint zone: life_reserve {} must be exactly total/2 ({})",
+            life, total / 2.0
+        );
+    }
+}

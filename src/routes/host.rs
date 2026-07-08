@@ -107,12 +107,32 @@ pub async fn host_reality(State(state): State<AppState>) -> AppResult<Json<serde
     };
 
     // The budget heuristic — labeled, never presented as a measurement.
+    // DISCLOSURE (found by user skepticism, 2026-07-08: "a perfect 50/50
+    // can't be real, can it?"): for any machine where 16 <= total/2 <= 64
+    // (i.e. 32GB–128GB — most Macs), the clamp never engages and life
+    // reserve is EXACTLY total/2, so the split is exactly 50/50. That's
+    // correct arithmetic, but a clean 50/50 looks fake to a careful reader
+    // — so the response now names WHICH constraint produced each number
+    // (`binding`), and the UI prints it. Every output explains itself.
     let budget = total_ram_gb.map(|total| {
         let life_reserve = (total / 2.0).clamp(16.0, 64.0);
+        let life_binding = if total / 2.0 < 16.0 {
+            "16GB floor engaged: half your RAM would starve the OS, so the life reserve is held at 16GB"
+        } else if total / 2.0 > 64.0 {
+            "64GB cap engaged: normal computing doesn't grow past ~64GB, so every GB above 128GB total goes to the AI side"
+        } else if (total - 128.0).abs() < 0.01 {
+            "exactly at the crossover: total/2 = 64GB = the cap — the 50/50 split is exact arithmetic, not a rounding artifact"
+        } else {
+            "midpoint rule: 32GB–128GB machines split exactly 50/50 by construction (life = total/2, clamp inactive)"
+        };
         let headroom = (total - life_reserve).max(0.0);
-        let ai_budget = match gpu_ceiling_gb {
-            Some(ceiling) => headroom.min(ceiling),
-            None => headroom,
+        let (ai_budget, ai_binding) = match gpu_ceiling_gb {
+            Some(ceiling) if ceiling < headroom => (
+                ceiling,
+                "GPU-wired ceiling binds: RAM above what macOS lets the GPU wire can't hold model weights",
+            ),
+            Some(_) => (headroom, "headroom binds: total minus life reserve, under the GPU ceiling"),
+            None => (headroom, "headroom only: GPU ceiling unmeasurable on this host"),
         };
         let tier = if total < 16.0 {
             "cloud-first: not enough RAM for meaningful local inference alongside a usable system"
@@ -128,6 +148,8 @@ pub async fn host_reality(State(state): State<AppState>) -> AppResult<Json<serde
         serde_json::json!({
             "life_reserve_gb": life_reserve,
             "ai_budget_gb": ai_budget,
+            "life_binding": life_binding,
+            "ai_binding": ai_binding,
             "tier": tier,
             "kind": "heuristic",
             "formula": "life_reserve = clamp(total_ram/2, 16, 64); ai_budget = min(total_ram − life_reserve, gpu_ceiling)",

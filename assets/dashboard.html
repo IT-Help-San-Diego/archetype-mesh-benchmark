@@ -1539,6 +1539,8 @@ async function loadRealityCheck() {
           ${rest > 0.5 ? `<div class="rc-bar-seg rc-bar-ceiling" style="width:${pct(rest)}" title="above the GPU-wired ceiling — RAM the GPU can't wire">ceiling headroom</div>` : ''}
         </div>
         <div class="rc-tier">📍 ${d.budget.tier}</div>
+        ${d.budget.life_binding ? `<div class="rc-formula">why this split: ${d.budget.life_binding}</div>` : ''}
+        ${d.budget.ai_binding ? `<div class="rc-formula">AI side: ${d.budget.ai_binding}</div>` : ''}
         <div class="rc-formula">${d.budget.formula}</div>
       </div>`;
   } else {
