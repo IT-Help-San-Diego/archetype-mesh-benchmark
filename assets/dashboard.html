@@ -598,6 +598,7 @@
     <div class="header-subtitle">Scientific LLM Capability Verification Pipeline</div>
   </div>
   <div class="header-right">
+    <span id="conn-status" style="display:none;font-size:12px;font-weight:600;color:var(--flaky);background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:6px;border:1px solid var(--flaky);"></span>
     <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
     <button class="btn btn-primary" onclick="runSelected()">▶ Run Selected</button>
   </div>
@@ -1143,9 +1144,44 @@ evtSource.onmessage = (e) => {
   }
 };
 
-evtSource.onerror = () => {
-  log('err', 'SSE connection lost — will auto-reconnect');
+// ── SSE connection state — debounced logging + a persistent status pill ──
+// evtSource.onerror fires on EVERY failed reconnect attempt (browser retries
+// every ~3s per the SSE spec) — verified live 2026-07-08 by killing the
+// backend for ~70s: 23 identical "SSE connection lost" lines, one per retry,
+// with the DOM log never capped. Over a real multi-hour outage (see the
+// user's own Hermes Desktop logs from a DNS blip the same day) that's an
+// unbounded, ever-growing DOM. Fix: log the loss/recovery transitions once
+// each, not every retry tick; a status pill gives continuous feedback
+// without spamming the log at all.
+let sseWasDown = false;
+function setConnStatus(down) {
+  const pill = document.getElementById('conn-status');
+  if (!pill) return;
+  pill.style.display = down ? '' : 'none';
+  if (down) pill.textContent = '⚠ Backend unreachable — reconnecting…';
+}
+
+evtSource.onopen = () => {
+  if (sseWasDown) {
+    log('info', '✓ SSE reconnected — backend is back');
+  }
+  sseWasDown = false;
+  setConnStatus(false);
 };
+
+evtSource.onerror = () => {
+  if (!sseWasDown) {
+    // Log the transition once, not on every ~3s retry tick.
+    log('err', 'SSE connection lost — will auto-reconnect');
+    sseWasDown = true;
+  }
+  setConnStatus(true);
+};
+
+// Hard cap on the live-log DOM regardless of cause (SSE flapping, a chatty
+// run, or just a long-lived session) — trims oldest entries once over budget
+// so a tab left open for hours never accumulates unbounded log-line nodes.
+const LOG_MAX_LINES = 500;
 
 // Verdict helpers — lean language: capability axes PASS/FAIL, security SAFE/UNSAFE.
 // Each verdict entry is {v: "PASS"|"FAIL"|"SAFE"|"UNSAFE"|"FLAKY", ms: <avg latency>}.
@@ -1311,6 +1347,11 @@ function log(tag, msg) {
   line.className = 'log-line';
   line.innerHTML = `<span class="ts">${now}</span> <span class="${cls} ${phaseClass ? 'phase-' + phaseClass : ''}">${msg}</span>`;
   el.appendChild(line);
+  // Trim oldest entries once over budget — see LOG_MAX_LINES comment above
+  // for why this exists (unbounded growth during a long outage or session).
+  while (el.children.length > LOG_MAX_LINES) {
+    el.removeChild(el.firstChild);
+  }
   el.scrollTop = el.scrollHeight;
 }
 
