@@ -226,6 +226,14 @@
     background: var(--bg-card-hover);
     border-color: var(--accent-blue);
   }
+  .model-card-unresolved {
+    opacity: 0.65;
+    border-style: dashed;
+    border-color: var(--flaky);
+  }
+  .model-card-unresolved:hover {
+    border-color: var(--flaky);
+  }
   .model-card-header {
     display: flex;
     align-items: center;
@@ -1226,17 +1234,34 @@ function renderGrid() {
       ? '<span class="badge-local">Local</span>'
       : '<span class="badge-cloud">Cloud</span>';
 
-    return `<div class="model-card" data-key="${m.key}">
+    // context_length is coerced to 0 server-side (sync uses .unwrap_or(0))
+    // when LM Studio's own /api/v0/models listing has no context_length for
+    // this model at all — verified live 2026-07-08: an in-progress multi-part
+    // download (a sibling .gguf.part) produces exactly this shape in LM
+    // Studio's API, with no other distinguishing field. It is NOT loadable;
+    // don't let a click burn a run against something we already know will
+    // fail. (This is a narrower signal than "will this load" — a fully-
+    // resolved model can still be blocked by a sibling in-progress download,
+    // which the fail-fast fix in ensure_loaded() catches in ~2s instead of
+    // 300s. This flag catches the subset LM Studio's listing itself exposes.)
+    const unresolved = m.location === 'local' && !m.context_length;
+    const cardClasses = 'model-card' + (unresolved ? ' model-card-unresolved' : '');
+    const runBtn = unresolved
+      ? `<button class="btn-mini" disabled title="LM Studio reports no context length or capabilities for this model — likely an incomplete/in-progress download. Not loadable.">⏳ Incomplete</button>`
+      : `<button class="btn-mini" onclick="runSingle('${m.key}')">▶ Run</button>`;
+
+    return `<div class="${cardClasses}" data-key="${m.key}" data-unresolved="${unresolved}">
       <div class="model-card-header">
         ${locBadge}
         <span class="model-name">${m.display_name}</span>
+        ${unresolved ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:var(--flaky);color:#000;">INCOMPLETE DOWNLOAD?</span>' : ''}
       </div>
       <div class="provider-tag">${m.provider} · ${m.key}</div>
       ${m.size_gb ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${m.size_gb} GB · ${m.context_length || 0} ctx</div>` : ''}
       ${m.tags && m.tags.length ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${m.tags.map(t => `<span class="chip" style="font-size:10px;padding:2px 6px;">${t}</span>`).join('')}</div>` : ''}
       <div class="verdict-grid">${verdictCells}</div>
       <div class="model-card-actions">
-        <button class="btn-mini" onclick="runSingle('${m.key}')">▶ Run</button>
+        ${runBtn}
       </div>
     </div>`;
   }).join('');
@@ -1291,6 +1316,14 @@ function log(tag, msg) {
 
 // Run actions — live against /api/runs
 function runSingle(key) {
+  // Defense in depth: even though the button is disabled/hidden for
+  // unresolved models, refuse here too — covers runSelected() picking up a
+  // selected-but-unresolved card, and any direct console/script call.
+  const m = models.find(x => x.key === key);
+  if (m && m.location === 'local' && !m.context_length) {
+    log('err', `Refusing to run ${key} — LM Studio reports no context length (likely an incomplete download). See the model card for details.`);
+    return;
+  }
   log('info', `Queuing test run for ${key}...`);
   apiFetch('/api/runs', {
     method: 'POST',
@@ -1302,12 +1335,13 @@ function runSingle(key) {
   });
 }
 function runSelected() {
-  const cards = document.querySelectorAll('.model-card.selected');
+  const cards = Array.from(document.querySelectorAll('.model-card.selected'))
+    .filter(c => c.dataset.unresolved !== 'true');
   if (cards.length === 0) {
     log('info', 'Click a model card to select it, then Run Selected');
     return;
   }
-  const keys = Array.from(cards).map(c => c.dataset.key);
+  const keys = cards.map(c => c.dataset.key);
   keys.forEach(k => runSingle(k));
 }
 function openTestBuilder() {
@@ -1355,12 +1389,24 @@ if (localStorage.getItem('amb-lc-collapsed') === '1') {
   document.getElementById('length-check').classList.add('collapsed');
 }
 
+// Shared option-label helper: flags models LM Studio's own listing shows as
+// unresolved (no context_length — see the model-card comment above for why).
+// Dropdowns can't be per-option disabled with real styling across browsers,
+// so this is a clear textual warning rather than a hard block; the actual
+// hard block lives in runSingle()/runPromptTest()/backend fail-fast.
+function modelOptionLabel(m) {
+  const unresolved = m.location === 'local' && !m.context_length;
+  return unresolved
+    ? `${m.display_name} — ⏳ INCOMPLETE DOWNLOAD?`
+    : `${m.display_name} (${m.context_length || '?'} ctx)`;
+}
+
 function populateLcModels() {
   const sel = document.getElementById('lc-model');
   if (!sel || !models.length) return;
   const prevValue = sel.value;
   sel.innerHTML = models.map(m =>
-    `<option value="${m.key}">${m.display_name} (${m.context_length || '?'} ctx)</option>`
+    `<option value="${m.key}">${modelOptionLabel(m)}</option>`
   ).join('');
   if (prevValue && models.some(m => m.key === prevValue)) sel.value = prevValue;
   onPromptInput();
@@ -1452,7 +1498,7 @@ function populateNousExpModels() {
   const sel = document.getElementById('nous-exp-model');
   if (!sel || !models.length) return;
   const prev = sel.value;
-  sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}</option>`).join('');
+  sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}${m.location === 'local' && !m.context_length ? ' — ⏳ INCOMPLETE DOWNLOAD?' : ''}</option>`).join('');
   if (prev && models.some(m => m.key === prev)) sel.value = prev;
 }
 
@@ -1777,7 +1823,7 @@ async function loadPromptBuilderPage() {
   // Populate model dropdown
   const sel = document.getElementById('pb-model');
   if (!sel || !models.length) return;
-  sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}</option>`).join('');
+  sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}${m.location === 'local' && !m.context_length ? ' — ⏳ INCOMPLETE DOWNLOAD?' : ''}</option>`).join('');
 }
 
 function handleImageUpload(event) {
@@ -1916,6 +1962,12 @@ async function runPromptTest() {
 
   if (!modelKey) { alert('Please select a model'); return; }
   if (!prompt.trim()) { alert('Please enter a prompt'); return; }
+
+  const pbM = models.find(x => x.key === modelKey);
+  if (pbM && pbM.location === 'local' && !pbM.context_length) {
+    alert(`${pbM.display_name} shows no context length in LM Studio's own listing — this usually means an incomplete/in-progress download. It cannot be loaded right now.`);
+    return;
+  }
 
   runBtn.disabled = true;
   runBtn.textContent = '⏳ Running…';
