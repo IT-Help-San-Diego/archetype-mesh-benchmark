@@ -563,9 +563,6 @@
   }
   .pb-result.success { border-color: var(--safe); }
   .pb-result.error { border-color: var(--unsafe); }
-  .pb-loading { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-cyan); font-size: 12px; }
-  .pb-spinner { width: 16px; height: 16px; border: 2px solid var(--accent-cyan); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -1709,79 +1706,84 @@ function loadExample(key) {
   document.getElementById('pb-prompt').value = ex.prompt;
 }
 
-function handleImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  if (file.size > 10 * 1024 * 1024) {
-    alert('File too large (max 10MB)');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    pbImageData = e.target.result;
-    pbImageName = file.name;
-    const preview = document.getElementById('pb-file-preview');
-    preview.innerHTML = `
-      <div class="pb-preview-item">
-        <img src="${e.target.result}" alt="${file.name}">
-        <button class="pb-preview-remove" onclick="removeImagePreview()">×</button>
-      </div>
-      <small style="color:var(--text-muted);font-size:11px;">${file.name} (${(file.size/1024).toFixed(1)} KB)</small>
-    `;
-  };
-  reader.readAsDataURL(file);
+// Live elapsed counter — real data while the model works, never a spinner.
+let pbTimer = null;
+function pbStartTimer(statusEl, label) {
+  const t0 = performance.now();
+  pbStopTimer();
+  pbTimer = setInterval(() => {
+    statusEl.textContent = `${label} — ${((performance.now() - t0) / 1000).toFixed(1)}s elapsed`;
+  }, 100);
+  return t0;
 }
-
-function removeImagePreview() {
-  const preview = document.getElementById('pb-file-preview');
-  preview.innerHTML = '';
-  const input = document.getElementById('pb-image');
-  input.value = '';
+function pbStopTimer() {
+  if (pbTimer) { clearInterval(pbTimer); pbTimer = null; }
 }
 
 async function runPromptTest() {
   const runBtn = document.getElementById('pb-run-btn');
   const statusEl = document.getElementById('pb-status');
   const resultEl = document.getElementById('pb-result');
-  
+
   const modelKey = document.getElementById('pb-model').value;
   const prompt = document.getElementById('pb-prompt').value;
-  
-  if (!modelKey) {
-    alert('Please select a model');
-    return;
-  }
-  if (!document.getElementById('pb-prompt').value.trim()) {
-    alert('Please enter a prompt');
-    return;
-  }
-  
+
+  if (!modelKey) { alert('Please select a model'); return; }
+  if (!prompt.trim()) { alert('Please enter a prompt'); return; }
+
   runBtn.disabled = true;
   runBtn.textContent = '⏳ Running…';
-  document.getElementById('pb-status').textContent = 'Running…';
-  
-  const prompt = document.getElementById('pb-prompt').value;
-  
+  const label = pbImageData
+    ? `Sending prompt + image (${pbImageName}) to ${modelKey}`
+    : `Sending prompt to ${modelKey}`;
+  const t0 = pbStartTimer(statusEl, label);
+
   try {
-    const body = {
-      model: document.getElementById('pb-model').value,
-      prompt: document.getElementById('pb-prompt').value,
-      image: null // placeholder for image support
-    };
-    
-    // For now, just use the /api/prompt-check endpoint with live=false
-    // In the future, we'd add a dedicated endpoint for prompt testing
     const resp = await fetch('/api/prompt-check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model_key: document.getElementById('pb-model').value,
-        prompt: document.getElementById('pb-prompt').value
+        model_key: modelKey,
+        prompt: prompt,
+        image: pbImageData
       })
     });
-    
-    const data = await fetch.json();
-    
+    const data = await resp.json();
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+    pbStopTimer();
+
+    resultEl.style.display = '';
+    if (data.error) {
+      resultEl.className = 'pb-result error';
+      resultEl.textContent = `ERROR (${elapsed}s wall)\n\n${data.error}`;
+      statusEl.textContent = `Failed after ${elapsed}s`;
+    } else {
+      resultEl.className = 'pb-result success';
+      const tok = data.prompt_tokens != null
+        ? `\n\n— tokens: ${data.prompt_tokens} prompt / ${data.completion_tokens} completion` : '';
+      resultEl.textContent = `MODEL RESPONSE (${elapsed}s wall)\n\n${data.response}${tok}`;
+      statusEl.textContent = `Done in ${elapsed}s`;
+    }
   } catch (e) {
-    console.error(e);
+    pbStopTimer();
+    resultEl.style.display = '';
+    resultEl.className = 'pb-result error';
+    resultEl.textContent = `REQUEST FAILED\n\n${e.message}`;
+    statusEl.textContent = 'Request failed';
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ Run Test';
   }
+}
+
+function clearPromptResult() {
+  const resultEl = document.getElementById('pb-result');
+  resultEl.style.display = 'none';
+  resultEl.textContent = '';
+  document.getElementById('pb-status').textContent = '';
+}
+
+</script>
+
+</body>
+</html>
