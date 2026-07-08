@@ -100,10 +100,23 @@ pub async fn execute_run(
     provider: String,
     axis: String,
 ) {
-    let result = execute_run_inner(
-        &db, &config, &tx, run_id, model_id, &model_key, &location, &provider, &axis,
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(RUN_BUDGET_SECS),
+        execute_run_inner(
+            &db, &config, &tx, run_id, model_id, &model_key, &location, &provider, &axis,
+        ),
     )
-    .await;
+    .await
+    // Budget expiry maps onto the same error path as any other failure:
+    // status='error', finished, telemetry emitted. Completed trials are
+    // already persisted row-by-row, so partial evidence survives.
+    .unwrap_or_else(|_| {
+        Err(AppError::Executor(format!(
+            "Run exceeded the {}-minute wall-clock budget and was aborted to protect the machine. \
+             Trials completed before the cutoff are preserved in trial_results.",
+            RUN_BUDGET_SECS / 60
+        )))
+    });
 
     if let Err(e) = result {
         tracing::error!("Run {} failed: {}", run_id, e);
@@ -119,6 +132,14 @@ pub async fn execute_run(
         );
     }
 }
+
+/// Hard wall-clock budget per run. This machine is someone's daily driver:
+/// a pathological model (endless reasoning loops, thrashing swap) must never
+/// silently grind the GPU for hours through a terminal the user can't see.
+/// Worst case without this: 300s load + 33 trials x 300s timeout ≈ 3 hours
+/// for ONE queued run. With it: the run aborts honestly at the budget,
+/// records whatever trials completed, and frees the machine.
+const RUN_BUDGET_SECS: u64 = 1800; // 30 minutes
 
 #[allow(clippy::too_many_arguments)]
 async fn execute_run_inner(
