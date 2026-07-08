@@ -1,0 +1,14 @@
+-- v019: Drop test_runs.num_trials — dead schema, same class as the
+-- flaky_threshold cleanup earlier this session.
+--
+-- Created in 003_ era migration 004 with a default of 3, but verified never
+-- read or written by any current code path (grep across src/, migrations/,
+-- assets/dashboard.html: the only hit is its own CREATE TABLE line). The
+-- real trial count per test lives on tests.trials_per_run and is read by
+-- the executor per-test inside execute_run_inner (test.trials_per_run.
+-- unwrap_or(3).max(1)) — a run can execute multiple tests with DIFFERENT
+-- trial counts, so a single num_trials-per-RUN column was never even the
+-- right shape for the data once the axis-level test battery model landed.
+-- A column that implies a per-run trial count the engine doesn't use is a
+-- lie in the schema, same reasoning as dropping tests.flaky_threshold.
+ALTER TABLE test_runs DROP COLUMN IF EXISTS num_trials;

@@ -29,7 +29,7 @@ async fn test_summary_returns_json() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(json.is_array());
-    assert!(json.as_array().unwrap().len() > 0);
+    assert!(!json.as_array().unwrap().is_empty());
 }
 
 #[tokio::test]
