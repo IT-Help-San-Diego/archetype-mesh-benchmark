@@ -64,6 +64,10 @@ pub async fn test_app() -> Router {
             "/api/hermes/reality",
             axum::routing::get(archetype_mesh_dashboard::routes::hermes_check::hermes_reality),
         )
+        .route(
+            "/api/prompt-history",
+            axum::routing::get(archetype_mesh_dashboard::routes::prompt_check::prompt_history),
+        )
         .nest_service("/assets", static_files)
         .layer(TraceLayer::new_for_http())
         .with_state(state)

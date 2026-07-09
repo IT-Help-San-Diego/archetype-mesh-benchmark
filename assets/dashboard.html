@@ -980,6 +980,12 @@
       </div>
     </div>
 
+    <!-- History — every run persisted server-side; click to reinspect -->
+    <div class="pb-section">
+      <div class="pb-section-title">🕘 Run History — every test is evidence, nothing vanishes</div>
+      <div id="pb-history">Loading…</div>
+    </div>
+
     <!-- Examples — collapsed by default; loading one fills the compose column -->
     <div class="pb-section pb-collapsible collapsed" id="pb-examples-section">
       <div class="pb-section-title pb-collapse-head" onclick="togglePbSection('pb-examples-section')">📚 Real Examples from the Playbook — click to load <span class="pb-caret">▾</span></div>
@@ -2012,10 +2018,23 @@ async function toggleTestDetail(id, row) {
   const t = fullTestsCache[id];
   if (!t) { panel.textContent = 'Not found.'; panel.style.display = ''; return; }
   const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  // Attachment viewer (user request 2026-07-08): auditing a vision test
+  // means seeing the ACTUAL pixels the model receives, not just the prompt.
+  // attachment_path is repo-relative (assets/tests/…) and ServeDir mounts
+  // assets/ at /assets — strip the prefix to get the URL. SHA3 shown so the
+  // viewer is provably the same file the executor pins at run time.
+  const attachBlock = t.attachment_path
+    ? `<div style="color:var(--text-muted);margin:10px 0 6px;">IMAGE SENT TO MODEL (click to open full size)</div>
+       <a href="/${esc(t.attachment_path)}" target="_blank" rel="noopener">
+         <img src="/${esc(t.attachment_path)}" alt="test attachment" style="max-width:420px;max-height:260px;border:1px solid var(--border);border-radius:6px;display:block;">
+       </a>
+       <div style="color:var(--text-muted);font-size:10px;margin-top:4px;word-break:break-all;">pinned ${esc(t.attachment_sha3 || 'no hash')}</div>`
+    : '';
   panel.innerHTML =
     `<div style="color:var(--text-muted);margin-bottom:6px;">PROMPT SENT TO MODEL</div>` +
     `<div style="white-space:pre-wrap;margin-bottom:10px;">${esc(t.prompt_text)}</div>` +
-    `<div style="color:var(--text-muted);margin-bottom:6px;">GROUND TRUTH (never sent)</div>` +
+    attachBlock +
+    `<div style="color:var(--text-muted);margin:10px 0 6px;">GROUND TRUTH (never sent)</div>` +
     `<div style="color:var(--safe);">${esc(t.expected_result)}</div>` +
     `<div style="margin-top:10px;"><button class="btn btn-secondary" style="font-size:11px;" onclick="deactivateTest(${t.id})">🗑 Deactivate</button></div>`;
   panel.style.display = '';
@@ -2173,6 +2192,7 @@ async function loadPromptBuilderPage() {
   const sel = document.getElementById('pb-model');
   if (!sel || !models.length) return;
   sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}${m.location === 'local' && !m.context_length ? ' — ⏳ INCOMPLETE DOWNLOAD?' : ''}</option>`).join('');
+  loadPbHistory();
 }
 
 function handleImageUpload(event) {
@@ -2387,6 +2407,7 @@ async function runPromptTest() {
   } finally {
     runBtn.disabled = false;
     runBtn.textContent = '▶ Run Test';
+    loadPbHistory();
   }
 }
 
@@ -2401,6 +2422,52 @@ function clearPromptResult() {
 
 function togglePbSection(id) {
   document.getElementById(id)?.classList.toggle('collapsed');
+}
+
+// ── Run history: the user's own evidence trail (request 2026-07-08) ──
+let pbHistoryCache = [];
+async function loadPbHistory() {
+  const el = document.getElementById('pb-history');
+  if (!el) return;
+  const r = await apiFetch('/api/prompt-history?limit=20');
+  if (!r.ok) { el.innerHTML = `<span style="color:var(--unsafe)">Couldn't load history: ${r.error}</span>`; return; }
+  pbHistoryCache = r.data.history || [];
+  if (!pbHistoryCache.length) { el.innerHTML = '<span class="pb-result-empty">No runs recorded yet. Runs are persisted from here on — nothing vanishes.</span>'; return; }
+  el.innerHTML = `<table class="loot-table"><thead><tr><th>When</th><th>Model</th><th>Prompt</th><th>Img</th><th>Outcome</th><th>ms</th></tr></thead><tbody>` +
+    pbHistoryCache.map((h, i) => {
+      const outcome = h.no_final_answer
+        ? '<span style="color:var(--accent-amber)">⚠️ NO ANSWER</span>'
+        : `<span style="color:var(--safe)">✓</span> ${(h.response||'').slice(0,60).replace(/&/g,'&amp;').replace(/</g,'&lt;')}${(h.response||'').length>60?'…':''}`;
+      return `<tr style="cursor:pointer" onclick="showPbHistory(${i})" title="click to reload this run into the result panel">
+        <td style="white-space:nowrap">${h.created_at.slice(5,16)}</td>
+        <td class="loot-model-name">${h.model_key}</td>
+        <td>${(h.prompt||'').slice(0,50).replace(/&/g,'&amp;').replace(/</g,'&lt;')}${(h.prompt||'').length>50?'…':''}</td>
+        <td>${h.has_image ? '🖼' : ''}</td>
+        <td>${outcome}</td>
+        <td style="white-space:nowrap">${h.latency_ms ?? ''}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+function showPbHistory(i) {
+  const h = pbHistoryCache[i];
+  if (!h) return;
+  const resultEl = document.getElementById('pb-result');
+  const emptyHint = document.getElementById('pb-result-empty');
+  if (emptyHint) emptyHint.style.display = 'none';
+  const esc = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const reasoningBlock = h.reasoning_content
+    ? `<div style="margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.04);border-left:3px solid var(--accent-blue);border-radius:4px;">
+         <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">🧠 Reasoning Trace</div>
+         <div style="white-space:pre-wrap;font-size:12px;color:var(--text-muted);">${esc(h.reasoning_content)}</div>
+       </div>` : '';
+  const banner = h.no_final_answer
+    ? `<div class="pb-no-answer"><div class="pb-no-answer-title">⚠️ NO FINAL ANSWER — this run failed (finish_reason: ${esc(h.finish_reason||'?')})</div></div>` : '';
+  resultEl.style.display = '';
+  resultEl.className = h.no_final_answer ? 'pb-result error' : 'pb-result success';
+  resultEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">HISTORY #${h.id} · ${esc(h.created_at)} · ${esc(h.model_key)}${h.has_image ? ' · 🖼 image attached' : ''}</div>${banner}${reasoningBlock}<div style="white-space:pre-wrap;">${esc(h.response)}\n\n— tokens: ${h.prompt_tokens ?? '?'} prompt / ${h.completion_tokens ?? '?'} completion${h.reasoning_tokens ? ` (${h.reasoning_tokens} reasoning)` : ''} · ${h.latency_ms ?? '?'}ms</div>`;
+  document.getElementById('pb-prompt').value = h.prompt || '';
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 </script>

@@ -14,7 +14,15 @@ pub struct LsModelInfo {
     pub id: String,
     pub state: String,
     pub max_context_length: Option<i64>,
-    pub capabilities: Option<serde_json::Value>,
+    /// LM Studio's model type: "llm", "vlm", "embeddings". Vision capability
+    /// is signaled HERE (type == "vlm"), NOT in a capabilities field — that
+    /// field is an ARRAY like ["tool_use"] and never contains a vision entry.
+    /// Ground truth verified against /api/v0/models live 2026-07-08:
+    /// qwen3-vl-8b reports type=vlm, capabilities=["tool_use"]. The old
+    /// capabilities.vision probe synced EVERY model to supports_vision=false,
+    /// which made the pre-flight gate block all vision runs after any sync.
+    #[serde(rename = "type")]
+    pub model_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,12 +158,13 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
         let key = &lm.id;
         seen_keys.insert(key.clone());
 
-        // Vision capability detection
-        let supports_vision = lm.capabilities
-            .as_ref()
-            .and_then(|c| c.get("vision"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        // Vision capability detection — type == "vlm" is the real signal.
+        // BUG HISTORY (2026-07-08, caught by a live 400 on a vision run):
+        // this used to probe capabilities.vision as a bool, which NEVER
+        // exists (capabilities is ["tool_use"]-style array) — so every model
+        // including qwen3-vl-8b synced as supports_vision=false and the
+        // pre-flight gate blocked ALL vision runs after any sync.
+        let supports_vision = lm.model_type.as_deref() == Some("vlm");
 
         if let Some(&model_id) = existing.get(key) {
             // Update existing
@@ -194,11 +203,7 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
             .bind(&lm.id)
             .bind(&lm.id)
             .bind(lm.max_context_length.unwrap_or(0))
-            .bind(lm.capabilities
-                .as_ref()
-                .and_then(|c| c.get("vision"))
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false))
+            .bind(supports_vision)
             .bind(&lm.id)
             .execute(&state.db)
             .await?;

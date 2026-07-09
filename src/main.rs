@@ -61,6 +61,7 @@ async fn main() {
         .route("/api/runs/{id}", get(routes::runs::get_run_detail))
         .route("/api/runs/{id}/abort", post(routes::runs::abort_run))
         .route("/api/prompt-check", get(routes::prompt_check::prompt_check).post(routes::prompt_check::prompt_check_post))
+        .route("/api/prompt-history", get(routes::prompt_check::prompt_history))
         .route("/api/loot", get(routes::loot::loot_handler))
         .route("/api/router/plan", get(routes::router::router_plan))
         .route("/api/host/reality", get(routes::host::host_reality))
