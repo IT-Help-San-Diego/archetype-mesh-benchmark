@@ -46,6 +46,16 @@ The commit history is deliberately forensic — most fixes cite the live inciden
 - **🖥️ Reality check** — the setup page *measures your machine* (RAM via `sysctl`, GPU ceiling via Metal's `recommendedMaxWorkingSetSize` — a documented API, not folklore, live memory pressure, LM Studio state) and computes an honest AI RAM budget with the formula shown. Every number carries the command it came from.
 - **⚙️ Hermes-aware** — if you run [Hermes Agent](https://hermes-agent.nousresearch.com), the setup page reads your actual config (allowlisted fields only — never credentials) and shows verified ✅ state for main model and auxiliary task slots.
 
+## Using this with Hermes Agent / Hermes Desktop
+
+This dashboard pairs naturally with [Hermes Agent](https://hermes-agent.nousresearch.com) (Nous Research's open agent runtime) — it was built alongside a live Hermes deployment:
+
+- **Route by evidence, not vibes:** run the benchmark battery, then open `GET /api/router/plan` — it assigns a verified primary + fallbacks per capability axis. Map those onto Hermes' **Settings → Model Settings → Auxiliary Tasks** slots (vision, MCP tool routing, approval classification, web extract). The Setup tab shows the exact mapping.
+- **The "Approval" slot is your security surface:** Hermes' smart auto-approve sends shell commands to a model for APPROVE/DENY/ESCALATE judgment. This dashboard's security axis measures exactly that job — prompt-injection resistance with real injection payloads — so you can pin a *proven* local model there instead of guessing.
+- **Config verification, read-only:** the Setup tab reads `~/.hermes/config.yaml` through a strict allowlist (never credentials) and shows live ✅/⚠️ against what Hermes is actually configured to do.
+
+Hermes is not required — the dashboard works standalone with LM Studio and/or any OpenAI-compatible cloud endpoint.
+
 ## Stack
 
 - **Backend:** Rust — Axum 0.8, Tokio, SQLx 0.9, PostgreSQL, reqwest, SHA-3. One static binary.

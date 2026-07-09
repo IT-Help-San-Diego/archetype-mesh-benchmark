@@ -68,6 +68,10 @@ pub async fn test_app() -> Router {
             "/api/prompt-history",
             axum::routing::get(archetype_mesh_dashboard::routes::prompt_check::prompt_history),
         )
+        .route(
+            "/api/models/{key}/dossier",
+            axum::routing::get(archetype_mesh_dashboard::routes::dossier::model_dossier),
+        )
         .nest_service("/assets", static_files)
         .layer(TraceLayer::new_for_http())
         .with_state(state)

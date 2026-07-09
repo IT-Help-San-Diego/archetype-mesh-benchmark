@@ -56,6 +56,7 @@ async fn main() {
         .route("/api/status", get(routes::status::status_handler))
         .route("/api/summary", get(routes::summary::summary_handler))
         .route("/api/models", get(routes::models::models_handler))
+        .route("/api/models/{key}/dossier", get(routes::dossier::model_dossier))
         .route("/api/events", get(routes::events::sse_handler))
         .route("/api/runs", get(routes::runs::list_runs).post(routes::runs::start_runs))
         .route("/api/runs/{id}", get(routes::runs::get_run_detail))

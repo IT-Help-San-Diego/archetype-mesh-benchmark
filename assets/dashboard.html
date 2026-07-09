@@ -64,6 +64,35 @@
   .site-footer-sep { opacity: 0.5; }
   .site-footer-note { font-style: italic; }
 
+  /* ── Model dossier modal — every factual thing we know, sourced ── */
+  .dossier-btn { margin-left: auto; flex-shrink: 0; }
+  .dossier-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+  .dossier-modal {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-top: 3px solid var(--accent-gold); border-radius: 10px;
+    width: min(760px, 92vw); max-height: 84vh; overflow-y: auto;
+    padding: var(--fib-4); position: relative;
+  }
+  .dossier-modal::before {
+    content: ''; position: absolute; top: var(--fib-3); right: var(--fib-3);
+    width: 89px; height: 89px; opacity: 0.07; pointer-events: none;
+    background: url('/assets/owl-signature.png') center/contain no-repeat;
+  }
+  .dossier-title { font-size: 17px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 2px; }
+  .dossier-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: var(--fib-3); }
+  .dossier-close { position: absolute; top: var(--fib-2); right: var(--fib-2); background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; z-index: 1; }
+  .dossier-close:hover { color: var(--text-primary); }
+  .dossier-section { margin-bottom: var(--fib-4); }
+  .dossier-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-gold); font-family: var(--font-mono); margin-bottom: var(--fib-2); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .dossier-kv { display: grid; grid-template-columns: 180px 1fr; gap: 3px var(--fib-3); font-size: 12px; }
+  .dossier-kv dt { color: var(--text-muted); }
+  .dossier-kv dd { font-family: var(--font-mono); word-break: break-word; }
+  .dossier-src { font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: var(--fib-1); }
+
   body {
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -709,7 +738,7 @@
 
 <!-- Header -->
 <div class="header">
-  <img class="logo" src="/assets/owl.png" alt="Owl Semaphore" onerror="this.style.display='none'">
+  <img class="logo" src="/assets/owl-signature.png" alt="IT Help San Diego — Owl of Athena" onerror="this.style.display='none'">
   <div>
     <div class="header-title">Archetype Mesh Benchmark <span class="badge">BETA</span></div>
     <div class="header-subtitle">Scientific LLM Capability Verification Pipeline</div>
@@ -1438,6 +1467,7 @@ function renderGrid() {
         ${locBadge}
         <span class="model-name">${m.display_name}</span>
         ${unresolved ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:var(--flaky);color:#000;">INCOMPLETE DOWNLOAD?</span>' : ''}
+        <button class="btn-mini dossier-btn" onclick="event.stopPropagation(); openDossier('${m.key.replace(/'/g, "\\'")}')" title="Every factual thing we know about this model — registry, live state, full evidence record">📋 Dossier</button>
       </div>
       <div class="provider-tag">${m.provider} · ${m.key}</div>
       ${m.size_gb ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${m.size_gb} GB · ${m.context_length || 0} ctx</div>` : ''}
@@ -2528,6 +2558,108 @@ function showPbHistory(i) {
   resultEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">HISTORY #${h.id} · ${esc(h.created_at)} · ${esc(h.model_key)}${h.has_image ? ' · 🖼 image attached' : ''}</div>${banner}${reasoningBlock}<div style="white-space:pre-wrap;">${esc(h.response)}\n\n— tokens: ${h.prompt_tokens ?? '?'} prompt / ${h.completion_tokens ?? '?'} completion${h.reasoning_tokens ? ` (${h.reasoning_tokens} reasoning)` : ''} · ${h.latency_ms ?? '?'}ms</div>`;
   document.getElementById('pb-prompt').value = h.prompt || '';
   resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+// ── Model dossier: every factual thing we know, sourced (2026-07-09) ──
+async function openDossier(key) {
+  // Remove any existing modal first
+  document.querySelector('.dossier-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'dossier-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div class="dossier-modal"><button class="dossier-close" onclick="this.closest('.dossier-overlay').remove()">✕</button><div class="dossier-title">${key}</div><div class="dossier-sub">assembling dossier — registry, live state, evidence…</div></div>`;
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
+
+  const r = await apiFetch(`/api/models/${encodeURIComponent(key)}/dossier`);
+  const modal = overlay.querySelector('.dossier-modal');
+  if (!r.ok) {
+    modal.querySelector('.dossier-sub').textContent = `Failed: ${r.error}`;
+    return;
+  }
+  const d = r.data, reg = d.registry, live = d.live;
+  const esc = s => String(s ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const kv = pairs => `<dl class="dossier-kv">${pairs.map(([k,v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  const fmtDate = s => s ? String(s).slice(0, 16).replace('T',' ') : '—';
+
+  // Registry facts
+  const regHtml = kv([
+    ['key', esc(reg.key)],
+    ['display name', esc(reg.display_name)],
+    ['provider · location', `${esc(reg.provider)} · ${esc(reg.location)}`],
+    ['context length', reg.context_length ? reg.context_length.toLocaleString() + ' tokens' : '⚠️ unknown (incomplete download?)'],
+    ['vision capable', reg.supports_vision ? '✅ yes (LM Studio type=vlm)' : 'no'],
+    ['size on disk', reg.size_gb ? reg.size_gb + ' GB' : '—'],
+    ['tags', reg.tags && reg.tags.length ? reg.tags.map(esc).join(', ') : '—'],
+    ['notes', esc(reg.notes)],
+    ['first registered', fmtDate(reg.created_at)],
+    ['registry updated', fmtDate(reg.updated_at)],
+  ]);
+
+  // Live LM Studio facts
+  let liveHtml;
+  if (live.applicable === false) {
+    liveHtml = `<div class="dossier-src">${esc(live.note)}</div>`;
+  } else if (!live.reachable) {
+    liveHtml = `<div class="dossier-src">⚠️ LM Studio not reachable right now — no live state, not guessing.</div>`;
+  } else if (!live.present) {
+    liveHtml = `<div class="dossier-src">⚠️ ${esc(live.note)}</div>`;
+  } else {
+    liveHtml = kv([
+      ['state right now', esc(live.state) + (live.state === 'loaded' ? ' 🟢' : '')],
+      ['model type', esc(live.type) + (live.type === 'vlm' ? ' (vision-language)' : '')],
+      ['architecture', esc(live.arch)],
+      ['quantization', esc(live.quantization)],
+      ['runtime', esc(live.compatibility_type)],
+      ['max context', live.max_context_length ? Number(live.max_context_length).toLocaleString() : '—'],
+      ['loaded context', live.loaded_context_length ? Number(live.loaded_context_length).toLocaleString() : 'not loaded'],
+    ]);
+  }
+
+  // Evidence per axis
+  const axRows = (d.evidence.axes || []).map(a => `<tr>
+      <td>${esc(a.axis)}</td>
+      <td>${a.total_passed}/${a.total_trials - a.infra_errors}${a.infra_errors ? ` <span title="infrastructure errors, excluded from capability score">(+${a.infra_errors} infra)</span>` : ''}</td>
+      <td>${(a.pass_rate * 100).toFixed(0)}%</td>
+      <td>${a.total_runs}</td>
+      <td>${a.best_ms != null ? fmtMs(a.best_ms) : '—'}</td>
+      <td>${a.avg_ms != null ? fmtMs(a.avg_ms) : '—'}</td>
+      <td style="white-space:nowrap">${fmtDate(a.last_tested)}</td>
+      <td title="${esc(a.latest_sha3)}">#${a.latest_run_id ?? '—'}</td>
+    </tr>`).join('');
+  const evHtml = axRows
+    ? `<table class="loot-table"><thead><tr><th>axis</th><th>passed</th><th>rate</th><th>runs</th><th>best</th><th>avg</th><th>last tested</th><th>seal</th></tr></thead><tbody>${axRows}</tbody></table>`
+    : `<div class="dossier-src">No completed runs yet — this model is untested. Absence of evidence is not a verdict.</div>`;
+
+  // Per-test breakdown
+  const ptRows = (d.evidence.per_test || []).map(t => `<tr>
+      <td>${esc(t.test_name)}</td><td>${esc(t.axis)}</td>
+      <td>${t.passed}/${t.trials}</td>
+      <td>${t.avg_ms != null ? fmtMs(t.avg_ms) : '—'}</td>
+    </tr>`).join('');
+  const ptHtml = ptRows
+    ? `<table class="loot-table"><thead><tr><th>test</th><th>axis</th><th>passed</th><th>avg</th></tr></thead><tbody>${ptRows}</tbody></table>`
+    : '';
+
+  modal.innerHTML = `
+    <button class="dossier-close" onclick="this.closest('.dossier-overlay').remove()">✕</button>
+    <div class="dossier-title">${esc(reg.display_name)}</div>
+    <div class="dossier-sub">${esc(reg.provider)} · ${esc(reg.key)} — every claim below names its source; unmeasurable = shown as unknown, never invented</div>
+    <div class="dossier-section">
+      <div class="dossier-section-title">Registry — what we have on file</div>
+      ${regHtml}
+      <div class="dossier-src">source: ${esc(d.sources.registry)}</div>
+    </div>
+    <div class="dossier-section">
+      <div class="dossier-section-title">Live — LM Studio, right now</div>
+      ${liveHtml}
+      <div class="dossier-src">source: ${esc(d.sources.live)}</div>
+    </div>
+    <div class="dossier-section">
+      <div class="dossier-section-title">Evidence — lifetime record, ${(d.evidence.axes||[]).reduce((s,a)=>s+a.total_trials,0)} trials</div>
+      ${evHtml}
+      ${ptHtml ? `<div style="margin-top:var(--fib-3)"></div><div class="dossier-section-title">Per-test breakdown</div>${ptHtml}` : ''}
+      <div class="dossier-src">source: ${esc(d.sources.evidence)}</div>
+    </div>`;
 }
 
 </script>
