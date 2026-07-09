@@ -6,6 +6,14 @@ A local-first benchmarking dashboard for [LM Studio](https://lmstudio.ai) and cl
 
 Made by [IT Help San Diego Inc.](https://www.it-help.tech/) · A project of the [Intellectual Resistance](https://intellectualresistance.com/)
 
+## Status
+
+- **In active development** — scientific validation is the main bottleneck, not features.
+- **Hermes-ready**: integrated in Hermes Desktop as of July 2026. Model routing, cloud key setup, and local clean-room execution are verified live.
+- **Standalone-capable**: runs on any macOS/Linux box with Rust + PostgreSQL + LM Studio. No Hermes dependency.
+- **Modular architecture**: backend exposes REST + SSE; frontend is a single static HTML file. MCP server layer is planned so external tools (OpenClaw, bots, scripts) can drive benchmarks programmatically.
+- **Public beta**: the core pipeline works (clean-room, blind tests, SHA-3 seals, speculative decoding measurement). The science — competitive cross-reference, fallacy taxonomy expansion, contamination resistance — is being validated now.
+
 ---
 
 ## Why this exists
