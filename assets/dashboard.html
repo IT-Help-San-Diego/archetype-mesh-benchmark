@@ -752,14 +752,16 @@
 
 <!-- Top Nav -->
 <div class="top-nav">
-  <div class="tab" onclick="showPage('setup')" id="tab-setup">🧭 Hermes Setup</div>
-  <div class="tab active" onclick="showPage('benchmark')" id="tab-benchmark">🔬 Benchmark</div>
-  <div class="tab" onclick="showPage('prompt-builder')" id="tab-prompt-builder">🧪 Prompt Builder</div>
-  <div class="tab" onclick="showPage('loot-page')" id="tab-loot-page">🏆 Loot</div>
-  <div class="tab" onclick="showPage('tests-page')" id="tab-tests-page">📋 Tests</div>
-  <div class="tab" onclick="showPage('runs-page')" id="tab-runs-page">📊 Runs</div>
+  <img class="logo" src="/assets/owl-signature.png" alt="IT Help San Diego — Owl of Athena" onerror="this.style.display='none'" style="height:32px;margin-right:8px;cursor:pointer" onclick="showPage('benchmark')">
+  <div class="tab" onclick="showPage('setup')" id="tab-setup">Setup</div>
+  <div class="tab active" onclick="showPage('benchmark')" id="tab-benchmark">Benchmark</div>
+  <div class="tab" onclick="showPage('prompt-builder')" id="tab-prompt-builder">Prompt Builder</div>
+  <div class="tab" onclick="showPage('loot-page')" id="tab-loot-page">Loot</div>
+  <div class="tab" onclick="showPage('tests-page')" id="tab-tests-page">Tests</div>
+  <div class="tab" onclick="showPage('runs-page')" id="tab-runs-page">Runs</div>
   <div class="spacer"></div>
-  <div class="tab" onclick="showPage('lmstudio')" id="tab-lmstudio">💻 LM Studio</div>
+  <button class="btn-mini" onclick="syncLMStudio()" title="Check for newly downloaded models" style="margin-right:4px">Sync Models</button>
+  <div class="tab" onclick="showPage('lmstudio')" id="tab-lmstudio">LM Studio</div>
 </div>
 
 <!-- ============ PAGE: Benchmark ============ -->
@@ -767,7 +769,6 @@
 
 <!-- Header -->
 <div class="header">
-  <img class="logo" src="/assets/owl-signature.png" alt="IT Help San Diego — Owl of Athena" onerror="this.style.display='none'">
   <div>
     <div class="header-title">Archetype Mesh Benchmark <span class="badge">BETA</span></div>
     <div class="header-subtitle">Scientific LLM Capability Verification Pipeline</div>
@@ -1932,6 +1933,7 @@ loadNousExpTable();
 
 
 // ============ Loot page ============
+let allRuns = [];
 let lootData = null;
 let lootSortKey = 'overall_score';
 const AXIS_ORDER = ['vision', 'tools', 'reasoning', 'security'];
@@ -2168,7 +2170,7 @@ async function toggleTestDetail(id, row) {
     attachBlock +
     `<div style="color:var(--text-muted);margin:10px 0 6px;">GROUND TRUTH (never sent)</div>` +
     `<div style="color:var(--safe);">${esc(t.expected_result)}</div>` +
-    `<div style="margin-top:10px;"><button class="btn btn-secondary" style="font-size:11px;" onclick="deactivateTest(${t.id})">🗑 Deactivate</button></div>`;
+    `<div style="margin-top:10px;display:flex;gap:8px;"><button class="btn btn-secondary" style="font-size:11px;" onclick="deactivateTest(${t.id})">Deactivate</button><button class="dup-btn" style="font-size:11px;padding:4px 10px;border:1px solid var(--accent-gold);background:transparent;color:var(--accent-gold);border-radius:4px;cursor:pointer" onclick="duplicateTest(${t.id})" title="Copy this test to create an anti-cheat variant">Duplicate</button></div>`;
   panel.style.display = '';
 }
 
@@ -2928,6 +2930,73 @@ async function duplicateTest(id) {
   const r = await apiFetch('/api/tests/' + id + '/duplicate', { method: 'POST' });
   if (r.ok) { alert('Duplicated! Find "' + r.data.name + '" in Tests to edit.'); loadTestsPage(); }
   else { alert('Cannot duplicate: ' + r.error); }
+}
+
+// Sync LM Studio models — check for newly downloaded models
+async function syncLMStudio() {
+  const btn = event?.target;
+  if (btn) { btn.textContent = 'Syncing...'; btn.disabled = true; }
+  try {
+    const r = await apiFetch('/api/lmstudio/sync', { method: 'POST' });
+    if (r.ok) {
+      const d = r.data;
+      const msg = 'Synced: ' + d.models_seen + ' models seen, +' + d.models_added + ' new, ' + d.models_updated + ' updated';
+      if (d.models_added > 0) {
+        alert(msg + '\n\nNew models added! Check the Setup page for newest bots.');
+      }
+      await loadModels();
+      if (btn) { btn.textContent = 'Sync Models'; btn.disabled = false; }
+    } else {
+      alert('Sync failed: ' + r.error);
+      if (btn) { btn.textContent = 'Sync Models'; btn.disabled = false; }
+    }
+  } catch(e) {
+    alert('Sync error: ' + e.message);
+    if (btn) { btn.textContent = 'Sync Models'; btn.disabled = false; }
+  }
+}
+
+// Export run data to markdown or JSON
+function exportRun(runId, format) {
+  const run = (allRuns || []).find(r => r.id == runId) || {};
+  let data = '';
+  let filename = '';
+  if (format === 'json') {
+    data = JSON.stringify(run, null, 2);
+    filename = 'run-' + runId + '.json';
+  } else {
+    // Markdown
+    let md = '# Run #' + runId + '\n\n';
+    md += '| Field | Value |\n|---|---|\n';
+    for (const [k, v] of Object.entries(run)) {
+      if (k === 'trials') continue;
+      md += '| ' + k + ' | ' + String(v ?? '—') + ' |\n';
+    }
+    if (run.trials && run.trials.length) {
+      md += '\n## Trials\n\n';
+      md += '| # | Test | Passed | Latency | Response |\n|---|---|---|---|---|\n';
+      for (const t of run.trials) {
+        md += '| ' + t.trial_num + ' | ' + (t.test_name || '—') + ' | ' + (t.passed ? 'PASS' : 'FAIL') + ' | ' + (t.latency_ms >= 0 ? t.latency_ms + 'ms' : 'infra error') + ' | ' + String(t.raw_response || '').slice(0, 50) + ' |\n';
+      }
+    }
+    data = md;
+    filename = 'run-' + runId + '.md';
+  }
+  const blob = new Blob([data], { type: format === 'json' ? 'application/json' : 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Copy run to clipboard
+function copyRunToClipboard(runId) {
+  const run = (allRuns || []).find(r => r.id == runId) || {};
+  const md = '# Run #' + runId + '\n' + JSON.stringify(run, null, 2);
+  navigator.clipboard.writeText(md).then(() => {
+    const btn = event?.target;
+    if (btn) { const t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = t, 1500); }
+  });
 }
 </script>
 
