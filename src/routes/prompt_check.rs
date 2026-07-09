@@ -144,7 +144,11 @@ pub async fn prompt_check_post(
     let body = serde_json::json!({
         "model": model_key,
         "messages": [{"role": "user", "content": user_content}],
-        "max_tokens": 512,
+        // 2048, raised from 512 (incident 2026-07-08): gemma-4-12b-qat spent
+        // 509 tokens reasoning about a screenshot, hit the 512 wall, and
+        // returned an EMPTY final answer — which the UI then rendered as if
+        // it were a result. Reasoning models routinely think through 512.
+        "max_tokens": 2048,
         "temperature": 0.0,
     });
 
@@ -170,11 +174,16 @@ pub async fn prompt_check_post(
     }
 
     let json: serde_json::Value = resp.json().await?;
-    let message = json
+    let first_choice = json
         .get("choices")
         .and_then(|c| c.as_array())
-        .and_then(|a| a.first())
-        .and_then(|c| c.get("message"));
+        .and_then(|a| a.first());
+    let message = first_choice.and_then(|c| c.get("message"));
+    let finish_reason = first_choice
+        .and_then(|c| c.get("finish_reason"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
 
     let content = message
         .and_then(|m| m.get("content"))
@@ -191,11 +200,19 @@ pub async fn prompt_check_post(
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty());
 
+    // HONESTY FLAG (incident 2026-07-08): an empty final answer is a distinct
+    // outcome that must never be rendered as a result. The classic cause is
+    // finish_reason=length with the whole budget spent on reasoning tokens.
+    let no_final_answer = content.trim().is_empty();
+
     Ok(Json(serde_json::json!({
         "model_key": model_key,
         "response": content,
         "reasoning_content": reasoning_content,
+        "no_final_answer": no_final_answer,
+        "finish_reason": finish_reason,
         "prompt_tokens": json.get("usage").and_then(|u| u.get("prompt_tokens")).and_then(|t| t.as_u64()),
         "completion_tokens": json.get("usage").and_then(|u| u.get("completion_tokens")).and_then(|t| t.as_u64()),
+        "reasoning_tokens": json.pointer("/usage/completion_tokens_details/reasoning_tokens").and_then(|t| t.as_u64()),
     })))
 }
