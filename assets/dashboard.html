@@ -746,7 +746,41 @@
   .newest-bot-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; margin: 3px; border-radius: 4px; border: 1px solid var(--accent-gold); background: rgba(212,168,83,0.08); font-size: 11px; font-family: var(--font-mono); cursor: pointer; }
   .newest-bot-chip:hover { background: rgba(212,168,83,0.15); }
   .newest-bot-chip .nbc-badge { font-size: 9px; padding: 1px 4px; border-radius: 2px; background: var(--accent-green); color: #000; }
+
+  /* Landing hero — the interactive guided flow */
+  .landing-hero { padding: var(--fib-6) var(--fib-4); text-align: center; background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border-radius: 0 0 12px 12px; margin: -8px 0 var(--fib-4); position: relative; overflow: hidden; }
+  .landing-hero::before { content: ''; position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%,-50%); background: url('/assets/owl-semaphore-logo.png') center/contain no-repeat; opacity: 0.04; pointer-events: none; }
+  .landing-hero-title { font-size: 28px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: var(--fib-2); position: relative; }
+  .landing-hero-sub { font-size: 14px; color: var(--text-secondary); max-width: 600px; margin: 0 auto var(--fib-4); position: relative; }
+  .landing-actions { display: flex; gap: var(--fib-3); justify-content: center; flex-wrap: wrap; position: relative; }
+  .landing-btn { padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent-gold); background: rgba(212,168,83,0.08); color: var(--accent-gold); font-family: var(--font-mono); transition: all 0.2s; }
+  .landing-btn:hover { background: rgba(212,168,83,0.15); border-color: var(--text-primary); }
+  .landing-btn.primary { background: var(--accent-gold); color: var(--bg-primary); }
+  .landing-btn.primary:hover { background: var(--text-primary); color: var(--bg-primary); }
+  .landing-divider { width: 1px; height: 20px; background: var(--border); margin: 0 var(--fib-1); }
+  /* Reality check badge */
+  .reality-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); font-weight: 600; }
+  .reality-badge.ok { background: rgba(63,185,80,0.12); color: var(--safe); border: 1px solid rgba(63,185,80,0.3); }
+  .reality-badge.warn { background: rgba(227,179,65,0.12); color: var(--flaky); border: 1px solid rgba(227,179,65,0.3); }
+  .reality-badge.crit { background: rgba(248,81,73,0.12); color: var(--unsafe); border: 1px solid rgba(248,81,73,0.3); }
+  /* Hacker easter egg audio */
+  .hack-audio-btn { position: fixed; bottom: 8px; right: 8px; width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-muted); cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; opacity: 0.3; transition: opacity 0.3s; z-index: 999; }
+  .hack-audio-btn:hover { opacity: 1; color: var(--accent-gold); border-color: var(--accent-gold); }
 </style>
+  <div class="landing-hero" id="landing-hero">
+    <img src="/assets/owl-semaphore-logo.png" alt="Owl of Athena" style="height:64px;margin-bottom:var(--fib-3);position:relative" onerror="this.style.display='none'">
+    <div class="landing-hero-title">Archetype Mesh Benchmark</div>
+    <div class="landing-hero-sub">Scientific LLM capability verification — test what your models can actually do, on your hardware, with evidence you can audit. Blind testing, clean-room execution, SHA-3 provenance.</div>
+    <div class="landing-actions">
+      <button class="landing-btn primary" onclick="showPage('benchmark'); document.getElementById('model-grid').scrollIntoView({behavior:'smooth'})">Let's Benchmark</button>
+      <button class="landing-btn" onclick="showPage('setup')">Setup & Reality Check</button>
+      <button class="landing-btn" onclick="document.getElementById('protocol-panel').scrollIntoView({behavior:'smooth'})">The Science</button>
+    </div>
+    <div style="margin-top:var(--fib-3);position:relative">
+      <span class="reality-badge" id="landing-reality-badge">Checking your hardware...</span>
+    </div>
+  </div>
+
 </head>
 <body>
 
@@ -2998,6 +3032,67 @@ function copyRunToClipboard(runId) {
     if (btn) { const t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = t, 1500); }
   });
 }
+
+// Landing page reality check — show hardware tier badge
+async function checkLandingReality() {
+  const badge = document.getElementById('landing-reality-badge');
+  if (!badge) return;
+  try {
+    const r = await apiFetch('/api/host/reality');
+    if (r.ok) {
+      const data = r.data;
+      const ram = data.total_ram_gb || data.ram_gb || 0;
+      if (ram >= 64) {
+        badge.className = 'reality-badge ok';
+        badge.innerHTML = 'Your machine: ' + Math.round(ram) + ' GB — full benchmark capable';
+      } else if (ram >= 32) {
+        badge.className = 'reality-badge ok';
+        badge.innerHTML = 'Your machine: ' + Math.round(ram) + ' GB — most models testable';
+      } else if (ram >= 16) {
+        badge.className = 'reality-badge warn';
+        badge.innerHTML = 'Your machine: ' + Math.round(ram) + ' GB — mid-range models only. Face your reality: skip the 30B+ models.';
+      } else {
+        badge.className = 'reality-badge crit';
+        badge.innerHTML = 'Your machine: ' + Math.round(ram) + ' GB — light chatting only. Try 1-3B models. The 30B+ models will freeze your system.';
+      }
+    } else {
+      badge.className = 'reality-badge warn';
+      badge.textContent = 'Hardware check unavailable';
+    }
+  } catch(e) {
+    badge.className = 'reality-badge warn';
+    badge.textContent = 'Hardware check failed';
+  }
+}
+
+// Hacker easter egg — Hack the Planet Morse code
+let _morseAudio = null;
+function getMorseAudio() {
+  if (!_morseAudio) {
+    try {
+      _morseAudio = new Audio('/assets/morse-hack-the-planet.m4a');
+      _morseAudio.volume = 0.3;
+      _morseAudio.preload = 'auto';
+    } catch(e) {}
+  }
+  return _morseAudio;
+}
+function playHackThePlanet() {
+  try {
+    const a = getMorseAudio();
+    if (a) { a.currentTime = 0; a.play().catch(function(e) { console.warn('Morse audio blocked by autoplay:', e.message); }); }
+  } catch(e) {}
+}
+
+// Run reality check when landing page is shown
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(checkLandingReality, 500);
+});
+
+// Subtle console easter egg
+console.log('%cArchetype Mesh Benchmark', 'color:#d4a853;font-size:20px;font-weight:bold');
+console.log('%cHack the planet. — Every verdict is sealed with SHA-3.', 'color:#8b949e;font-size:11px');
+console.log('%cCause I\'m a hacker, baby, I\'m gonna pwn you good,\nDiff your zone to the spec like you knew I would.\nCite those RFCs, baby, so my argument stood,\nStandards over swagger \u2014 that\'s understood.', 'color:#3fb950;font-size:10px');
 </script>
 
 <footer class="site-footer">
@@ -3010,5 +3105,6 @@ function copyRunToClipboard(runId) {
   </div>
 </footer>
 
+<button class="hack-audio-btn" onclick="playHackThePlanet()" title="... --- .- -.-. -.- / - .... . / .--. .-.. .- -. . -" style="display:none" id="hack-audio-btn">.</button>
 </body>
 </html>
