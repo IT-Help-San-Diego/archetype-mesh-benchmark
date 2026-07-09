@@ -443,8 +443,12 @@
   .rc-unmeasured { color: var(--accent-amber, #fbbf24); font-style: italic; }
   .rc-budget { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-secondary); }
   .rc-budget-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 8px; }
-  .rc-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; font-size: 11px; font-family: var(--font-mono); margin-bottom: 8px; }
+  .rc-bar { display: flex; height: 26px; border-radius: 6px; overflow: visible; font-size: 11px; font-family: var(--font-mono); margin-bottom: 8px; position: relative; }
   .rc-bar-seg { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+  .rc-bar-seg:first-child { border-radius: 6px 0 0 6px; }
+  .rc-bar-seg:last-of-type { border-radius: 0 6px 6px 0; }
+  .rc-ceiling-mark { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--accent-amber, #fbbf24); opacity: 0.85; }
+  .rc-ceiling-label { position: absolute; top: -22px; transform: translateX(-50%); font-size: 10px; color: var(--accent-amber, #fbbf24); white-space: nowrap; }
   .rc-bar-life { background: rgba(96,165,250,0.30); }
   .rc-bar-ai { background: rgba(52,211,153,0.30); }
   .rc-bar-ceiling { background: rgba(148,163,184,0.18); }
@@ -1530,18 +1534,30 @@ async function loadRealityCheck() {
     const life = d.budget.life_reserve_gb;
     const ai = d.budget.ai_budget_gb;
     const rest = Math.max(0, total - life - ai);
+    const ceiling = mem.gpu_ceiling_gb.value;
     const pct = v => (v / total * 100).toFixed(1) + '%';
+    // The GPU ceiling as a MARKER on the same scale — so you can SEE which
+    // constraint binds. On most machines the marker sits to the right of the
+    // AI segment's end (headroom binds, ceiling slack unused); if it ever
+    // sits at the boundary, the ceiling is what's capping the AI budget.
+    const ceilingMark = (ceiling != null && ceiling <= total)
+      ? `<div class="rc-ceiling-mark" style="left:${pct(ceiling)}" title="Metal's measured GPU allocation ceiling: ${gb(ceiling)} — weights can't live above this line"></div>
+         <div class="rc-ceiling-label" style="left:${pct(ceiling)}">GPU ceiling ${gb(ceiling)}</div>`
+      : '';
     budgetEl.innerHTML = `
       <div class="rc-budget">
         <div class="rc-budget-title">Your honest RAM budget — heuristic, formula shown, measurements above are the inputs</div>
-        <div class="rc-bar">
+        <div class="rc-bar" style="margin-top:20px;">
           <div class="rc-bar-seg rc-bar-life" style="width:${pct(life)}" title="OS + the apps you leave open">life: ${gb(life)}</div>
           <div class="rc-bar-seg rc-bar-ai" style="width:${pct(ai)}" title="what's honestly available to the AI stack">AI stack: ${gb(ai)}</div>
-          ${rest > 0.5 ? `<div class="rc-bar-seg rc-bar-ceiling" style="width:${pct(rest)}" title="above the GPU-wired ceiling — RAM the GPU can't wire">ceiling headroom</div>` : ''}
+          ${rest > 0.5 ? `<div class="rc-bar-seg rc-bar-ceiling" style="width:${pct(rest)}" title="headroom the formula doesn't hand to either side">unassigned</div>` : ''}
+          ${ceilingMark}
         </div>
         <div class="rc-tier">📍 ${d.budget.tier}</div>
         ${d.budget.life_binding ? `<div class="rc-formula">why this split: ${d.budget.life_binding}</div>` : ''}
         ${d.budget.ai_binding ? `<div class="rc-formula">AI side: ${d.budget.ai_binding}</div>` : ''}
+        ${(ceiling != null && ceiling > ai + 0.5) ? `<div class="rc-formula">ceiling slack: the GPU could wire ${gb(ceiling)}, but the life reserve caps the AI side first — ${gb(ceiling - ai)} of ceiling goes unused. Raising the AI budget past ${gb(ai)} means consciously shrinking the life side, not a bigger GPU.</div>` : ''}
+        ${(ceiling != null && ceiling <= ai + 0.5) ? `<div class="rc-formula">ceiling binds: the GPU's ${gb(ceiling)} allocation limit is what caps the AI side on this machine.</div>` : ''}
         <div class="rc-formula">${d.budget.formula}</div>
       </div>`;
   } else {
