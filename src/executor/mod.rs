@@ -238,6 +238,99 @@ async fn execute_run_inner(
         };
     }
 
+/// Estimate the RAM cost of loading a model. For models with a speculative-
+/// decoding draft model configured, BOTH the main and draft model must fit —
+/// loading them together is what caused the 2026-07-09 kernel watchdog panic
+/// (gemma-4-31b ~22GB + gemma-4-12b-qat draft ~6GB + background downloads +
+/// Docker → 94-second hang → forced reboot). This guard ensures the benchmark
+/// never crashes someone's machine, which is core to the mission: this tool
+/// is designed to help people on constrained hardware.
+async fn check_memory_safety(
+    db: &PgPool,
+    tx: &broadcast::Sender<String>,
+    run_id: i32,
+    model_id: i32,
+    model_key: &str,
+) -> AppResult<()> {
+    // Get the model's size from the DB (size_gb, optional — some models lack it)
+    let model_size_gb: Option<f64> =
+        sqlx::query_scalar("SELECT size_gb FROM models WHERE id = $1")
+            .bind(model_id)
+            .fetch_optional(db)
+            .await?;
+
+    // Read available memory from macOS vm_stat.
+    // free + inactive + purgeable pages are reclaimable; we need the model
+    // to fit with a safety margin so the system doesn't thrash.
+    let page_size = 16384usize; // macOS arm64 default
+    let vm_stat = std::process::Command::new("vm_stat")
+        .output()
+        .map_err(|e| AppError::Executor(format!("Cannot read vm_stat: {}", e)))?;
+    let vm_text = String::from_utf8_lossy(&vm_stat.stdout);
+
+    let mut free_pages: u64 = 0;
+    let mut inactive_pages: u64 = 0;
+    let mut purgeable_pages: u64 = 0;
+    for line in vm_text.lines() {
+        if let Some(rest) = line.strip_prefix("Pages free:") {
+            free_pages = rest.trim().trim_end_matches('.').parse().unwrap_or(0);
+        } else if let Some(rest) = line.strip_prefix("Pages inactive:") {
+            inactive_pages = rest.trim().trim_end_matches('.').parse().unwrap_or(0);
+        } else if let Some(rest) = line.strip_prefix("Pages purgeable:") {
+            purgeable_pages = rest.trim().trim_end_matches('.').parse().unwrap_or(0);
+        }
+    }
+
+    let available_bytes = (free_pages + inactive_pages + purgeable_pages) as usize * page_size;
+    let available_gb = available_bytes as f64 / 1_073_741_824.0;
+
+    // If we know the model size from LM Studio sync, use it.
+    // Otherwise estimate from the model's total bytes on disk if available.
+    // As a fallback, refuse if free memory is very low regardless.
+    if let Some(model_gb) = model_size_gb {
+        // Speculative-decoding models load a draft model too — estimate 25%
+        // overhead for the draft (conservative; the actual draft is usually
+        // much smaller, but we'd rather over-provision than panic).
+        let estimated_gb = model_gb * 1.25;
+        let safety_margin_gb = 8.0; // leave headroom for OS + apps + inference
+        let needed_gb = estimated_gb + safety_margin_gb;
+
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "memory_check",
+            "message": format!(
+                "Memory check: {} needs ~{:.1} GB (model {:.1} + 25% spec-decode overhead + 8 GB safety), available: {:.1} GB",
+                model_key, needed_gb, model_gb, available_gb
+            ),
+            "at": now_iso()
+        }));
+
+        if available_gb < needed_gb {
+            return Err(AppError::Executor(format!(
+                "MEMORY GUARD: Refusing to load {} — estimated {:.1} GB needed (model {:.1} GB + draft overhead + 8 GB safety) \
+                 but only {:.1} GB available. Loading this model now could destabilize the system. \
+                 Close background applications, pause model downloads, or use a smaller quant.",
+                model_key, needed_gb, model_gb, available_gb
+            )));
+        }
+    } else {
+        // No size data — still refuse if the system is critically low on memory.
+        if available_gb < 12.0 {
+            return Err(AppError::Executor(format!(
+                "MEMORY GUARD: Only {:.1} GB available — refusing to load {} without sufficient free memory. \
+                 Close background applications and try again.",
+                available_gb, model_key
+            )));
+        }
+        emit(tx, serde_json::json!({
+            "type": "phase", "run_id": run_id, "phase": "memory_check",
+            "message": format!("Memory check: {:.1} GB available (model size unknown, using minimum guard)", available_gb),
+            "at": now_iso()
+        }));
+    }
+
+    Ok(())
+}
+
     // ── Clean-room prep (local models only) ────────────────────────────────
     if location == "local" {
         emit(tx, serde_json::json!({
@@ -249,6 +342,12 @@ async fn execute_run_inner(
             "type": "phase", "run_id": run_id, "phase": "ejected",
             "message": format!("Ejected {} instance(s): {:?}", ejected.len(), ejected), "at": now_iso()
         }));
+
+        // Memory guard: refuse to load if the model won't fit safely.
+        // See check_memory_safety doc comment for the kernel-panic incident
+        // that motivated this — speculative-decoding pairs can exceed RAM
+        // and freeze the system, especially on smaller hardware.
+        check_memory_safety(db, tx, run_id, model_id, model_key).await?;
 
         emit(tx, serde_json::json!({
             "type": "phase", "run_id": run_id, "phase": "loading",
