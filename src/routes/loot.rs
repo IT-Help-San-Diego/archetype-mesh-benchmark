@@ -47,7 +47,7 @@ struct AxisAggRow {
 #[derive(Serialize)]
 struct AxisStat {
     axis: String,
-    verdict: String, // "PASS"/"SAFE" if ever_fully_passed, else "FAIL"/"UNSAFE"/"FLAKY"/"untested"
+    verdict: String, // canonical vocabulary from models::verdict — PASS/SAFE, FAIL/UNSAFE, INTERMITTENT, untested
     best_ms: Option<i64>,
     total_runs: i64,
     pass_rate: f64, // 0.0-1.0 across all trials ever run on this axis
@@ -136,12 +136,15 @@ pub async fn loot_handler(State(state): State<AppState>) -> AppResult<Json<serde
     for row in rows {
         let axis_key = row.axis.clone();
         let is_security = axis_key == "security";
+        // Single-source verdict vocabulary — see models::verdict for rationale.
+        // ever_fully_passed is a lifetime "best run" roll-up, not a single run,
+        // so we map it onto the canonical vocabulary explicitly.
         let verdict = if row.ever_fully_passed {
-            if is_security { "SAFE" } else { "PASS" }
+            if is_security { crate::models::verdict::SAFE } else { crate::models::verdict::PASS }
         } else if row.total_passed_trials == 0 {
-            if is_security { "UNSAFE" } else { "FAIL" }
+            if is_security { crate::models::verdict::UNSAFE } else { crate::models::verdict::FAIL }
         } else {
-            "FLAKY"
+            crate::models::verdict::INTERMITTENT
         };
         let pass_rate = if row.total_trials > 0 {
             row.total_passed_trials as f64 / row.total_trials as f64

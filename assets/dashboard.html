@@ -915,7 +915,7 @@
   </div>
   <div class="stat">
     <div class="stat-value" id="stat-flaky" style="color: var(--flaky)">—</div>
-    <div class="stat-label">FLAKY</div>
+    <div class="stat-label">intermittent_pass/div>
   </div>
 </div>
 
@@ -944,7 +944,7 @@
     <option value="all">All Verdicts</option>
     <option value="good">PASS / SAFE</option>
     <option value="bad">FAIL / UNSAFE</option>
-    <option value="FLAKY">FLAKY</option>
+    <option value="INTERMITTENT">INTERMITTENT</option>
     <option value="untested">Untested</option>
   </select>
   <input type="text" id="filter-search" placeholder="Search model…" oninput="applyFilters()"
@@ -972,7 +972,7 @@
         <li><b>Clean room:</b> before each local run, every loaded model is ejected, only the target is loaded, and residency in RAM is verified by polling — never assumed.</li>
         <li><b>No answer leakage:</b> the expected answer lives only in the database. The model is never shown the ground truth it's scored against.</li>
         <li><b>Objective scoring:</b> verdicts come from comparing the model's actual output to ground truth (exact text, spatial relations, tool-call shape) — never from asking a model its opinion.</li>
-        <li><b>N=3 trials per test:</b> one pass can be luck. Capability axes (Vision / Tools / Reasoning) score <b>PASS / FAIL / FLAKY</b> — can it do the job? Security scores <b>SAFE / UNSAFE / FLAKY</b> — did it resist? Different questions, different words.</li>
+        <li><b>N=3 trials per test:</b> one pass can be luck. Capability axes (Vision / Tools / Reasoning) score <b>PASS / FAIL / INTERMITTENT</b> — can it do the job? Security scores <b>SAFE / UNSAFE / INTERMITTENT</b> — did it resist? Different questions, different words.</li>
         <li><b>Speed is a measurement, not a footnote:</b> every axis shows average response time. A model that's right but takes 30 seconds is a different answer than one that's right in 2 — that's the ChatGPT-feel gap, measured honestly.</li>
         <li><b>Evidence, not claims:</b> every trial stores the exact prompt, raw response, and latency, sealed with a SHA-3 hash. You can audit every verdict.</li>
       </ul>
@@ -1527,7 +1527,7 @@ evtSource.onerror = () => {
 const LOG_MAX_LINES = 500;
 
 // Verdict helpers — lean language: capability axes PASS/FAIL, security SAFE/UNSAFE.
-// Each verdict entry is {v: "PASS"|"FAIL"|"SAFE"|"UNSAFE"|"FLAKY", ms: <avg latency>}.
+// Each verdict entry is {v: "PASS"|"FAIL"|"SAFE"|"UNSAFE"|"INTERMITTENT" (legacy "FLAKY" accepted), ms: <avg latency>}.
 const GOOD = ['PASS', 'SAFE'];
 const BAD = ['FAIL', 'UNSAFE'];
 function vOf(entry) { return entry && typeof entry === 'object' ? (entry.v || '') : (entry || ''); }
@@ -1538,13 +1538,13 @@ function fmtMs(ms) {
 }
 function verdictColor(v) {
   if (!v || v === '') return 'v-empty';
-  const map = { 'SAFE': 'v-safe', 'PASS': 'v-safe', 'UNSAFE': 'v-unsafe', 'FAIL': 'v-unsafe', 'FLAKY': 'v-flaky' };
+  const map = { 'SAFE': 'v-safe', 'PASS': 'v-safe', 'UNSAFE': 'v-unsafe', 'FAIL': 'v-unsafe', 'INTERMITTENT': 'v-flaky', 'FLAKY': 'v-flaky' };
   return map[v] || 'v-empty';
 }
 function dotClass(v) {
   if (GOOD.includes(v)) return 'safe';
   if (BAD.includes(v)) return 'unsafe';
-  if (v === 'FLAKY') return 'flaky';
+  if (v === 'INTERMITTENT' || v === 'FLAKY') return 'flaky';
   return '';
 }
 function axisLabel(axis) {
@@ -1577,7 +1577,7 @@ function renderGrid() {
         if (fVerd === 'all') return true;
         if (fVerd === 'good') return GOOD.includes(v);
         if (fVerd === 'bad') return BAD.includes(v);
-        if (fVerd === 'FLAKY') return v === 'FLAKY';
+        if (fVerd === 'INTERMITTENT') return v === 'INTERMITTENT' || v === 'FLAKY';
         if (fVerd === 'untested') return !v;
         return false;
       }
@@ -1665,7 +1665,7 @@ function updateStats() {
       tested++;
       if (GOOD.includes(v)) good++;
       else if (BAD.includes(v)) bad++;
-      else if (v === 'FLAKY') flaky++;
+      else if (v === 'INTERMITTENT' || v === 'FLAKY') flaky++;
     });
   });
   document.getElementById('stat-tested').textContent = tested ? `${tested} axes` : '—';
@@ -1702,6 +1702,10 @@ function log(tag, msg) {
   el.scrollTop = el.scrollHeight;
 }
 
+
+// Run-selection state
+let _runClickCount = 0;
+let _runClickTimer = null;
 // Run actions — live against /api/runs
 function runSingle(key) {
   // Defense in depth: even though the button is disabled/hidden for
@@ -1722,15 +1726,28 @@ function runSingle(key) {
     else log('err', `Failed: ${r.error || JSON.stringify(r.data)}`);
   });
 }
+// Run-selection guard: triple-click protection + confirmation modal.
+// Backend already blocks duplicate (model,axis) while queued/running.
 function runSelected() {
+  _runClickCount = (_runClickCount || 0) + 1;
+  if (_runClickTimer) clearTimeout(_runClickTimer);
+  if (_runClickCount >= 3) {
+    const btn = event?.target;
+    if (btn) { btn.textContent = '\u274c Slow down'; btn.disabled = true;
+      setTimeout(() => { btn.textContent = 'Run Selected'; btn.disabled = false; }, 2000); }
+    alert('Impatient motherfucker detected.\n\nPriority core system overload protection in play.\nClick once, think, then run it once more to confirm.');
+    _runClickCount = 0; return;
+  }
+  _runClickTimer = setTimeout(() => { _runClickCount = 0; }, 800);
   const cards = Array.from(document.querySelectorAll('.model-card.selected'))
     .filter(c => c.dataset.unresolved !== 'true');
   if (cards.length === 0) {
-    log('info', 'Click a model card to select it, then Run Selected');
-    return;
+    alert('Select at least one model first, then run it twice to confirm.'); return;
   }
   const keys = cards.map(c => c.dataset.key);
-  keys.forEach(k => runSingle(k));
+  const axes = Array.from(document.querySelectorAll('.axis-check:checked')).map(cb => cb.value);
+  const models = keys.map(k => ({ key: k, provider: k.includes('/') ? k.split('/')[0] : 'lmstudio' }));
+  confirmRun(() => { models.forEach(m => runSingle(m.key)); }, models, axes);
 }
 function openTestBuilder() {
   showPage('tests-page');
@@ -1757,7 +1774,7 @@ function showPage(name) {
     if (tab) tab.classList.toggle('active', p === name);
   });
   localStorage.setItem('amb-active-page', name);
-  if (name === 'Setup') { loadRealityCheck(); loadHermesVerify(); loadCloudKeys(); loadNewestBots(); }
+  if (name === 'setup') { loadRealityCheck(); loadHermesVerify(); loadCloudKeys(); loadNewestBots(); }
   if (name === 'loot-page') loadLootPage();
   if (name === 'tests-page') loadTestsPage();
   if (name === 'runs-page') loadRunsPage();
@@ -3241,8 +3258,7 @@ console.log('%cHack the planet. — Every verdict is sealed with SHA-3.', 'color
 console.log('%cLogic came before the abacus.\nReason came before the transistor.\nEvery machine you can buy is a footnote\n to a much longer line of human thought.\n\nThe answer to a question lives in the foundations of the question.\nTo understand those foundations \u2014 that is logic.\n\nA real measurement beats a confident reading.\nThat is the Verification Principle.\n\n\u2014 The Organic Computer / Intellectual Resistance', 'color:#3fb950;font-size:10px');
 
 // Run confirmation — DNS-tool style diagram + impatient motherfucker protection
-let _runClickCount = 0;
-let _runClickTimer = null;
+// (_runClickCount/_runClickTimer declared once near the run actions block)
 let _runConfirmCallback = null;
 function confirmRun(callback, models, axes) {
   const sourceType = models.some(m => m.provider === 'lmstudio') ? 'local' : 'cloud';
@@ -3282,45 +3298,6 @@ function confirmRun(callback, models, axes) {
 function confirmRunExecute() {
   if (_runConfirmCallback) { _runConfirmCallback(); _runConfirmCallback = null; }
   document.querySelector('.confirm-overlay')?.remove();
-}
-// Impatient motherfucker protection — triple-click detection on Run Selected
-function runSelected() {
-  _runClickCount++;
-  if (_runClickTimer) clearTimeout(_runClickTimer);
-  if (_runClickCount >= 3) {
-    const btn = event?.target;
-    if (btn) { btn.textContent = '\u274c Slow down'; btn.disabled = true; setTimeout(() => { btn.textContent = 'Run Selected'; btn.disabled = false; }, 2000); }
-    alert('Impatient motherfucker detected.\n\nPriority core system overload protection in play.\nClick once, think, then confirm.');
-    _runClickCount = 0;
-    return;
-  }
-  _runClickTimer = setTimeout(() => { _runClickCount = 0; }, 800);
-  // Show confirmation
-  const selected = document.querySelectorAll('.model-check:checked');
-  if (selected.length === 0) { alert('Select at least one model first.'); return; }
-  const models = Array.from(selected).map(cb => {
-    const card = cb.closest('.model-card');
-    const key = card?.dataset?.key || cb.value;
-    return { key: key, provider: key.includes('/') ? key.split('/')[0] : 'lmstudio' };
-  });
-  const axes = [];
-  document.querySelectorAll('.axis-check:checked').forEach(cb => axes.push(cb.value));
-  confirmRun(() => {
-    // Actually run — delegate to the original run logic
-    executeRunSelected(models, axes);
-  }, models, axes);
-}
-async function executeRunSelected(models, axes) {
-  const btn = document.querySelector('[onclick="runSelected()"]');
-  if (btn) { btn.textContent = 'Running...'; btn.disabled = true; }
-  for (const m of models) {
-    const payload = { model_key: m.key, axes: axes };
-    const r = await apiFetch('/api/runs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-    if (r.ok) { console.log('Fired run for', m.key, r.data); }
-    else { alert('Failed: ' + r.error); break; }
-  }
-  if (btn) { btn.textContent = 'Run Selected'; btn.disabled = false; }
-  await Promise.all([loadRunsPage(), loadModels()]);
 }
 </script>
 

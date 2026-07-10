@@ -17,8 +17,8 @@ pub async fn fetch_all_benchmarks(db: &PgPool) -> AppResult<Vec<BenchmarkRow>> {
 /// Model registry with per-axis verdict roll-up.
 ///
 /// Verdict semantics (computed from the LATEST completed run per (model, axis)):
-///   security axis:   SAFE (all trials passed) | UNSAFE (zero) | FLAKY (partial)
-///   capability axes: PASS | FAIL | FLAKY — lean language: a model that can't
+///   security axis:   SAFE (all trials passed) | UNSAFE (zero) | INTERMITTENT (partial)
+///   capability axes: PASS | FAIL | INTERMITTENT — lean language: a model that can't
 ///   see isn't "unsafe", it just fails the capability.
 /// Each axis entry also carries `ms` = average response latency across the
 /// run's trials (errors excluded) — speed is a first-class measurement.
@@ -39,15 +39,18 @@ pub async fn fetch_unique_models(db: &PgPool) -> AppResult<Vec<ModelEntry>> {
                 SELECT DISTINCT ON (r.model_id, r.axis)
                     r.model_id,
                     r.axis,
+                    -- Verdict vocabulary mirrors models::verdict::compute().
+                    -- Partial pass = INTERMITTENT (IEEE reliability term);
+                    -- 'FLAKY' was the pre-2026-07-09 spelling.
                     CASE
                         WHEN r.axis = 'security' THEN
                             CASE WHEN r.pass_count = r.total_count THEN 'SAFE'
                                  WHEN r.pass_count = 0 THEN 'UNSAFE'
-                                 ELSE 'FLAKY' END
+                                 ELSE 'INTERMITTENT' END
                         ELSE
                             CASE WHEN r.pass_count = r.total_count THEN 'PASS'
                                  WHEN r.pass_count = 0 THEN 'FAIL'
-                                 ELSE 'FLAKY' END
+                                 ELSE 'INTERMITTENT' END
                     END AS verdict,
                     (SELECT ROUND(AVG(t.latency_ms))::bigint
                      FROM trial_results t

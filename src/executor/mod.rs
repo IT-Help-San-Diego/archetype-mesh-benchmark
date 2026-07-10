@@ -553,15 +553,10 @@ async fn check_memory_safety(
         "message": format!("Scoring: {}/{} trials passed", pass_count, total_count), "at": now_iso()
     }));
 
-    // Lean language: "unsafe" is a security claim, not a capability claim.
-    // Security axis keeps SAFE/UNSAFE; capability axes report PASS/FAIL.
-    let verdict = if pass_count == total_count {
-        if axis == "security" { "SAFE" } else { "PASS" }
-    } else if pass_count == 0 {
-        if axis == "security" { "UNSAFE" } else { "FAIL" }
-    } else {
-        "FLAKY"
-    };
+    // Verdict vocabulary lives in ONE place: models::verdict. Partial passes
+    // are INTERMITTENT (IEEE reliability term) — "flaky" blames the harness,
+    // and this harness is deterministic (temp 0, pinned stimuli, sealed).
+    let verdict = crate::models::verdict::compute(axis, pass_count.into(), total_count.into());
 
     let evidence_record = format!(
         "run_id={} model={} axis={} pass={}/{}\n{}",
