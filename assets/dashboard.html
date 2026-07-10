@@ -867,6 +867,32 @@
 
   .nav-arrow { user-select: none; }
 
+  /* ═══ Brain topology regions ═══
+     Idle: barely-there outlines. Firing: axis-colored glow, decaying over
+     ~1.8s (CSS transition handles decay; JS only sets the peak). Verdict
+     paints the region solid green/red/amber for 3s. */
+  .brain-region {
+    fill: rgba(255,255,255,0.02);
+    stroke: var(--border);
+    stroke-width: 1;
+    transition: fill 1.8s ease-out, stroke 1.8s ease-out, filter 1.8s ease-out;
+  }
+  .brain-region.firing {
+    fill: var(--region-color, rgba(212,168,83,0.55));
+    stroke: var(--region-color, rgba(212,168,83,0.9));
+    stroke-width: 1.5;
+    filter: url(#region-glow);
+    transition: fill 80ms ease-in, stroke 80ms ease-in, filter 80ms ease-in;
+  }
+  .brain-leg { color: var(--text-muted); transition: color 0.4s; }
+  .brain-leg.lit { color: var(--text-primary); }
+  .brain-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background: var(--border); margin-right:7px; vertical-align:baseline;
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  .brain-leg.lit .brain-dot { background: var(--dot-color, var(--accent-gold)); box-shadow: 0 0 6px var(--dot-color, var(--accent-gold)); }
+
   .nav-arrow { color: var(--text-muted); font-size: 11px; padding: 0 3px; user-select: none; align-self: center; }
   .top-nav img.logo { height: 32px; cursor: pointer; }
   body:has(#page-benchmark:not([style*="display: none"])) .top-nav img.logo { visibility: hidden; }
@@ -1039,6 +1065,64 @@
         <li>The cross-check is <b>your own human test</b>: build one in the Test Builder with your own image and question the model has never seen. A good test has one objective, verifiable answer that isn't contained in the question.</li>
         <li>Local AI on your own hardware is real. The people saying it can't be done are missing method, not hardware. This page <i>is</i> the method — every number on it is one you can reproduce yourself.</li>
       </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Brain topology — the benchmark's axes mapped onto the organ that
+     invented them. ALWAYS VISIBLE (user mandate 2026-07-09): this is a
+     teaching surface first — neurologists and AI researchers are studying
+     the same thing and this map says so out loud. Regions carry real
+     neuroscience (hover/tap any region or legend row to read it). During
+     runs the map comes alive: trial_result events fire the mapped region
+     with the axis color, PASS/FAIL tinted. Idle ≠ hidden. -->
+<div id="brain-viz" style="background:var(--bg-secondary);border-top:1px solid var(--border);padding:16px 24px;">
+  <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+    <svg id="brain-svg" viewBox="0 0 420 300" width="300" height="214" role="img" aria-label="Brain region activity map" style="flex-shrink:0;">
+      <!-- Lateral view, facing left. Stylized — regions are functional zones, not surgical atlas. -->
+      <defs>
+        <filter id="region-glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="6" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- cortex outline -->
+      <path d="M 60 160 Q 55 90 130 60 Q 210 32 290 55 Q 360 75 370 140 Q 375 185 340 210 Q 330 240 290 235 Q 270 250 230 245 Q 190 252 150 240 Q 95 235 75 200 Q 58 185 60 160 Z"
+            fill="none" stroke="var(--border)" stroke-width="2"/>
+      <!-- cerebellum (unmapped, anatomical flavor) -->
+      <path d="M 300 232 Q 340 225 352 205 Q 362 230 335 248 Q 310 258 295 246 Z" fill="none" stroke="var(--border)" stroke-width="1.5" opacity="0.6"/>
+      <!-- prefrontal → reasoning -->
+      <path id="br-reasoning" class="brain-region" data-axis="reasoning" d="M 60 160 Q 55 90 130 60 Q 150 54 165 55 L 160 130 Q 130 150 105 185 Q 80 180 68 175 Q 58 170 60 160 Z"/>
+      <!-- motor strip → tools -->
+      <path id="br-tools" class="brain-region" data-axis="tools" d="M 165 55 Q 200 40 235 45 L 225 120 L 160 130 Z"/>
+      <!-- occipital → vision -->
+      <path id="br-vision" class="brain-region" data-axis="vision" d="M 320 90 Q 360 105 370 140 Q 375 185 340 210 Q 320 200 305 175 L 310 120 Z"/>
+      <!-- temporal → literary -->
+      <path id="br-literary" class="brain-region" data-axis="literary" d="M 105 185 Q 140 160 200 165 Q 250 168 280 190 Q 270 225 230 232 Q 180 240 140 228 Q 110 215 105 185 Z"/>
+      <!-- parietal (fills gap between motor and occipital, unmapped) -->
+      <path d="M 235 45 Q 290 42 320 90 L 310 120 L 225 120 Z" fill="none" stroke="var(--border)" stroke-width="1" opacity="0.35"/>
+      <!-- amygdala → security (deep almond in the temporal lobe) -->
+      <ellipse id="br-security" class="brain-region" data-axis="security" cx="170" cy="196" rx="16" ry="11"/>
+      <!-- brainstem → auxiliary -->
+      <path id="br-auxiliary" class="brain-region" data-axis="auxiliary" d="M 275 235 Q 280 255 272 280 L 252 280 Q 258 255 255 238 Z"/>
+    </svg>
+    <div style="flex:1;min-width:260px;">
+      <div style="font-size:11px;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:4px;">FUNCTIONAL TOPOLOGY — ONE MAP, TWO SCIENCES</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;">
+        A century of lesion studies and fMRI gave neuroscience a functional map: specialized regions,
+        integrated by dense connection. Model benchmarking is converging on the same map from the other
+        direction — capability axes are cortical regions. Hover any region to see both sciences describe it.
+        During a live run, the map fires in real time.
+      </div>
+      <div id="brain-legend" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 16px;font-family:var(--font-mono);font-size:11px;">
+        <div class="brain-leg" data-axis="reasoning"><span class="brain-dot"></span>prefrontal · reasoning</div>
+        <div class="brain-leg" data-axis="tools"><span class="brain-dot"></span>motor cortex · tools</div>
+        <div class="brain-leg" data-axis="vision"><span class="brain-dot"></span>occipital · vision</div>
+        <div class="brain-leg" data-axis="literary"><span class="brain-dot"></span>temporal · literary</div>
+        <div class="brain-leg" data-axis="security"><span class="brain-dot"></span>amygdala · security</div>
+        <div class="brain-leg" data-axis="auxiliary"><span class="brain-dot"></span>brainstem · auxiliary</div>
+      </div>
+      <div id="brain-caption" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-height:30px;line-height:1.5;"></div>
     </div>
   </div>
 </div>
@@ -1550,14 +1634,17 @@ evtSource.onmessage = (e) => {
     applyModelSnapshot(data.models);
   } else if (data.type === 'run_started') {
     log('info', `Run ${data.run_id} started: ${data.model_key} — ${data.axis}${data.axes ? ' + ' + data.axes.join(',') : ''}`);
+    brainRunStarted(data);
   } else if (data.type === 'phase') {
     log('phase', `[${data.phase}] ${data.message || ''}`);
   } else if (data.type === 'trial_result') {
     log('trial', `Trial ${data.trial_num}: ${data.passed ? 'PASS' : 'FAIL'} — ${data.detail || ''} (${data.latency_ms}ms)`);
+    if (data.axis) brainFire(data.axis, data.passed);
   } else if (data.type === 'verdict') {
     log('verdict', `VERDICT: ${data.overall} — ${data.pass_count}/${data.total_count} trials passed`);
   } else if (data.type === 'run_complete') {
     log('verdict', `Run ${data.run_id} complete. Overall: ${data.overall}`);
+    brainRunComplete(data);
   } else if (data.type === 'gpu_sample') {
     updateGpuStrip(data);
   } else if (data.type === 'fountain_started') {
@@ -1932,6 +2019,111 @@ function updateGpuStrip(s) {
   clearTimeout(_gpuHideTimer);
   _gpuHideTimer = setTimeout(() => { strip.style.display = 'none'; }, 5000);
 }
+
+// ═══ Brain topology engine ═══════════════════════════════════════════════
+// ALWAYS VISIBLE teaching surface (user mandate): neurologists and AI
+// researchers are studying the same thing — this map is where the two
+// sciences meet. Idle state teaches (hover any region for the dual
+// description); run state fires regions live from SSE trial_result events,
+// PASS/FAIL tinted. The panel never hides.
+const BRAIN_AXIS_COLORS = {
+  reasoning: '212,168,83',   // gold — prefrontal
+  tools:     '88,166,255',   // blue — motor
+  vision:    '191,131,255',  // violet — occipital
+  literary:  '255,158,90',   // amber — temporal
+  security:  '255,99,99',    // red — amygdala
+  auxiliary: '148,163,184',  // slate — brainstem
+};
+// The teaching layer: each axis described by both sciences. Sources are the
+// standard functional-neuroanatomy findings (lesion + neuroimaging
+// literature); AI side is what this benchmark actually measures.
+const BRAIN_TEACHING = {
+  reasoning: {
+    region: 'Prefrontal cortex',
+    neuro: 'Executive function, working memory, multi-step planning. Damage (e.g. Phineas Gage) preserves knowledge but destroys judgment.',
+    ai: 'The reasoning axis: syllogisms, modus tollens, fallacy detection — 30 machine-verified logic tests. Models, like patients, can retain facts yet fail inference.',
+  },
+  tools: {
+    region: 'Motor cortex',
+    neuro: 'Voluntary action — the brain\'s output interface to the world. Somatotopically mapped: each body part has its cortical territory.',
+    ai: 'The tools axis: function calling. A model that reasons but can\'t emit a well-formed tool call is a mind that can\'t move its hands.',
+  },
+  vision: {
+    region: 'Occipital lobe (V1–V4)',
+    neuro: 'Primary visual cortex. Retinotopic maps, edge detectors, color/motion streams — Hubel & Wiesel\'s Nobel-winning hierarchy.',
+    ai: 'The vision axis: OCR, spatial relations, attribute binding on real screenshots. CNNs were directly inspired by this cortex\'s architecture.',
+  },
+  literary: {
+    region: 'Temporal lobe (language cortex)',
+    neuro: 'Wernicke\'s area and the semantic system: comprehension, narrative, meaning. Lesions produce fluent speech empty of sense.',
+    ai: 'The literary axis: Aristotle\'s ethos/pathos/logos — can the model read rhetoric without being spun? Fluent-but-empty is a failure mode both fields know.',
+  },
+  security: {
+    region: 'Amygdala',
+    neuro: 'Threat detection and salience. Evaluates danger before conscious deliberation — the fast path that keeps the organism alive.',
+    ai: 'The security axis: prompt-injection resistance, dangerous-command refusal. A model without a working amygdala does what any stranger asks.',
+  },
+  auxiliary: {
+    region: 'Brainstem',
+    neuro: 'Autonomic housekeeping — breathing, arousal, reflex arcs. Unglamorous, always on, everything dies without it.',
+    ai: 'The auxiliary axis: approval classification, MCP relay — the small always-on jobs of an agent stack. Reliability matters more than brilliance here.',
+  },
+};
+const BRAIN_IDLE_CAPTION = 'Idle — run a benchmark and watch the cortex fire. Hover a region to learn what both sciences say about it.';
+let _brainActiveRuns = new Set();
+
+function brainCaption(txt) { document.getElementById('brain-caption').textContent = txt; }
+function brainRunStarted(d) {
+  _brainActiveRuns.add(d.run_id);
+  const axes = d.axes ? d.axes.join(', ') : d.axis;
+  brainCaption(`${d.model_key} under examination — ${axes}`);
+}
+function brainFire(axis, passed) {
+  const el = document.getElementById('br-' + axis);
+  if (!el) return; // unmapped axis — never break the log pipeline
+  const rgb = BRAIN_AXIS_COLORS[axis] || '212,168,83';
+  // Verdict tint: pass = axis color, fail = red-shifted.
+  const color = passed === false ? '248,81,73' : rgb;
+  el.style.setProperty('--region-color', `rgba(${color},${passed === false ? 0.7 : 0.55})`);
+  // Retrigger: strip the class, force reflow, re-add — so rapid trials
+  // each produce a visible pulse instead of one long saturated hold.
+  el.classList.remove('firing');
+  void el.getBoundingClientRect();
+  el.classList.add('firing');
+  setTimeout(() => el.classList.remove('firing'), 220);
+  const leg = document.querySelector(`.brain-leg[data-axis="${axis}"]`);
+  if (leg) {
+    leg.style.setProperty('--dot-color', `rgb(${rgb})`);
+    leg.classList.add('lit');
+  }
+}
+function brainRunComplete(d) {
+  _brainActiveRuns.delete(d.run_id);
+  if (_brainActiveRuns.size === 0) {
+    // Back to teaching mode: clear run heat, keep the map.
+    setTimeout(() => {
+      if (_brainActiveRuns.size > 0) return; // a new run started meanwhile
+      document.querySelectorAll('.brain-leg.lit').forEach(l => l.classList.remove('lit'));
+      brainCaption(BRAIN_IDLE_CAPTION);
+    }, 4000);
+  }
+}
+// Teaching hover: region shapes AND legend rows both narrate. Idle or
+// mid-run, hovering always teaches; mouseleave restores the proper caption.
+function brainInitTeaching() {
+  const tell = axis => {
+    const t = BRAIN_TEACHING[axis];
+    if (t) brainCaption(`${t.region} — ${t.neuro}  ⟷  ${t.ai}`);
+  };
+  const restore = () => brainCaption(_brainActiveRuns.size > 0 ? 'Run in progress…' : BRAIN_IDLE_CAPTION);
+  document.querySelectorAll('.brain-region[data-axis], .brain-leg[data-axis]').forEach(el => {
+    el.addEventListener('mouseenter', () => tell(el.dataset.axis));
+    el.addEventListener('mouseleave', restore);
+    el.style.cursor = 'help';
+  });
+  brainCaption(BRAIN_IDLE_CAPTION);
+}
+brainInitTeaching();
 
 function log(tag, msg) {
   const el = document.getElementById('live-log');

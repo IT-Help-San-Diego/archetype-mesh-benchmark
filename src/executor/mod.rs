@@ -528,6 +528,7 @@ async fn check_memory_safety(
 
             emit(tx, serde_json::json!({
                 "type": "trial_result", "run_id": run_id, "test": test.name,
+                "axis": test.axis,
                 "trial_num": trial_num, "passed": passed, "latency_ms": latency_ms,
                 "detail": detail, "reasoning_content": reasoning, "at": now_iso()
             }));
