@@ -766,7 +766,6 @@
 
   /* Landing hero — the interactive guided flow */
   .landing-hero { padding: var(--fib-6) var(--fib-4); text-align: center; background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border-radius: 0 0 12px 12px; margin: -8px 0 var(--fib-4); position: relative; overflow: hidden; }
-  .landing-hero::before { content: ''; position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%,-50%); background: url('/assets/owl-semaphore-logo.png') center/contain no-repeat; opacity: 0.04; pointer-events: none; }
   .landing-hero-title { font-size: 32px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: var(--fib-2); position: relative; }
   .landing-hero-sub { font-size: 15px; color: var(--text-secondary); max-width: 600px; margin: 0 auto var(--fib-4); position: relative; }
   .landing-actions { display: flex; gap: var(--fib-3); justify-content: center; flex-wrap: wrap; position: relative; }
@@ -833,9 +832,26 @@
   /* Prominent owl — louder, prouder, not a watermark */
   .landing-hero img[src*='owl-semaphore-logo.png'] { height: 96px !important; filter: drop-shadow(0 0 20px rgba(212,168,83,0.3)) drop-shadow(0 0 40px rgba(212,168,83,0.15)); animation: owlPulse 4s ease-in-out infinite; }
   @keyframes owlPulse { 0%, 100% { filter: drop-shadow(0 0 20px rgba(212,168,83,0.3)) drop-shadow(0 0 40px rgba(212,168,83,0.15)); } 50% { filter: drop-shadow(0 0 28px rgba(212,168,83,0.45)) drop-shadow(0 0 56px rgba(212,168,83,0.25)); } }
-  /* Also make the nav owl slightly larger */
-  .top-nav img.logo { height: 36px !important; }
 </style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<div class="top-nav">
+  <div class="tab" onclick="showPage('setup')" id="tab-setup">Setup</div>
+  <div class="tab active" onclick="showPage('benchmark')" id="tab-benchmark">Benchmark</div>
+  <div class="tab" onclick="showPage('prompt-builder')" id="tab-prompt-builder">Prompt Builder</div>
+  <div class="tab" onclick="showPage('loot-page')" id="tab-loot-page">Loot</div>
+  <div class="tab" onclick="showPage('tests-page')" id="tab-tests-page">Tests</div>
+  <div class="tab" onclick="showPage('runs-page')" id="tab-runs-page">Runs</div>
+  <div class="spacer"></div>
+  <button class="btn-mini" onclick="syncLMStudio()" title="Check for newly downloaded models" style="margin-right:4px">Sync Models</button>
+  <div class="tab" onclick="showPage('lmstudio')" id="tab-lmstudio">LM Studio</div>
+</div>
+
+<!-- ============ PAGE: Benchmark ============ -->
+<div class="page" id="page-benchmark">
+
   <div class="landing-hero" id="landing-hero">
     <img src="/assets/owl-semaphore-logo.png" alt="Owl of Athena" style="height:96px;margin-bottom:var(--fib-4);position:relative;filter:drop-shadow(0 0 20px rgba(212,168,83,0.3)) drop-shadow(0 0 40px rgba(212,168,83,0.15));animation:owlPulse 4s ease-in-out infinite" onerror="this.style.display='none'">
     <div class="landing-hero-title">Archetype Mesh Benchmark</div>
@@ -850,25 +866,6 @@
     </div>
   </div>
 
-</head>
-<body>
-
-<!-- Top Nav -->
-<div class="top-nav">
-  <img class="logo" src="/assets/owl-signature.png" alt="IT Help San Diego — Owl of Athena" onerror="this.style.display='none'" style="height:32px;margin-right:8px;cursor:pointer" onclick="showPage('benchmark')">
-  <div class="tab" onclick="showPage('setup')" id="tab-setup">Setup</div>
-  <div class="tab active" onclick="showPage('benchmark')" id="tab-benchmark">Benchmark</div>
-  <div class="tab" onclick="showPage('prompt-builder')" id="tab-prompt-builder">Prompt Builder</div>
-  <div class="tab" onclick="showPage('loot-page')" id="tab-loot-page">Loot</div>
-  <div class="tab" onclick="showPage('tests-page')" id="tab-tests-page">Tests</div>
-  <div class="tab" onclick="showPage('runs-page')" id="tab-runs-page">Runs</div>
-  <div class="spacer"></div>
-  <button class="btn-mini" onclick="syncLMStudio()" title="Check for newly downloaded models" style="margin-right:4px">Sync Models</button>
-  <div class="tab" onclick="showPage('lmstudio')" id="tab-lmstudio">LM Studio</div>
-</div>
-
-<!-- ============ PAGE: Benchmark ============ -->
-<div class="page" id="page-benchmark">
 
 <!-- Action bar -->
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:var(--fib-2)">
