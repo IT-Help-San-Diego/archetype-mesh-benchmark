@@ -1,0 +1,243 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 310" role="img" aria-label="Left lateral view of the human brain - functional anatomy">
+  <defs>
+    <!-- Hemisphere depth: three-layer shading gives a 3-D form without texture -->
+    <linearGradient id="hemi-deep" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a4e" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0e1c26" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="hemi-rim" x1="0" x2="0.7" y1="0" y2="1">
+      <stop offset="0%" stop-color="#d4a853" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#d4a853" stop-opacity="0.04"/>
+    </linearGradient>
+    <!-- Glow used on active regions -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       LATERAL LEFT — oblique tilt, anatomical proportions.
+       The cortical ribbon of grey matter is shown as three stacked bands:
+       deep core, mid-tone body, and a golden upper-rim highlight line.
+       Sulci produce the gaps between lobes.
+       ZONES (human origin names — what we ARE, not what the model does):
+         🔶 Frontal  — the person, the judge, the planner
+         🔷 Parietal — the map, the integration, the here-and-now
+         💜 Occipital— the window, raw sight before meaning
+         🟠 Temporal — the voice, the memory, the feeling
+         🔴 Deep     — amygdala, where fear is born
+         ⬛ Brainstem— the lantern, what keeps the light on
+         🫐 Cerebellum — the metronome
+       ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- ── Whole hemisphere silhouette (depth silhouette) ──────────────── -->
+  <!-- Outer contour — oblique (slightly tilted toward viewer), lateral left -->
+  <path class="brain-shell" d="
+    M  28 108
+    C  22  85,  30  62,  52  46
+    C  74  28, 110  18, 148  16
+    C 188  13, 228  15, 260  22
+    C 294  30, 326  46, 352  68
+    C 374  86, 382 108, 380 134
+    C 378 158, 370 176, 355 192
+    C 338 210, 313 224, 290 230
+    C 272 238, 258 245, 248 255
+    C 240 265, 235 278, 232 290
+
+    M 232 290
+    C 226 300, 218 308, 212 300
+    C 208 293, 212 280, 218 268
+    C 223 256, 228 244, 222 232
+    C 214 220, 194 216, 176 218
+    C 152 221, 126 226, 102 220
+    C  80 215,  56 204,  38 186
+    C  22 172,  16 154,  18 134
+    C  20 118,  22 110,  28 108 Z
+  " fill="url(#hemi-deep)" stroke="url(#hemi-rim)" stroke-width="2.2"/>
+
+  <!-- ℴ Lateral fissure / Sylvian fissure — the deep diagonal that
+           carves temporal off from parietal. Stylized wider than life so the
+           separation reads clearly at the dashboard size. -->
+  <path d="M 78 148 C 115 135, 175 128, 230 138 C 268 146, 298 158, 330 172"
+        fill="none" stroke="#0e1c26" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ℴ Superior temporal sulcus — a finer line that carves the upper
+           temporal boundary. -->
+  <path d="M 96 168 C 130 156, 175 150, 215 158 C 245 166, 275 176, 310 188"
+        fill="none" stroke="#0e1c26" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ℴ three shallow cortical grooves on the frontal — precentral
+           (just before central sulcus) + superior/middle frontal. These
+           are the wrinkles; they say "this is grey-matter ribbon, not a
+           balloon." Two light strokes each, anatomically positioned. -->
+  <path d="M 50 104 C 70 98, 95 96, 115 100" fill="none" stroke="#0e1c26" stroke-width="1.8" opacity="0.4"/>
+  <path d="M 46 114 C 66 108, 88 106, 110 108" fill="none" stroke="#0e1c26" stroke-width="1.8" opacity="0.35"/>
+  <path d="M 50 124 C 68 120, 86 118, 100 120" fill="none" stroke="#0e1c26" stroke-width="1.6" opacity="0.3"/>
+  <path d="M 48 134 C 62 131, 76 130, 88 132" fill="none" stroke="#0e1c26" stroke-width="1.5" opacity="0.28"/>
+
+  <!-- ℴ Occipital calcarine sulcus landmark — the visual-cortex strip. -->
+  <path d="M 356 140 C 365 150, 368 162, 362 172" fill="none" stroke="#0e1c26" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- ℴ Cerebellar folia — the fine parallel texture of the surface. -->
+  <path d="M 322 210 C 330 216, 334 222, 336 228" fill="none" stroke="#0e1c26" stroke-width="1.2" opacity="0.5"/>
+  <path d="M 328 214 C 336 220, 340 226, 342 232" fill="none" stroke="#0e1c26" stroke-width="1.2" opacity="0.45"/>
+  <path d="M 334 218 C 342 224, 346 230, 348 236" fill="none" stroke="#0e1c26" stroke-width="1.2" opacity="0.4"/>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       LOBE ZONES — colored fills with:
+         middle-tone fill (opacity 0.18 base),
+         rim stroke (opacity 0.65),
+         top-edge highlight (gold, opacity 0.3 — the anatomical lighting).
+       On hover these deepen via CSS; on firing (benchmark in progress)
+       they glow with the axis color.
+
+       Human-origin framing for the teaching hover:
+         Frontal  = the Person — judgment, choice, moral agency
+         Parietal = the Map — "where am I" in space and body
+         Occipital= the Window — raw, pre-linguistic seeing
+         Temporal = the Voice — memory, language, melody, grief
+         Amygdala = the Alarm — the fast fear that lives before thought
+         Brainstem= the Lantern — keeps the light on, no glory
+  ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- ── Frontal pole to the central sulcus ─────────────────────────── -->
+  <!-- Frontal: line of brow → top → central sulcus → orbitofrontal base -->
+  <path id="br-reasoning"
+        class="brain-region" data-axis="reasoning"
+        d="M  28 108
+           C  22  85,  30  62,  52  46
+           C  74  28, 110  18, 148  16
+           C 170  15, 185  18, 195  24
+           C 205  32, 210  46, 212  60
+           C 215  80, 220 100, 218 116
+           C 215 132, 208 142, 198 150
+           C 180 158, 155 154, 135 148
+           C 110 140,  85 138,  62 140
+           C  42 142,  26 136,  28 108 Z"/>
+  <!-- Frontal highlight rim (top edge catches light) -->
+  <path d="M 28 108 C 22 85, 30 62, 52 46 C 74 28, 110 18, 148 16
+           C 170 15, 185 18, 195 24 C 205 32, 210 46, 212 60"
+        fill="none" stroke="#d4a853" stroke-width="0.8" opacity="0.35"/>
+
+  <!-- ── Precentral gyrus (motor strip): the thin band just anterior to ──
+       central sulcus — the hand-knob, the body-as-map territory.         -->
+  <path id="br-tools"
+        class="brain-region" data-axis="tools"
+        d="M 198 150
+           C 215 132, 220 100, 218 116
+           C 215 128, 210 146, 218 156
+           C 225 168, 232 178, 228 190
+           C 218 198, 198 200, 182 196
+           C 168 192, 158 182, 155 168
+           C 152 155, 158 148, 170 144
+           C 180 141, 190 144, 198 150 Z"/>
+
+  <!-- ── Parietal: top-crown between top-of-head and central sulcus        -->
+  <path id="br-vision"
+        class="brain-region" data-axis="vision"
+        d="M 195  24
+           C 220  20, 258  18, 290  22
+           C 320  28, 344  42, 354  62
+           C 362  80, 358  98, 345 112
+           C 330 126, 308 134, 285 138
+           C 265 142, 250 148, 238 158
+           C 228 168, 218 160, 212 148
+           C 205 132, 210 116, 218 100
+           C 220  90, 218  76, 215  64
+           C 212  52, 208  38, 195  24 Z"/>
+  <!-- Parietal rim highlight -->
+  <path d="M 195 24 C 220 20, 258 18, 290 22 C 320 28, 344 42, 354 62"
+        fill="none" stroke="#c49b3a" stroke-width="0.7" opacity="0.3"/>
+
+  <!-- ── Occipital: the backmost tip — primary visual cortex territory   ──
+       Positioned at the rearmost pole of the hemisphere.                  -->
+  <path id="br-literary"
+        class="brain-region" data-axis="literary"
+        d="M 345 112
+           C 362 120, 374 136, 380 156
+           C 385 176, 382 196, 370 212
+           C 356 226, 336 234, 314 234
+           C 296 234, 278 228, 264 218
+           C 250 208, 238 196, 232 182
+           C 226 168, 226 154, 232 142
+           C 238 130, 248 120, 264 116
+           C 282 112, 310 108, 332 108
+           C 340 108, 344 110, 345 112 Z"/>
+  <!-- Occipital calcarine highlight -->
+  <path d="M 356 140 C 365 150, 368 162, 362 172"
+        fill="none" stroke="#a07828" stroke-width="1" opacity="0.3"/>
+
+  <!-- ── Temporal lobe: the long curved reach beneath the lateral fissure ──
+       Houses Wernicke's, the amygdala, the hippocampus.                -->
+  <path id="br-security"
+        class="brain-region" data-axis="security"
+        d="M 135 148
+           C 110 140,  85 138,  62 140
+           C  42 142,  26 136,  28 108   /* orbitofrontal */
+           C  32 138,  48 162,  72 180
+           C  96 198, 130 210, 162 214
+           C 195 218, 228 212, 256 198
+           C 282 184, 308 172, 330 168
+           C 335 166, 335 160, 332 156
+           C 320 152, 296 152, 270 155
+           C 245 158, 218 158, 192 156
+           C 168 154, 148 150, 135 148 Z"/>
+  <!-- Amygdala is INSIDE the temporal lobe — drawn as a deeper fill to
+       show it's a subcortical almond tucked into the anterior-medial
+       temporal wall. The x,y coordinates place it squarely in the
+       uncus / hippocampal region — anatomically plausible placement.  -->
+  <ellipse cx="108" cy="164" rx="22" ry="15"
+           transform="rotate(-18 108 164)"
+           fill="rgba(26,6,6,0.45)" stroke="#c44" stroke-width="1.2" opacity="0.85"/>
+
+  <!-- ── Cerebellum: posterior-inferior, the metronome ─────────────────
+       Two hemispheres, midline vermis, the horizontal fissure.           -->
+  <path d="M 314 234 C 325 232, 338 226, 348 218
+           C 355 212, 360 206, 366 200
+           C 372 194, 374 194, 376 198
+           C 379 205, 377 218, 370 228
+           C 362 238, 348 246, 332 248 C 318 250, 310 244, 314 234 Z"
+        fill="rgba(18,30,36,0.38)" stroke="#5a7a82" stroke-width="1.5" opacity="0.75"/>
+  <!-- Horizontal fissure of cerebellum -->
+  <path d="M 318 235 C 330 230, 345 228, 358 232"
+        fill="none" stroke="#0e1c26" stroke-width="1.2" opacity="0.45"/>
+  <path d="M 322 239 C 332 234, 344 232, 356 236"
+        fill="none" stroke="#0e1c26" stroke-width="1" opacity="0.38"/>
+
+  <!-- ── Brainstem: medulla → pons → midbrain, the stalk ───────────────
+       Goes straight down to the foramen magnum center.                   -->
+  <path id="br-auxiliary"
+        class="brain-region" data-axis="auxiliary"
+        d="M 222 232
+           C 228 242, 232 254, 230 266
+           C 228 276, 222 284, 218 290
+           L 212 300 L 212 305
+           L 228 305 L 232 300
+           C 236 296, 240 288, 242 278
+           C 244 268, 244 256, 242 244
+           C 240 236, 234 230, 228 226 Z"/>
+
+  <!-- ── Exposed ventricle / deep fold silhouette (subtle) ──────────── -->
+  <!-- The corridor visible between frontal and parietal where the
+       lateral sulcus has opened — this reads as "this is a single
+       continuous tissue, folded, not a collection of balls." -->
+  <path d="M 218 116 C 215 128, 210 146, 218 156"
+        fill="none" stroke="#0e1c26" stroke-width="3" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       AXIS COLOUR LEGEND — matches dashboard palette.
+       These are not arbitrary — each hue is tied to what the region
+       IS, not what the test axis happens to be called:
+         Frontal  → amber/gold  — warmest, the moral color
+         Parietal → blue/sky     — spatial, maps, objectivity
+         Occipital→ violet       — the deepest-seeing, most mysterious
+         Temporal → orange       — passion, blood, the singing lobe
+         Amygdala → scarlet      — alarm, the red flag
+         Brainstem→ slate        — the workman
+       ═══════════════════════════════════════════════════════════════════ -->
+</svg>

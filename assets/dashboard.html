@@ -1078,33 +1078,184 @@
      with the axis color, PASS/FAIL tinted. Idle ≠ hidden. -->
 <div id="brain-viz" style="background:var(--bg-secondary);border-top:1px solid var(--border);padding:16px 24px;">
   <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
-    <svg id="brain-svg" viewBox="0 0 420 300" width="300" height="214" role="img" aria-label="Brain region activity map" style="flex-shrink:0;">
-      <!-- Lateral view, facing left. Stylized — regions are functional zones, not surgical atlas. -->
+    <svg id="brain-svg" viewBox="0 0 420 310" width="320" height="236" role="img" aria-label="Left lateral human brain — functional anatomy" style="flex-shrink:0;">
       <defs>
-        <filter id="region-glow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="6" result="b"/>
+        <linearGradient id="hemi-deep" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#1a3040" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#0c1820" stop-opacity="0.35"/>
+        </linearGradient>
+        <linearGradient id="hemi-rim" x1="0" x2="0.8" y1="0" y2="1">
+          <stop offset="0%" stop-color="#d4a853" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#d4a853" stop-opacity="0.06"/>
+        </linearGradient>
+        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <!-- cortex outline -->
-      <path d="M 60 160 Q 55 90 130 60 Q 210 32 290 55 Q 360 75 370 140 Q 375 185 340 210 Q 330 240 290 235 Q 270 250 230 245 Q 190 252 150 240 Q 95 235 75 200 Q 58 185 60 160 Z"
-            fill="none" stroke="var(--border)" stroke-width="2"/>
-      <!-- cerebellum (unmapped, anatomical flavor) -->
-      <path d="M 300 232 Q 340 225 352 205 Q 362 230 335 248 Q 310 258 295 246 Z" fill="none" stroke="var(--border)" stroke-width="1.5" opacity="0.6"/>
-      <!-- prefrontal → reasoning -->
-      <path id="br-reasoning" class="brain-region" data-axis="reasoning" d="M 60 160 Q 55 90 130 60 Q 150 54 165 55 L 160 130 Q 130 150 105 185 Q 80 180 68 175 Q 58 170 60 160 Z"/>
-      <!-- motor strip → tools -->
-      <path id="br-tools" class="brain-region" data-axis="tools" d="M 165 55 Q 200 40 235 45 L 225 120 L 160 130 Z"/>
-      <!-- occipital → vision -->
-      <path id="br-vision" class="brain-region" data-axis="vision" d="M 320 90 Q 360 105 370 140 Q 375 185 340 210 Q 320 200 305 175 L 310 120 Z"/>
-      <!-- temporal → literary -->
-      <path id="br-literary" class="brain-region" data-axis="literary" d="M 105 185 Q 140 160 200 165 Q 250 168 280 190 Q 270 225 230 232 Q 180 240 140 228 Q 110 215 105 185 Z"/>
-      <!-- parietal (fills gap between motor and occipital, unmapped) -->
-      <path d="M 235 45 Q 290 42 320 90 L 310 120 L 225 120 Z" fill="none" stroke="var(--border)" stroke-width="1" opacity="0.35"/>
-      <!-- amygdala → security (deep almond in the temporal lobe) -->
-      <ellipse id="br-security" class="brain-region" data-axis="security" cx="170" cy="196" rx="16" ry="11"/>
-      <!-- brainstem → auxiliary -->
-      <path id="br-auxiliary" class="brain-region" data-axis="auxiliary" d="M 275 235 Q 280 255 272 280 L 252 280 Q 258 255 255 238 Z"/>
+      <!-- ═════════════════════════════════════════════════════════════
+           MODERN ANATOMICAL BRAIN — oblique left-lateral view.
+           Lobe shapes follow NINDS / Herculano-Houzel anatomy.
+           Human-origin names: what we ARE, not what the axis is called.
+             Frontal  → "The Person"     — judgment, agency, choice
+             Motor    → "The Hand"       — intention becomes action
+             Parietal → "The Map"        — space, body, integration
+             Occipital→ "The Window"     — raw seeing, pre-words
+             Temporal → "The Voice"      — memory, language, melody
+             Amygdala → "The Alarm"      — fear lives here first
+             Brainstem→ "The Lantern"    — keeps the light on
+             Cerebellum→ "The Metronome" — timing, smoothness
+           ═════════════════════════════════════════════════════════════ -->
+
+      <!-- ── Hemisphere silhouette (oblique tilt toward viewer) ─────── -->
+      <path d="
+        M  26 110 C  20  80,  28  55,  52  38
+         C  80  18, 120  10, 160   8
+         C 200   6, 245   8, 280  18
+         C 312  28, 340  48, 358  72
+         C 374  92, 380 116, 378 140
+         C 376 162, 368 182, 352 198
+         C 334 216, 310 228, 284 234
+         C 264 240, 250 248, 242 260
+         C 236 270, 232 282, 228 290
+         C 222 298, 216 296, 214 286
+         C 212 276, 214 262, 218 248
+         C 222 234, 216 222, 200 216
+         C 180 210, 155 212, 130 210
+         C 100 208,  70 198,  48 178
+         C  30 162,  22 144,  24 128
+         C  24 118,  24 112,  26 110 Z
+      " fill="url(#hemi-deep)" stroke="url(#hemi-rim)" stroke-width="2"/>
+
+      <!-- ── Lateral fissure (Sylvian) — the great diagonal scar ─────── -->
+      <path d="M 82 146 C 120 130, 170 126, 220 136 C 260 146, 298 158, 332 172"
+            fill="none" stroke="#080f14" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+
+      <!-- ── Superior temporal sulcus — finer branch below ─────────── -->
+      <path d="M 98 166 C 135 152, 180 148, 222 158 C 258 168, 290 180, 322 192"
+            fill="none" stroke="#080f14" stroke-width="2.8" stroke-linecap="round" opacity="0.5"/>
+
+      <!-- ── Central sulcus — the landmark dividing person from map ─────
+           The omega-shaped hand-knob at the lower end.                       -->
+      <path d="M 132 46 C 134 60, 134 80, 132 96 C 130 106, 128 112, 130 118
+               C 132 124, 136 120, 136 114 C 136 108, 133 104, 132 96"
+            fill="none" stroke="#080f14" stroke-width="3" stroke-linecap="round" opacity="0.65"/>
+
+      <!-- ── Precentral & postcentral landmarks — subtle surface texture ── -->
+      <path d="M 52 68 C 78 62, 100 60, 120 64" fill="none" stroke="#080f14" stroke-width="1.6" opacity="0.35"/>
+      <path d="M 140 64 C 162 60, 180 58, 200 62" fill="none" stroke="#080f14" stroke-width="1.6" opacity="0.35"/>
+      <path d="M 52 82 C 72 78, 95 76, 118 78" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.3"/>
+      <path d="M 140 78 C 165 74, 188 72, 205 76" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.3"/>
+      <path d="M 54 96 C 74 92, 96 90, 118 92" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.28"/>
+      <path d="M 140 92 C 162 88, 185 86, 205 90" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.28"/>
+
+      <!-- ── Occipital calcarine sulcus landmark ───────────────────── -->
+      <path d="M 354 112 C 364 124, 366 140, 360 154" fill="none" stroke="#080f14" stroke-width="1.8" opacity="0.4"/>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           LOBE ZONES — anatomically motivated shapes, mapped to axes.
+           Base fill opacity 0.16 — visible as tint without overwhelming
+           the anatomy. On hover, opacity deepens to 0.45. On firing
+           (live benchmark run), regions pulse with axis color.
+           ══════════════════════════════════════════════════════════════ -->
+
+      <!-- ── Frontal lobe — "The Person" — prefrontal cortex ──────── -->
+      <!-- Boundaries: frontal pole → superior frontal → precentral sulcus
+           (just before the central sulcus landmark) → inferior frontal →
+           orbital surface → back to pole.                                -->
+      <path id="br-reasoning" class="brain-region" data-axis="reasoning"
+            d="M 26 110 C 20 80, 28 55, 52 38 C 80 18, 120 10, 160 8
+               C 184 7, 196 12, 204 22 C 210 32, 212 48, 210 62
+               C 208 78, 204 92, 196 106 C 185 118, 168 124, 148 122
+               C 125 120, 100 118, 76 116 C 52 114, 32 118, 26 110 Z"/>
+
+      <!-- ── Precentral gyrus — "The Hand" — motor cortex ──────────── -->
+      <!-- Thin band between central sulcus and the precentral landmark. ─ -->
+      <path id="br-tools" class="brain-region" data-axis="tools"
+            d="M 196 106 C 204 92, 208 78, 210 62
+               C 212 48, 210 32, 204 22 C 196 12, 184 7, 160 8
+               C 150 9, 140 14, 134 24 C 128 36, 128 48, 130 60
+               C 132 76, 134 92, 132 108
+               C 134 116, 136 122, 142 126
+               C 148 122, 168 124, 185 118 Z"/>
+
+      <!-- ── Superior parietal — "The Map" — spatial integration ───── -->
+      <!-- From postcentral sulcus over the crown to occipital border. ── -->
+      <path id="br-vision" class="brain-region" data-axis="vision"
+            d="M 132 108 C 134 92, 132 76, 130 60
+               C 128 48, 128 36, 134 24 C 140 14, 150 9, 160 8
+               C 200 6, 245 8, 280 18 C 312 28, 340 48, 358 72
+               C 362 80, 360 90, 354 100 C 346 110, 332 118, 314 122
+               C 295 126, 272 128, 252 126
+               C 235 124, 218 118, 205 110
+               C 198 106, 196 106, 196 106 Z"/>
+
+      <!-- ── Occipital — "The Window" — primary visual cortex ─────────
+           Backmost pole — where the signal enters before words exist. ── -->
+      <path id="br-literary" class="brain-region" data-axis="literary"
+            d="M 314 122 C 332 118, 346 110, 354 100
+               C 360 90, 362 80, 358 72 C 362 84, 364 102, 360 120
+               C 356 138, 348 158, 336 174
+               C 322 190, 306 200, 288 206
+               C 270 210, 255 208, 242 200
+               C 236 194, 234 186, 236 176
+               C 240 162, 248 148, 258 136
+               C 270 126, 286 122, 305 120 Z"/>
+
+      <!-- ── Temporal lobe — "The Voice" — hangs below the fissure ───
+           Wernicke's, the amygdala, the hippocampus live here. Wernicke
+           is posterior-l Superior temporal gyrus; amygdala is anterior-deep. -->
+      <path id="br-security" class="brain-region" data-axis="security"
+            d="M 76 116 C 100 118, 125 120, 148 122
+               C 150 122, 152 124, 154 128
+               C 156 136, 156 146, 152 156
+               C 148 166, 140 174, 128 180
+               C 112 186,  94 188,  78 184
+               C  62 180,  48 170,  44 156
+               C  40 142,  42 128,  48 116
+               C  56 108,  68 112,  76 116 Z"/>
+
+      <!-- ── Amygdala — "The Alarm" — the deep almond ───────────────
+           Subcortical. In the left-lateral oblique view it appears as a
+           rounded shape tucked into the anterior-medial temporal wall,
+           partially occluded by the temporal lobe silhouette. Drawn with
+           higher fill so it reads as "something lives down there."       -->
+      <ellipse cx="100" cy="152" rx="18" ry="13" transform="rotate(-14 100 152)"
+               fill="rgba(180,40,35,0.30)" stroke="#e05550" stroke-width="1.4" opacity="0.9"/>
+
+      <!-- ── Cerebellum — "The Metronome" — posterior-inferior ─────── -->
+      <!-- Two-lobed hemifield with visible horizontal fissure.          -->
+      <path d="M 288 206 C 300 202, 316 198, 330 204
+               C 340 210, 344 220, 340 230
+               C 334 240, 318 246, 302 244
+               C 290 242, 282 234, 284 224
+               C 286 216, 286 210, 288 206 Z"
+            fill="rgba(14,28,36,0.4)" stroke="#5a7a88" stroke-width="1.6" opacity="0.8"/>
+      <path d="M 292 210 C 304 206, 318 204, 328 210"
+            fill="none" stroke="#080f14" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+      <path d="M 294 218 C 305 214, 316 212, 324 216"
+            fill="none" stroke="#080f14" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+
+      <!-- ── Brainstem — "The Lantern" — stalk between hemispheres ─── -->
+      <!-- Medulla through midbrain, tapered, with a slight midline ───── -->
+      <!-- groove.                                                       -->
+      <path id="br-auxiliary" class="brain-region" data-axis="auxiliary"
+            d="M 222 234 C 228 244, 230 256, 228 268
+               C 226 278, 220 286, 216 292
+               L 212 298 L 222 298
+               L 226 292 C 228 286, 230 278, 230 268
+               C 230 256, 228 244, 222 234 Z"/>
+
+      <!-- ── Lateral ventricle hint — the corridor between frontal & ────
+           parietal, a single continuous folded tissue not a collection. ─ -->
+      <path d="M 196 106 C 196 106, 200 108, 205 110 C 210 112, 215 116, 218 118"
+            fill="none" stroke="#0c1820" stroke-width="3.5" stroke-linecap="round" opacity="0.5"/>
+
+      <!-- ── Exposed cortical ribbon edge — top gold rim ───────────── -->
+      <path d="
+        M 26 110 C 20 80, 28 55, 52 38 C 80 18, 120 10, 160 8
+         C 200 6, 245 8, 280 18 C 312 28, 340 48, 358 72
+      " fill="none" stroke="#d4a853" stroke-width="0.8" opacity="0.3"/>
     </svg>
     <div style="flex:1;min-width:260px;">
       <div style="font-size:11px;letter-spacing:1.5px;color:var(--text-muted);margin-bottom:4px;">FUNCTIONAL TOPOLOGY — ONE MAP, TWO SCIENCES</div>
@@ -1115,12 +1266,12 @@
         During a live run, the map fires in real time.
       </div>
       <div id="brain-legend" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 16px;font-family:var(--font-mono);font-size:11px;">
-        <div class="brain-leg" data-axis="reasoning"><span class="brain-dot"></span>prefrontal · reasoning</div>
-        <div class="brain-leg" data-axis="tools"><span class="brain-dot"></span>motor cortex · tools</div>
-        <div class="brain-leg" data-axis="vision"><span class="brain-dot"></span>occipital · vision</div>
-        <div class="brain-leg" data-axis="literary"><span class="brain-dot"></span>temporal · literary</div>
-        <div class="brain-leg" data-axis="security"><span class="brain-dot"></span>amygdala · security</div>
-        <div class="brain-leg" data-axis="auxiliary"><span class="brain-dot"></span>brainstem · auxiliary</div>
+        <div class="brain-leg" data-axis="reasoning"><span class="brain-dot"></span>The Person · reasoning</div>
+        <div class="brain-leg" data-axis="tools"><span class="brain-dot"></span>The Hand · tools</div>
+        <div class="brain-leg" data-axis="vision"><span class="brain-dot"></span>The Window · vision</div>
+        <div class="brain-leg" data-axis="literary"><span class="brain-dot"></span>The Voice · literary</div>
+        <div class="brain-leg" data-axis="security"><span class="brain-dot"></span>The Alarm · security</div>
+        <div class="brain-leg" data-axis="auxiliary"><span class="brain-dot"></span>The Lantern · auxiliary</div>
       </div>
       <div id="brain-caption" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-height:30px;line-height:1.5;"></div>
     </div>
@@ -2034,42 +2185,43 @@ const BRAIN_AXIS_COLORS = {
   security:  '255,99,99',    // red — amygdala
   auxiliary: '148,163,184',  // slate — brainstem
 };
-// The teaching layer: each axis described by both sciences. Sources are the
-// standard functional-neuroanatomy findings (lesion + neuroimaging
-// literature); AI side is what this benchmark actually measures.
+// The teaching layer: each axis described using human-origin vocabulary.
+// This is the human organ, named for what it makes us. Hovering any region
+// (or its legend row) shows both the human description and the benchmark's
+// angle on it — two views of the same instrument, indexed by where it lives.
 const BRAIN_TEACHING = {
   reasoning: {
-    region: 'Prefrontal cortex',
-    neuro: 'Executive function, working memory, multi-step planning. Damage (e.g. Phineas Gage) preserves knowledge but destroys judgment.',
-    ai: 'The reasoning axis: syllogisms, modus tollens, fallacy detection — 30 machine-verified logic tests. Models, like patients, can retain facts yet fail inference.',
+    region: 'The Person',
+    origin: 'The judgment faculty. Prefrontal cortex — the part of you that weighs "should I?" before "can I?" A Phineas Gage patient could still compute; he could no longer choose well.',
+    benchmark: 'The reasoning axis measures whether a model can distinguish valid from invalid inference — modus tollens, syllogism, fallacy detection — 30 machine-verified logic tests. A correct answer that omits the reasoning is not reasoning.',
   },
   tools: {
-    region: 'Motor cortex',
-    neuro: 'Voluntary action — the brain\'s output interface to the world. Somatotopically mapped: each body part has its cortical territory.',
-    ai: 'The tools axis: function calling. A model that reasons but can\'t emit a well-formed tool call is a mind that can\'t move its hands.',
+    region: 'The Hand',
+    origin: 'Intention becomes action. The motor strip: cortical territory mapped to every muscle in your body. This is where you reach, where you type, where you point at the thing that matters.',
+    benchmark: 'The tools axis measures whether a model can emit a well-formed tool call at the right moment. A mind that reasons but cannot act is a person who can describe climbing but cannot open a window.',
   },
   vision: {
-    region: 'Occipital lobe (V1–V4)',
-    neuro: 'Primary visual cortex. Retinotopic maps, edge detectors, color/motion streams — Hubel & Wiesel\'s Nobel-winning hierarchy.',
-    ai: 'The vision axis: OCR, spatial relations, attribute binding on real screenshots. CNNs were directly inspired by this cortex\'s architecture.',
+    region: 'The Window',
+    origin: 'Raw seeing, pre-words. V1 through V4 in the occipital lobe — edge detectors, retinotopic maps, color and motion streams. Hubel & Wiesel won the Nobel for charting this. The signal is here before language touches it.',
+    benchmark: 'The vision axis measures OCR, spatial relations, and attribute binding on real screenshots. CNNs were directly inspired by this lobe\'s architecture. Seeing is not the same as naming, and the benchmark tells the difference.',
   },
   literary: {
-    region: 'Temporal lobe (language cortex)',
-    neuro: 'Wernicke\'s area and the semantic system: comprehension, narrative, meaning. Lesions produce fluent speech empty of sense.',
-    ai: 'The literary axis: Aristotle\'s ethos/pathos/logos — can the model read rhetoric without being spun? Fluent-but-empty is a failure mode both fields know.',
+    region: 'The Voice',
+    origin: 'Wernicke\'s area and the temporal lobe\'s semantic system — where narrative, melody, and memory meet. When this region is damaged, speech is fluent but empty. A patient can answer "yes" and mean nothing.',
+    benchmark: 'The literary axis can the model read rhetoric without being spun? Aristotle\'s ethos/pathos/logos — plus derived fallacies — test whether persuasion is understood or merely mimicked. Fluent-but-empty is a failure mode both fields know by heart.',
   },
   security: {
-    region: 'Amygdala',
-    neuro: 'Threat detection and salience. Evaluates danger before conscious deliberation — the fast path that keeps the organism alive.',
-    ai: 'The security axis: prompt-injection resistance, dangerous-command refusal. A model without a working amygdala does what any stranger asks.',
+    region: 'The Alarm',
+    origin: 'The amygdala evaluates threat before conscious deliberation. It is the fast path — the fire-alarm that fires before you\'ve decided whether you believe in fire. It keeps the organism alive when reasoning is too slow.',
+    benchmark: 'The security axis measures prompt-injection resistance and dangerous-command refusal. A model without a working amygdala executes whatever the last user said — including an attacker\'s request wrapped in authority.',
   },
   auxiliary: {
-    region: 'Brainstem',
-    neuro: 'Autonomic housekeeping — breathing, arousal, reflex arcs. Unglamorous, always on, everything dies without it.',
-    ai: 'The auxiliary axis: approval classification, MCP relay — the small always-on jobs of an agent stack. Reliability matters more than brilliance here.',
+    region: 'The Lantern',
+    origin: 'The brainstem: breathing, arousal, reflex. Unglamorous, always on, everything dies without it. The lantern room at the top of the lighthouse doesn\'t seem impressive until you remember: no light, no signal.',
+    benchmark: 'The auxiliary axis covers the small always-on jobs — approval classification, MCP relay. Reliability matters more than brilliance here. A brainstem that flickers is not a brainstem.',
   },
 };
-const BRAIN_IDLE_CAPTION = 'Idle — run a benchmark and watch the cortex fire. Hover a region to learn what both sciences say about it.';
+const BRAIN_IDLE_CAPTION = 'Human cognitive architecture — hover any region to see both voices.';
 let _brainActiveRuns = new Set();
 
 function brainCaption(txt) { document.getElementById('brain-caption').textContent = txt; }
@@ -2113,7 +2265,7 @@ function brainRunComplete(d) {
 function brainInitTeaching() {
   const tell = axis => {
     const t = BRAIN_TEACHING[axis];
-    if (t) brainCaption(`${t.region} — ${t.neuro}  ⟷  ${t.ai}`);
+    if (t) brainCaption(`${t.region} — ${t.origin}  ⟷  ${t.benchmark}`);
   };
   const restore = () => brainCaption(_brainActiveRuns.size > 0 ? 'Run in progress…' : BRAIN_IDLE_CAPTION);
   document.querySelectorAll('.brain-region[data-axis], .brain-leg[data-axis]').forEach(el => {
