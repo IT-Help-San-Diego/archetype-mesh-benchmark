@@ -33,6 +33,7 @@ pub async fn fetch_unique_models(db: &PgPool) -> AppResult<Vec<ModelEntry>> {
             COALESCE(v.verdicts::text, '{}') AS verdicts,
             m.price_prompt::float8 AS price_prompt,
             m.price_completion::float8 AS price_completion,
+            m.quantization, m.arch, m.publisher,
             -- Measured spend, derived at read time: provider-metered tokens ×
             -- catalog unit price. NULL when nothing priced was ever measured.
             c.measured_cost_usd

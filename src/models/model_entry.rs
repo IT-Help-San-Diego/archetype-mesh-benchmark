@@ -29,4 +29,9 @@ pub struct ModelEntry {
     /// Measured spend: Σ(trial tokens × unit price) over every completed run
     /// of this model, computed at read time in SQL. None = no priced usage.
     pub measured_cost_usd: Option<f64>,
+    /// Provider-stated facts threaded verbatim from LM Studio (migration 026).
+    /// None for cloud models or when the provider omits them.
+    pub quantization: Option<String>,
+    pub arch: Option<String>,
+    pub publisher: Option<String>,
 }

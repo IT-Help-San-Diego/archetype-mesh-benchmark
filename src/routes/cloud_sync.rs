@@ -191,11 +191,15 @@ pub async fn cloud_sync(State(state): State<AppState>) -> AppResult<Json<CloudSy
             };
             seen += 1;
 
+            // Display name = the provider's own name field, verbatim. The old
+            // code baked "(Cloud · provider)" into the string at sync time —
+            // presentation manufactured in the data layer, triple-redundant
+            // with the CLOUD badge + provider tag (migration 026 stripped it).
             let display = entry
                 .get("name")
                 .and_then(|v| v.as_str())
-                .map(|n| format!("{} (Cloud · {})", n, provider))
-                .unwrap_or_else(|| format!("{} (Cloud · {})", id, provider));
+                .unwrap_or(id)
+                .to_string();
             let ctx = context_from_entry(entry);
             let vision = vision_from_entry(entry);
             let price_prompt = price_from_entry(entry, "prompt");

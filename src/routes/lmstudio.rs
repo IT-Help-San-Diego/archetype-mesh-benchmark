@@ -23,6 +23,13 @@ pub struct LsModelInfo {
     /// which made the pre-flight gate block all vision runs after any sync.
     #[serde(rename = "type")]
     pub model_type: Option<String>,
+    /// Provider-stated facts, threaded verbatim (migration 026): the maker's
+    /// publisher handle, the quantization label (e.g. "4bit", "Q8_0"), and
+    /// the architecture family (e.g. "qwen3", "gemma3"). None when LM Studio
+    /// omits them — never synthesized.
+    pub publisher: Option<String>,
+    pub quantization: Option<String>,
+    pub arch: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,6 +180,9 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
                        display_name = $2,
                        context_length = $3,
                        supports_vision = $4,
+                       publisher = $5,
+                       quantization = $6,
+                       arch = $7,
                        last_seen_in_lmstudio = NOW(),
                        updated_at = NOW()
                    WHERE id = $1"#,
@@ -181,20 +191,30 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
             .bind(&lm.id)
             .bind(lm.max_context_length.unwrap_or(0))
             .bind(supports_vision)
+            .bind(&lm.publisher)
+            .bind(&lm.quantization)
+            .bind(&lm.arch)
             .execute(&state.db)
             .await?;
             if rows.rows_affected() > 0 {
                 updated += 1;
             }
         } else {
-            // Insert new
+            // Insert new. ON CONFLICT target is (key, provider) — the
+            // key-only unique constraint was DROPPED in migration 023
+            // (a model id can exist on several providers); a bare
+            // ON CONFLICT (key) matches no constraint and 500s the sync
+            // (found live 2026-07-09, first new-model insert post-023).
             sqlx::query(
-                r#"INSERT INTO models (key, display_name, provider, location, context_length, supports_vision, lmstudio_key, last_seen_in_lmstudio, active)
-                   VALUES ($1, $2, 'lmstudio', 'local', $3, $4, $5, NOW(), true)
-                   ON CONFLICT (key) DO UPDATE SET
+                r#"INSERT INTO models (key, display_name, provider, location, context_length, supports_vision, publisher, quantization, arch, lmstudio_key, last_seen_in_lmstudio, active)
+                   VALUES ($1, $2, 'lmstudio', 'local', $3, $4, $5, $6, $7, $8, NOW(), true)
+                   ON CONFLICT (key, provider) DO UPDATE SET
                        display_name = EXCLUDED.display_name,
                        context_length = EXCLUDED.context_length,
                        supports_vision = EXCLUDED.supports_vision,
+                       publisher = EXCLUDED.publisher,
+                       quantization = EXCLUDED.quantization,
+                       arch = EXCLUDED.arch,
                        lmstudio_key = EXCLUDED.lmstudio_key,
                        last_seen_in_lmstudio = NOW(),
                        updated_at = NOW(),
@@ -204,6 +224,9 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
             .bind(&lm.id)
             .bind(lm.max_context_length.unwrap_or(0))
             .bind(supports_vision)
+            .bind(&lm.publisher)
+            .bind(&lm.quantization)
+            .bind(&lm.arch)
             .bind(&lm.id)
             .execute(&state.db)
             .await?;

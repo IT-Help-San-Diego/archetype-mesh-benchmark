@@ -323,24 +323,31 @@
   .model-card-unresolved:hover {
     border-color: var(--flaky);
   }
-  /* Spatial math (DNS-Tool topology discipline, 2026-07-09): the card
-     header owns IDENTITY (badge + name + status chips) and reserves
-     right-side clearance for the absolutely-positioned actions block;
-     the actions block owns VERBS (Dossier, Run) and never overlaps
-     content because the header's padding-right is sized to the widest
-     two-button pair (~150px) plus one fib gap. One owner per zone. */
+  /* Spatial math v2 (DNS-Tool topology discipline, 2026-07-09): the old
+     contract reserved a fixed right-side corridor (158px) for absolutely-
+     positioned actions — correct for TWO buttons, silently wrong the day a
+     third (Insights) shipped: long names ran under the buttons (user
+     screenshot, inclusionAI/Ling). Fixed-corridor math is fragile because
+     it must be re-derived on every button change. New contract: ZERO
+     absolute positioning. Rows own zones in normal document flow —
+     header row = identity, meta rows = facts, verdict grid = evidence,
+     actions row = verbs (bottom, border-separated). Overlap is now
+     geometrically impossible at any name length, button count, or zoom.
+     Pure CSS flow = zero JS measurement = zero layout thrash. */
   .model-card-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 10px;
-    padding-right: 158px; /* reserved actions corridor: 150px + fib-2 */
+    flex-wrap: wrap;
   }
   .model-name {
     font-size: 14px;
     font-weight: 600;
     font-family: var(--font-mono);
     color: var(--text-primary);
+    min-width: 0;
+    overflow-wrap: anywhere; /* long model ids wrap, never clip or collide */
   }
   .badge-local, .badge-cloud {
     font-size: 10px;
@@ -364,13 +371,29 @@
     font-size: 11px;
     color: var(--text-muted);
     font-family: var(--font-mono);
+    overflow-wrap: anywhere; /* same wrap rule as .model-name — one policy */
   }
+  .copy-key-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: color 120ms, border-color 120ms;
+  }
+  .copy-key-btn:hover { color: var(--accent-gold, #d4a853); border-color: var(--accent-gold, #d4a853); }
+  .copy-key-btn.copied { color: var(--safe); border-color: var(--safe); }
   .model-card-actions {
-    position: absolute;
-    top: 12px;
-    right: 12px;
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
   }
   .btn-mini {
     padding: 4px 10px;
@@ -1707,8 +1730,8 @@ function renderGrid() {
         <span class="model-name">${m.display_name}</span>
         ${unresolved ? '<span class="chip" style="font-size:9px;padding:1px 5px;background:var(--flaky);color:#000;">INCOMPLETE DOWNLOAD?</span>' : ''}
       </div>
-      <div class="provider-tag">${m.provider} · ${m.key}</div>
-      ${m.size_gb ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${m.size_gb} GB · ${m.context_length || 0} ctx</div>` : ''}
+      <div class="provider-tag">${m.provider} · <span class="model-key-tag">${m.key}</span><button class="copy-key-btn" onclick="event.stopPropagation(); copyModelKey('${m.key.replace(/'/g, "\\'")}', this)" title="Copy the exact model tag (paste into LM Studio, configs, API calls)">⧉</button></div>
+      ${factsLine(m)}
       ${costLine(m)}
       ${m.tags && m.tags.length ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${m.tags.map(t => `<span class="chip" style="font-size:10px;padding:2px 6px;">${t}</span>`).join('')}</div>` : ''}
       <div class="verdict-grid">${verdictCells}</div>
@@ -1719,6 +1742,26 @@ function renderGrid() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Provider facts row ────────────────────────────────────────────────
+// Every provider-stated fact renders when present, independently. The old
+// code gated the ENTIRE row behind `size_gb ?` — 251/281 cards silently
+// hid their context_length because cloud models have no size (field-
+// threading audit, 2026-07-09). One fact missing must never hide another.
+function fmtCtx(n) {
+  if (!n) return null;
+  return n >= 1000 ? (n % 1000 === 0 ? (n/1000) + 'k' : (n/1000).toFixed(1) + 'k') : String(n);
+}
+function factsLine(m) {
+  const facts = [];
+  if (m.size_gb) facts.push(m.size_gb + ' GB');
+  const ctx = fmtCtx(m.context_length);
+  if (ctx) facts.push(ctx + ' ctx');
+  if (m.quantization) facts.push(m.quantization);
+  if (m.arch) facts.push(m.arch);
+  if (!facts.length) return '';
+  return `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${facts.join(' · ')}</div>`;
 }
 
 // ── Cost reality ──────────────────────────────────────────────────────
@@ -1756,6 +1799,30 @@ function costLine(m) {
     <span style="color:var(--text-muted);">${fmtPerM(m.price_prompt)}/M in · ${m.price_completion != null ? fmtPerM(m.price_completion) + '/M out' : '—'}</span>
     ${spend ? `<span style="color:var(--gold,#d4a853);" title="Measured: provider-metered tokens × catalog unit price, across all completed runs">spent ${spend}</span>` : ''}
   </div>`;
+}
+
+// ── Copy model tag ───────────────────────────────────────────────────
+// The publisher/model key is the currency of the whole local-AI world —
+// LM Studio, configs, API bodies all take it verbatim. One click, exact
+// string, visible confirmation. Clipboard API needs a secure context;
+// localhost qualifies, but keep a legacy fallback for edge embeds.
+async function copyModelKey(key, btn) {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(key);
+    ok = true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = key; document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  if (btn) {
+    const prev = btn.textContent;
+    btn.textContent = ok ? '✓' : '✗';
+    btn.classList.toggle('copied', ok);
+    setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1200);
+  }
 }
 
 function updateStats() {
@@ -3202,20 +3269,21 @@ async function deleteCloudKey(provider) {
   const r = await apiFetch('/api/cloud-keys/' + provider, { method: 'DELETE' });
   if (r.ok) { loadCloudKeys(); } else { alert('Failed: ' + r.error); }
 }
-// Newest bots discovery
+// Newest bots discovery — LOCAL ONLY by contract: the panel's own title
+// promises "freshly downloaded models in LM Studio". Cloud models flooded
+// this list after cloud sync landed (259 rows, all with newer created_at
+// than any local model) — caught by user screenshot 2026-07-09.
 async function loadNewestBots() {
   const panel = document.getElementById('newest-bots-panel');
   if (!panel) return;
-  const recent = [...models].sort((a,b) => {
-    const da = a.created_at || ''; const db = b.created_at || '';
-    return db.localeCompare(da);
-  }).slice(0, 8);
-  if (recent.length === 0) { panel.innerHTML = '<span style="color:var(--text-muted)">No models registered yet.</span>'; return; }
+  const recent = models.filter(m => m.location === 'local')
+    .sort((a,b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    .slice(0, 8);
+  if (recent.length === 0) { panel.innerHTML = '<span style="color:var(--text-muted)">No local models registered yet — click Sync Models with LM Studio running.</span>'; return; }
   let html = '<div class="newest-bots">';
   for (const m of recent) {
-    const loc = m.location === 'local' ? 'LM Studio' : m.provider;
     const isNew = m.verdicts === '{}' || !m.verdicts;
-    html += '<span class="newest-bot-chip" onclick="showPage(\'benchmark\')">' + m.display_name + ' <span style="color:var(--text-muted);font-size:9px">' + loc + '</span>' + (isNew ? '<span class="nbc-badge">NEW</span>' : '') + '</span>';
+    html += '<span class="newest-bot-chip" onclick="showPage(\'benchmark\')">' + m.display_name + ' <span style="color:var(--text-muted);font-size:9px">LM Studio</span>' + (isNew ? '<span class="nbc-badge">NEW</span>' : '') + '</span>';
   }
   html += '</div>';
   panel.innerHTML = html;
