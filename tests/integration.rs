@@ -341,7 +341,7 @@ async fn router_plan_returns_all_axes_with_policy_echo() {
 
     let axes = json["axes"].as_array().unwrap();
     let names: Vec<&str> = axes.iter().map(|a| a["axis"].as_str().unwrap()).collect();
-    assert_eq!(names, vec!["vision", "tools", "reasoning", "security", "auxiliary"]);
+    assert_eq!(names, vec!["vision", "tools", "reasoning", "security", "literary", "auxiliary"]);
 }
 
 #[tokio::test]

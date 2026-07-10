@@ -34,4 +34,8 @@ pub struct ModelEntry {
     pub quantization: Option<String>,
     pub arch: Option<String>,
     pub publisher: Option<String>,
+    /// Latest completed fountain-probe verdict for this (key, provider):
+    /// FOUNTAIN / TRICKLE / THROTTLED / MIRAGE. None = never probed.
+    /// Measured rate posture — the empirical check on the price tag's story.
+    pub fountain_verdict: Option<String>,
 }

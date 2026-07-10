@@ -34,10 +34,20 @@ pub async fn fetch_unique_models(db: &PgPool) -> AppResult<Vec<ModelEntry>> {
             m.price_prompt::float8 AS price_prompt,
             m.price_completion::float8 AS price_completion,
             m.quantization, m.arch, m.publisher,
+            -- Latest completed fountain probe verdict (rate-posture evidence).
+            f.verdict AS fountain_verdict,
             -- Measured spend, derived at read time: provider-metered tokens ×
             -- catalog unit price. NULL when nothing priced was ever measured.
             c.measured_cost_usd
         FROM models m
+        LEFT JOIN LATERAL (
+            SELECT fp.verdict
+            FROM fountain_probes fp
+            WHERE fp.model_key = m.key AND fp.provider = m.provider
+              AND fp.verdict IS NOT NULL
+            ORDER BY fp.created_at DESC
+            LIMIT 1
+        ) f ON true
         LEFT JOIN (
             SELECT r.model_id,
                    SUM(t.prompt_tokens * m2.price_prompt

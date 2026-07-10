@@ -43,7 +43,7 @@ use crate::state::AppState;
 
 /// Display / iteration order. Auxiliary is included — routing local models
 /// onto Hermes' auxiliary tasks is the founding use case for this feature.
-const AXIS_ORDER: [&str; 5] = ["vision", "tools", "reasoning", "security", "auxiliary"];
+const AXIS_ORDER: [&str; 6] = ["vision", "tools", "reasoning", "security", "literary", "auxiliary"];
 
 const DEFAULT_MIN_TRIALS: i64 = 3;
 const DEFAULT_FALLBACK_THRESHOLD: f64 = 0.8;

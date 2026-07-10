@@ -427,6 +427,7 @@
   .verdict-cell.tools { border-left: 3px solid var(--accent-cyan); }
   .verdict-cell.reasoning { border-left: 3px solid var(--accent-green); }
   .verdict-cell.security { border-left: 3px solid var(--accent-amber); }
+  .verdict-cell.literary { border-left: 3px solid var(--accent-gold, #d4a853); grid-column: 1 / -1; }
   .v-safe { color: var(--safe); }
   .v-unsafe { color: var(--unsafe); }
   .v-flaky { color: var(--flaky); }
@@ -970,6 +971,7 @@
     <option value="tools">Tools</option>
     <option value="reasoning">Reasoning</option>
     <option value="security">Security</option>
+    <option value="literary">Literary</option>
   </select>
   <select id="filter-verdict" onchange="applyFilters()">
     <option value="all">All Verdicts</option>
@@ -991,6 +993,8 @@
     <option value="cost-asc">Sort: Cheapest first</option>
     <option value="cost-desc">Sort: Priciest first</option>
     <option value="spend">Sort: Measured spend</option>
+    <option value="ctx-desc">Sort: Biggest context</option>
+    <option value="ctx-asc">Sort: Smallest context</option>
   </select>
   <input type="text" id="filter-search" placeholder="Search model…" oninput="applyFilters()"
          style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:180px;">
@@ -1397,6 +1401,7 @@ Is this formula satisfiable? Answer SAT or UNSAT.</div>
             <option value="tools">🔧 Tools</option>
             <option value="reasoning" selected>🧠 Reasoning</option>
             <option value="security">🛡 Security</option>
+            <option value="literary">📜 Literary</option>
             <option value="auxiliary">⚙ Auxiliary</option>
           </select>
         </div>
@@ -1623,7 +1628,7 @@ function dotClass(v) {
   return '';
 }
 function axisLabel(axis) {
-  const map = { vision: '👁 Vision', tools: '🔧 Tools', reasoning: '🧠 Reasoning', security: '🛡 Security' };
+  const map = { vision: '👁 Vision', tools: '🔧 Tools', reasoning: '🧠 Reasoning', security: '🛡 Security', literary: '📜 Literary', auxiliary: '⚙ Auxiliary' };
   return map[axis] || axis;
 }
 
@@ -1680,6 +1685,13 @@ function renderGrid() {
     rows.sort((a, b) => (b.price_prompt ?? -1) - (a.price_prompt ?? -1) || a.display_name.localeCompare(b.display_name));
   } else if (sortBy === 'spend') {
     rows.sort((a, b) => (b.measured_cost_usd ?? -1) - (a.measured_cost_usd ?? -1) || a.display_name.localeCompare(b.display_name));
+  } else if (sortBy === 'ctx-desc') {
+    // Token-count sorts: context_length is the provider-stated window.
+    // 0/unknown sinks to the end in BOTH directions — an unknown window is
+    // never "smallest", it's unmeasured (same policy as cost sorts).
+    rows.sort((a, b) => (b.context_length || -1) - (a.context_length || -1) || a.display_name.localeCompare(b.display_name));
+  } else if (sortBy === 'ctx-asc') {
+    rows.sort((a, b) => (a.context_length || Infinity) - (b.context_length || Infinity) || a.display_name.localeCompare(b.display_name));
   }
 
   if (rows.length === 0) {
@@ -1690,7 +1702,10 @@ function renderGrid() {
   grid.innerHTML = rows.map(m => {
     let verdicts = {};
     try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
+    // Core 4 always render; literary joins the grid only once it has
+    // evidence for this model (keeps untested cards at the classic 2x2).
     const axes = ['vision','tools','reasoning','security'];
+    if (verdicts['literary']) axes.push('literary');
     const verdictCells = axes.map(a => {
       const entry = verdicts[a];
       const v = vOf(entry);
@@ -1723,6 +1738,12 @@ function renderGrid() {
       : `<button class="btn-mini" onclick="runSingle('${m.key}')">▶ Run</button>`;
     const insightsBtn = `<button class="btn-mini" onclick="event.stopPropagation(); openInsights('${m.key.replace(/'/g, "\\'")}')" title="Latency, fallacy patterns, reasoning traces, hardware fit">📊 Insights</button>`;
     const dossierBtn = `<button class="btn-mini dossier-btn" onclick="event.stopPropagation(); openDossier('${m.key.replace(/'/g, "\\'")}')" title="Every factual thing we know about this model — registry, live state, full evidence record">📋 Dossier</button>`;
+    // Fountain probe: cloud models only — the question it answers ("does the
+    // provider's rate posture match the price tag?") has no meaning for a
+    // model running on your own silicon.
+    const probeBtn = m.location === 'cloud'
+      ? `<button class="btn-mini" onclick="event.stopPropagation(); startFountain('${m.key.replace(/'/g, "\\'")}', '${m.provider}')" title="Fire 20 requests at 1/s and measure what the provider ACTUALLY sustains — verdicts: FOUNTAIN (all pass), TRICKLE (slow), THROTTLED (429s/drops), MIRAGE (advertised but unusable)">⛲ Probe</button>`
+      : '';
 
     return `<div class="${cardClasses}" data-key="${m.key}" data-unresolved="${unresolved}">
       <div class="model-card-header">
@@ -1738,6 +1759,7 @@ function renderGrid() {
       <div class="model-card-actions">
         ${insightsBtn}
         ${dossierBtn}
+        ${probeBtn}
         ${runBtn}
       </div>
     </div>`;
@@ -1794,8 +1816,16 @@ function costLine(m) {
   const tier = costTier(m);
   if (!tier) return '';
   const spend = fmtSpend(m.measured_cost_usd);
-  return `<div class="cost-line" style="font-size:11px;margin-top:3px;display:flex;gap:6px;align-items:center;">
+  // Fountain verdict = the measured answer to the tier's claim. FOUNTAIN
+  // green (claim verified), TRICKLE cyan (slow but real), THROTTLED amber,
+  // MIRAGE red (advertised but unusable). Sits beside the price so the
+  // claim and the measurement read as one line.
+  const fv = m.fountain_verdict;
+  const fvCls = fv === 'FOUNTAIN' ? 'safe' : fv === 'TRICKLE' ? 'cost-trickle' : fv === 'THROTTLED' ? 'flaky' : fv === 'MIRAGE' ? 'unsafe' : '';
+  const fvChip = fv ? `<span class="chip ${fvCls}" style="font-size:9px;padding:1px 6px;" title="Measured rate posture: latest fountain probe (20 req @ 1/s) — this is evidence, not the catalog's claim">⛲ ${fv}</span>` : '';
+  return `<div class="cost-line" style="font-size:11px;margin-top:3px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
     <span class="chip ${tier.cls}" style="font-size:9px;padding:1px 6px;" title="${tier.note}">${tier.label}</span>
+    ${fvChip}
     <span style="color:var(--text-muted);">${fmtPerM(m.price_prompt)}/M in · ${m.price_completion != null ? fmtPerM(m.price_completion) + '/M out' : '—'}</span>
     ${spend ? `<span style="color:var(--gold,#d4a853);" title="Measured: provider-metered tokens × catalog unit price, across all completed runs">spent ${spend}</span>` : ''}
   </div>`;
@@ -1822,6 +1852,23 @@ async function copyModelKey(key, btn) {
     btn.textContent = ok ? '✓' : '✗';
     btn.classList.toggle('copied', ok);
     setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1200);
+  }
+}
+
+// ── Fountain probe launcher ───────────────────────────────────────────
+// POST /api/fountain, then the SSE stream carries fountain_request /
+// fountain_complete events into the live log; fountain_complete also
+// triggers a registry refresh so the verdict chip appears on the card.
+async function startFountain(key, provider) {
+  const r = await apiFetch('/api/fountain', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ model_key: key, provider: provider, requests: 20, interval_ms: 1000 })
+  });
+  if (r.ok) {
+    log('info', `Fountain probe #${r.data.probe_id} started: ${key} — ${r.data.requests_planned} requests @ ${r.data.interval_ms}ms. Watch the log; verdict lands on the card.`);
+  } else {
+    log('error', `Fountain probe failed to start: ${r.error}`);
   }
 }
 

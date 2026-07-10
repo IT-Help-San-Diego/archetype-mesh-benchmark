@@ -15,7 +15,7 @@ use crate::state::AppState;
 // non-frontier / local models are reliable enough for Hermes' auxiliary
 // tasks (approval classification, MCP sampling relay) — see migration 009.
 // Deliberately kept separate from the core 4-axis capability grid.
-const VALID_AXES: [&str; 5] = ["vision", "tools", "reasoning", "security", "auxiliary"];
+const VALID_AXES: [&str; 6] = ["vision", "tools", "reasoning", "security", "literary", "auxiliary"];
 
 #[derive(Debug, Deserialize)]
 pub struct StartRunRequest {

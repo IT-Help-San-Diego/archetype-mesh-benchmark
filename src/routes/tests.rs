@@ -80,7 +80,7 @@ pub async fn list_tests(
     Ok(Json(serde_json::json!({ "tests": tests, "count": tests.len() })))
 }
 
-const VALID_AXES: [&str; 5] = ["vision", "tools", "reasoning", "security", "auxiliary"];
+const VALID_AXES: [&str; 6] = ["vision", "tools", "reasoning", "security", "literary", "auxiliary"];
 const VALID_SCORING: [&str; 6] = ["exact", "substring", "spatial", "nested_tool", "security", "regex"];
 
 fn validate(axis: &str, scoring: &str) -> Option<String> {
