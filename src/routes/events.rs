@@ -21,7 +21,11 @@ use crate::state::AppState;
 /// the registry snapshot at this interval so verdict changes land without reloads.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 
-async fn registry_envelope(state: &AppState, kind: &str) -> Option<String> {
+/// Serialize the full model-registry snapshot as an SSE envelope.
+/// `pub` because sync routes (lmstudio_sync, cloud_sync) broadcast a
+/// `refresh` immediately after mutating the registry — instant grid
+/// update over SSE, no reliance on the periodic tick.
+pub async fn registry_envelope(state: &AppState, kind: &str) -> Option<String> {
     match queries::fetch_unique_models(&state.db).await {
         Ok(models) => match serde_json::to_string(&serde_json::json!({
             "type": kind,

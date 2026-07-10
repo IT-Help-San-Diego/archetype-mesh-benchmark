@@ -235,6 +235,15 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
     .execute(&state.db)
     .await?;
 
+    // Registry mutated — push a fresh snapshot to every open SSE connection
+    // immediately. The dashboard's grid re-renders from this event; the
+    // frontend never calls back for data (SSE-only contract, no polling).
+    if added + updated + deactivated > 0 {
+        if let Some(json) = crate::routes::events::registry_envelope(&state, "refresh").await {
+            let _ = state.events_tx.send(json); // Err = no subscribers; fine.
+        }
+    }
+
     Ok(Json(SyncResult {
         models_seen,
         models_added: added,

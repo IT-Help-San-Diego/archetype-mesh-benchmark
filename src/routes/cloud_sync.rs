@@ -228,6 +228,15 @@ pub async fn cloud_sync(State(state): State<AppState>) -> AppResult<Json<CloudSy
         });
     }
 
+    // Registry mutated — push a fresh snapshot to every open SSE connection
+    // immediately (same contract as lmstudio_sync; grid updates with zero
+    // frontend fetch-back).
+    if providers.iter().any(|p| p.models_added + p.models_updated > 0) {
+        if let Some(json) = crate::routes::events::registry_envelope(&state, "refresh").await {
+            let _ = state.events_tx.send(json); // Err = no subscribers; fine.
+        }
+    }
+
     Ok(Json(CloudSyncResult {
         providers,
         duration_ms: started.elapsed().as_millis() as i64,
