@@ -2555,6 +2555,13 @@ if (localStorage.getItem('amb-protocol-collapsed') === '1') {
 
 updateProviderOptions();
 
+// ============ Model selection ============
+function selectModel(key) {
+  selectedModel = key;
+  document.querySelectorAll('.model-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.key === key);
+  });
+}
 // ============ Tab navigation — makes the top-nav tabs actually work ============
 const PAGES = ['setup', 'benchmark', 'prompt-builder', 'loot-page', 'tests-page', 'runs-page', 'lmstudio'];
 function showPage(name) {
@@ -4124,6 +4131,7 @@ function whenReady(fn) {
 }
 whenReady(function() {
   setTimeout(checkLandingReality, 500);
+  loadModels();
 });
 
 // Subtle console easter egg
