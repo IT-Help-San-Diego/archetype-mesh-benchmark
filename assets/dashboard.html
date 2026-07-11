@@ -4115,7 +4115,14 @@ function playHackThePlanet() {
 }
 
 // Run reality check when landing page is shown
-document.addEventListener('DOMContentLoaded', function() {
+function whenReady(fn) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    fn();
+  }
+}
+whenReady(function() {
   setTimeout(checkLandingReality, 500);
 });
 
