@@ -2102,7 +2102,7 @@ function renderGrid() {
       ? `<button class="btn-mini" onclick="event.stopPropagation(); startFountain('${m.key.replace(/'/g, "\\'")}', '${m.provider}')" title="Fire 20 requests at 1/s and measure what the provider ACTUALLY sustains — verdicts: FOUNTAIN (all pass), TRICKLE (slow), THROTTLED (429s/drops), MIRAGE (advertised but unusable)">⛲ Probe</button>`
       : '';
 
-    return `<div class="${cardClasses}" data-key="${m.key}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">`
+    return `<div class="${cardClasses}" data-key="${m.key}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">
       <div class="model-card-header">
         ${locBadge}
         <span class="model-name">${m.display_name}</span>
