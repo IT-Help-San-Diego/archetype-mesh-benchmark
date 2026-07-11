@@ -159,6 +159,16 @@ fn scan_draft_pairs() -> Vec<SpecPair> {
 
 // LM Studio API helpers
 
+fn normalize_for_match(s: &str) -> String {
+    let lower = s.to_lowercase();
+    let no_pub = lower.split('/').last().unwrap_or(&lower);
+    let no_ext = no_pub.strip_suffix(".gguf").unwrap_or(no_pub);
+    let no_ext = no_ext.strip_suffix(".gguf.bak").unwrap_or(no_ext);
+    no_ext
+        .replace("@", "-")
+        .replace(".", "-")
+}
+
 async fn fetch_ls_models(base_url: &str) -> AppResult<Vec<serde_json::Value>> {
     let url = format!("{}/api/v0/models", base_url);
     let resp = reqwest::Client::new()
@@ -196,12 +206,10 @@ pub async fn spec_decode_pairs(State(state): State<AppState>) -> AppResult<Json<
                 .collect();
 
             for pair in &mut pairs {
-                let main_loaded = loaded_ids.iter().any(|id| {
-                    id == &pair.main_model || id.ends_with(&pair.main_model) || pair.main_model.ends_with(id)
-                });
-                let draft_loaded = loaded_ids.iter().any(|id| {
-                    id == &pair.draft_model || id.ends_with(&pair.draft_model) || pair.draft_model.ends_with(id)
-                });
+                let main_norm = normalize_for_match(&pair.main_model);
+                let draft_norm = normalize_for_match(&pair.draft_model);
+                let main_loaded = loaded_ids.iter().any(|id| normalize_for_match(id) == main_norm);
+                let draft_loaded = loaded_ids.iter().any(|id| normalize_for_match(id) == draft_norm);
 
                 pair.main_loaded = main_loaded;
                 pair.draft_loaded = draft_loaded;

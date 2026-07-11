@@ -1047,16 +1047,13 @@ async function runSpecDecodeTest(mainModel) {
 <!-- Filters -->
 <div class="filters">
   <span class="filter-label">FILTER:</span>
-  <select id="filter-location" onchange="applyFilters()">
+  <select id="filter-location" onchange="onLocationFilterChanged()">
     <option value="all">All Locations</option>
     <option value="local">Local Only</option>
     <option value="cloud">Cloud Only</option>
   </select>
   <select id="filter-provider" onchange="applyFilters()">
     <option value="all">All Providers</option>
-    <option value="lmstudio">LM Studio</option>
-    <option value="nous">Nous</option>
-    <option value="openrouter">OpenRouter</option>
   </select>
   <select id="filter-axis" onchange="applyFilters()">
     <option value="all">All Axes</option>
@@ -2267,6 +2264,7 @@ function applyFilters() { renderGrid(); }
 function clearFilters() {
   document.getElementById('filter-location').value = 'all';
   document.getElementById('filter-provider').value = 'all';
+  updateProviderOptions();
   document.getElementById('filter-axis').value = 'all';
   document.getElementById('filter-verdict').value = 'all';
   document.getElementById('filter-cost').value = 'all';
@@ -2274,6 +2272,28 @@ function clearFilters() {
   document.getElementById('sort-by').value = 'name';
   document.getElementById('filter-search').value = '';
   renderGrid();
+}
+
+const LOCAL_PROVIDERS = ['lmstudio'];
+const CLOUD_PROVIDERS = ['nous', 'openrouter'];
+function updateProviderOptions() {
+  const loc = document.getElementById('filter-location').value;
+  const sel = document.getElementById('filter-provider');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="all">All Providers</option>';
+  const set = loc === 'local' ? LOCAL_PROVIDERS : loc === 'cloud' ? CLOUD_PROVIDERS : [...LOCAL_PROVIDERS, ...CLOUD_PROVIDERS];
+  set.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p === 'lmstudio' ? 'LM Studio' : p === 'nous' ? 'Nous' : p === 'openrouter' ? 'OpenRouter' : p;
+    sel.appendChild(opt);
+  });
+  if ([...set].includes(prev)) sel.value = prev;
+  else sel.value = 'all';
+}
+function onLocationFilterChanged() {
+  updateProviderOptions();
+  applyFilters();
 }
 
 // Logging
@@ -2534,6 +2554,8 @@ function toggleProtocol() {
 if (localStorage.getItem('amb-protocol-collapsed') === '1') {
   document.getElementById('protocol-panel').classList.add('collapsed');
 }
+
+updateProviderOptions();
 
 // ============ Tab navigation — makes the top-nav tabs actually work ============
 const PAGES = ['setup', 'benchmark', 'prompt-builder', 'loot-page', 'tests-page', 'runs-page', 'lmstudio'];
