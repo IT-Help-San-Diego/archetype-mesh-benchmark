@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use walkdir::WalkDir;
+
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -87,57 +89,68 @@ fn scan_draft_pairs() -> Vec<SpecPair> {
     let config_root = home.join(LMSTUDIO_CONFIG_DIR);
     let mut pairs = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(&config_root) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("json") {
-                continue;
-            }
-            if let Ok(raw) = std::fs::read_to_string(&path) {
-                if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    let fields = cfg
-                        .get("load")
-                        .and_then(|l| l.get("fields"))
-                        .and_then(|f| f.as_array());
+    for entry in WalkDir::new(&config_root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        if path.extension().and_then(|s| s.to_str()) != Some("json") {
+            continue;
+        }
+        if path.file_name().and_then(|s| s.to_str()).map(|n| n.ends_with(".json.bak")) == Some(true) {
+            continue;
+        }
 
-                    let mut draft_model = None;
-                    let mut draft_source = DraftSource::Unknown;
+        if let Ok(raw) = std::fs::read_to_string(path) {
+            if let Ok(cfg) = serde_json::from_str::<serde_json::Value>(&raw) {
+                let fields = cfg
+                    .get("load")
+                    .and_then(|l| l.get("fields"))
+                    .and_then(|f| f.as_array());
 
-                    if let Some(fields) = fields {
-                        for f in fields {
-                            let key = f.get("key").and_then(|k| k.as_str()).unwrap_or("");
-                            let value = f.get("value");
-                            match key {
-                                "llm.load.llama.speculativeDecoding.draftModel" => {
-                                    draft_model = value.and_then(|v| v.as_str()).map(|s| s.to_string());
-                                    draft_source = DraftSource::Simple;
-                                }
-                                "llm.load.llama.speculativeDecoding.draftMtp" => {
-                                    if value == Some(&serde_json::json!(true)) {
-                                        draft_source = DraftSource::Mtp;
-                                    }
-                                }
-                                _ => {}
+                let mut draft_model = None;
+                let mut draft_source = DraftSource::Unknown;
+
+                if let Some(fields) = fields {
+                    for f in fields {
+                        let key = f.get("key").and_then(|k| k.as_str()).unwrap_or("");
+                        let value = f.get("value");
+                        match key {
+                            "llm.load.llama.speculativeDecoding.draftModel" => {
+                                draft_model = value.and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let simple = value == Some(&serde_json::json!(true))
+                                    || value.is_some();
+                                let mtp = fields.iter().any(|f2| {
+                                    f2.get("key").and_then(|k| k.as_str())
+                                        == Some("llm.load.llama.speculativeDecoding.draftMtp")
+                                        && f2.get("value") == Some(&serde_json::json!(true))
+                                });
+                                draft_source = if mtp { DraftSource::Mtp } else { DraftSource::Simple };
                             }
+                            _ => {}
                         }
                     }
+                }
 
-                    if let Some(draft) = draft_model {
-                        let main_model = path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("")
-                            .to_string();
-                        pairs.push(SpecPair {
-                            main_model,
-                            draft_model: draft,
-                            draft_source,
-                            main_loaded: false,
-                            draft_loaded: false,
-                            spec_active: false,
-                            reason: None,
-                        });
-                    }
+                if let Some(draft) = draft_model {
+                    let main_model = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    pairs.push(SpecPair {
+                        main_model,
+                        draft_model: draft,
+                        draft_source,
+                        main_loaded: false,
+                        draft_loaded: false,
+                        spec_active: false,
+                        reason: None,
+                    });
                 }
             }
         }
