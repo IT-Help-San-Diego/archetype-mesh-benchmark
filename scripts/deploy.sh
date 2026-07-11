@@ -162,8 +162,8 @@ print(f"  registry: {len(models)} models")
 PID=$(launchctl print "$DOMAIN/$SERVICE" 2>/dev/null | awk '/pid =/ {print $3; exit}')
 RUNNING_BIN=$(ps -p "$PID" -o comm= 2>/dev/null || true)
 [[ "$RUNNING_BIN" == "$BIN" ]] || die "running pid $PID is not our binary ($RUNNING_BIN)"
-BUILT=$(stat -f %m "$BIN")
-NOW=$(date +%s)
+BUILT=$(python3 -c "import os; print(int(os.path.getmtime('$BIN')))")
+NOW=$(python3 -c "import time; print(int(time.time()))")
 ok "live: pid $PID, binary built $(( NOW - BUILT ))s ago, HTTP 200, registry serving"
 
 printf '\n\033[1;32m═══ DEPLOYED — dashboard verified live at %s ═══\033[0m\n' "$URL"

@@ -1025,6 +1025,10 @@
     <option value="vision">👁 Can see (vision)</option>
     <option value="novision">Text-only</option>
   </select>
+  <select id="filter-runnable" onchange="applyFilters()" title="Runnable = the executor has a working credential path for this model right now (verified against the same check the Run button triggers). Off by default: broken/misconfigured entries are the #1 source of confusing failed runs.">
+    <option value="runnable">✅ Runnable only (default)</option>
+    <option value="all">Show all (incl. broken)</option>
+  </select>
   <select id="sort-by" onchange="applyFilters()" title="Order the grid">
     <option value="name">Sort: Name</option>
     <option value="cost-asc">Sort: Cheapest first</option>
@@ -1905,6 +1909,7 @@ function renderGrid() {
   const fVerd = document.getElementById('filter-verdict').value;
   const fCost = document.getElementById('filter-cost').value;
   const fVision = document.getElementById('filter-vision').value;
+  const fRunnable = document.getElementById('filter-runnable').value;
   const sortBy = document.getElementById('sort-by').value;
 
   let rows = models.filter(m => {
@@ -1912,6 +1917,11 @@ function renderGrid() {
     if (fProv !== 'all' && m.provider !== fProv) return false;
     if (fVision === 'vision' && !m.supports_vision) return false;
     if (fVision === 'novision' && m.supports_vision) return false;
+    // Runnable filter is ON by default — a model with no working credential
+    // path is confirmed-broken (same check the Run button's backend runs),
+    // not a maybe. Hiding it by default stops the #1 confusing-failure
+    // pattern: clicking Run on something that was doomed before it started.
+    if (fRunnable === 'runnable' && m.runnable === false) return false;
     if (fCost !== 'all') {
       if (fCost === 'local') { if (m.location !== 'local') return false; }
       else { const t = costTier(m); if (!t || t.label !== fCost) return false; }
@@ -1998,9 +2008,18 @@ function renderGrid() {
     // which the fail-fast fix in ensure_loaded() catches in ~2s instead of
     // 300s. This flag catches the subset LM Studio's listing itself exposes.)
     const unresolved = m.location === 'local' && !m.context_length;
-    const cardClasses = 'model-card' + (unresolved ? ' model-card-unresolved' : '');
+    // Cloud "not runnable" — server-verified via the SAME resolve_api_key
+    // check the executor runs, so this can never say "fine" when a click
+    // would actually 401/error. Distinct badge from `unresolved` (that's an
+    // incomplete LM Studio download; this is a missing/broken credential
+    // path) because the fix is different — the user can't "wait for the
+    // download to finish" their way out of a missing API key.
+    const notRunnable = m.location === 'cloud' && m.runnable === false;
+    const cardClasses = 'model-card' + (unresolved ? ' model-card-unresolved' : '') + (notRunnable ? ' model-card-unresolved' : '');
     const runBtn = unresolved
       ? `<button class="btn-mini" disabled title="LM Studio reports no context length or capabilities for this model — likely an incomplete/in-progress download. Not loadable.">⏳ Incomplete</button>`
+      : notRunnable
+      ? `<button class="btn-mini" disabled title="${esc(m.runnable_reason || 'No working credential path for this provider on this service')}">🚫 No credential</button>`
       : `<button class="btn-mini" onclick="runSingle('${m.key}')">▶ Run</button>`;
     const insightsBtn = `<button class="btn-mini" onclick="event.stopPropagation(); openInsights('${m.key.replace(/'/g, "\\'")}')" title="Latency, fallacy patterns, reasoning traces, hardware fit">📊 Insights</button>`;
     const dossierBtn = `<button class="btn-mini dossier-btn" onclick="event.stopPropagation(); openDossier('${m.key.replace(/'/g, "\\'")}')" title="Every factual thing we know about this model — registry, live state, full evidence record">📋 Dossier</button>`;

@@ -15,11 +15,45 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use crate::db::queries;
+use crate::executor::cloud;
 use crate::state::AppState;
 
 /// Snapshot cadence. SSE push means the browser never polls; the server refreshes
 /// the registry snapshot at this interval so verdict changes land without reloads.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Runnable-status envelope, computed by asking the EXACT function the
+/// executor calls before firing a request (`cloud::resolve_api_key`).
+/// Deliberately not a second heuristic re-implementing that check — a grid
+/// that says "runnable" while the executor says "no key" is worse than no
+/// signal at all (bit us live 2026-07-10: an openrouter/claude-sonnet-5
+/// duplicate had no working credential in this service's env and errored on
+/// every click, while its nous sibling worked fine — indistinguishable in
+/// the UI). Shared by both the SSE registry push and the plain /api/models
+/// fetch so the two paths can never disagree.
+/// Local models are always runnable here — LM Studio residency is checked at
+/// run time, not sync time; that's a different, cheaper class of "can run."
+pub fn annotate_runnable(models: Vec<crate::models::model_entry::ModelEntry>) -> Vec<serde_json::Value> {
+    models
+        .into_iter()
+        .map(|m| {
+            let (runnable, reason) = if m.location == "local" {
+                (true, None)
+            } else {
+                match cloud::resolve_api_key(&m.provider, &None) {
+                    Ok(_) => (true, None),
+                    Err(e) => (false, Some(e.to_string())),
+                }
+            };
+            let mut v = serde_json::to_value(&m).unwrap_or_default();
+            if let Some(obj) = v.as_object_mut() {
+                obj.insert("runnable".to_string(), serde_json::json!(runnable));
+                obj.insert("runnable_reason".to_string(), serde_json::json!(reason));
+            }
+            v
+        })
+        .collect()
+}
 
 /// Serialize the full model-registry snapshot as an SSE envelope.
 /// `pub` because sync routes (lmstudio_sync, cloud_sync) broadcast a
@@ -27,16 +61,19 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
 /// update over SSE, no reliance on the periodic tick.
 pub async fn registry_envelope(state: &AppState, kind: &str) -> Option<String> {
     match queries::fetch_unique_models(&state.db).await {
-        Ok(models) => match serde_json::to_string(&serde_json::json!({
-            "type": kind,
-            "models": models,
-        })) {
-            Ok(json) => Some(json),
-            Err(e) => {
-                tracing::error!("SSE serialization failed: {}", e);
-                None
+        Ok(models) => {
+            let annotated = annotate_runnable(models);
+            match serde_json::to_string(&serde_json::json!({
+                "type": kind,
+                "models": annotated,
+            })) {
+                Ok(json) => Some(json),
+                Err(e) => {
+                    tracing::error!("SSE serialization failed: {}", e);
+                    None
+                }
             }
-        },
+        }
         Err(e) => {
             tracing::error!("SSE registry fetch failed: {}", e);
             None
