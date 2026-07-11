@@ -1850,10 +1850,7 @@ function applyModelSnapshot(list) {
   populateLcModels();
   populateNousExpModels();
   loadNewestBots();
-  if (!specDecodeLoaded && models.length) {
-    specDecodeLoaded = true;
-    loadSpecDecodePairs();
-  }
+  loadSpecDecodePairs();
 }
 
 // Explicit registry refresh — used right after a sync so new models appear
