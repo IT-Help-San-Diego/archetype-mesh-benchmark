@@ -127,7 +127,7 @@ curl -X POST http://127.0.0.1:8768/api/runs/628/abort
 ```
 
 ### Database access
-Preferred: **TablePlus** connection `127.0.0.1:5432` → database `archetype_mesh` → user `careybalboa`. The schema *is* the API: every trial row links to its exact test and run seal.
+Preferred: **TablePlus** connection `127.0.0.1:5432` → database `archetype_mesh` → your configured PostgreSQL user. The schema *is* the API: every trial row links to its exact test and run seal.
 
 ### Troubleshooting
 - If the binary was rebuilt, use `launchctl kickstart -k` instead of `launchctl start` so launchd loads the new executable.
