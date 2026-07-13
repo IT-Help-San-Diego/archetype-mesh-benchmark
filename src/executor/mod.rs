@@ -529,7 +529,7 @@ async fn check_memory_safety(
             };
 
             total_count += 1;
-            let (passed, latency_ms, raw, reasoning, detail, is_infra_error, ptok, ctok) = match outcome {
+            let (passed, latency_ms, raw, reasoning, detail, is_infra_error, ptok, ctok, spec_decode) = match outcome {
                 Ok(o) => {
                     let expected = test.expected_result.as_deref().unwrap_or("");
                     let score = scoring::score_response(&o.content, expected, &test.scoring_method);
@@ -542,6 +542,7 @@ async fn check_memory_safety(
                         false,
                         o.prompt_tokens,
                         o.completion_tokens,
+                        o.speculative_decode,
                     )
                 }
                 // Infra failure (LM Studio rejected the request, connection
@@ -553,7 +554,7 @@ async fn check_memory_safety(
                 // live 2026-07-08: without this, a config bug that blocks
                 // every request to a model made that model look like it
                 // fails every capability, when the truth was infrastructure.
-                Err(e) => (false, -1, String::new(), None, format!("execution error: {}", e), true, None, None),
+                Err(e) => (false, -1, String::new(), None, format!("execution error: {}", e), true, None, None, None),
             };
             if passed {
                 pass_count += 1;
@@ -585,6 +586,15 @@ async fn check_memory_safety(
             // chain-of-thought is part of the auditable evidence, not just
             // a live-only UI convenience. User request: "put them into
             // verbose mode... judge them against that too."
+            if let Some(sd) = &spec_decode {
+                evidence_lines.push(format!(
+                    "speculative_decode draft={} total={} accepted={} rejected={}",
+                    sd.draft_model.as_deref().unwrap_or("?"),
+                    sd.total_draft_tokens_count.unwrap_or(-1),
+                    sd.accepted_draft_tokens_count.unwrap_or(-1),
+                    sd.rejected_draft_tokens_count.unwrap_or(-1),
+                ));
+            }
             evidence_lines.push(match &reasoning {
                 Some(r) => format!(
                     "test={} trial={} passed={} latency_ms={} reasoning={} response={}",
