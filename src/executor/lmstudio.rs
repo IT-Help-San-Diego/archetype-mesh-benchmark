@@ -177,6 +177,7 @@ pub async fn ensure_pair_loaded(
         tracing::warn!("ensure_pair_loaded: loading primary {} with draft={}", primary_key, draft_key);
         let mut payload = serde_json::json!({
             "model": primary_key,
+            "context_length": 131072,
             "eval_batch_size": 2048,
             "physical_batch_size": 512,
             "parallel": 4,
@@ -310,7 +311,15 @@ pub async fn ensure_loaded(
     // Preferred: explicit load endpoint.
     let load_resp = client
         .post(format!("{}/api/v1/models/load", base_url))
-        .json(&serde_json::json!({ "model": model_key }))
+        .json(&serde_json::json!({
+            "model": model_key,
+            "context_length": 131072,
+            "eval_batch_size": 2048,
+            "physical_batch_size": 512,
+            "parallel": 4,
+            "flash_attention": true,
+            "offload_kv_cache_to_gpu": true,
+        }))
         .timeout(std::time::Duration::from_secs(max_wait_secs))
         .send()
         .await;

@@ -577,7 +577,7 @@ async fn check_memory_safety(
                         &config.lmstudio_base_url,
                         model_key,
                         &messages,
-                        512,
+                        4096,
                         0.0
                     ))
                 }
