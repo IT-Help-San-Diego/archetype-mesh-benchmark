@@ -86,6 +86,54 @@ cargo run --release           # migrations run automatically
 
 Sync your LM Studio library from the dashboard (**LM Studio → Sync**), pick a model, click **▶ Run** — and watch the live log. Verdicts land on the grid with latency; evidence lands in Postgres with a seal.
 
+## Operations
+
+This repo includes a launchd-managed backend on macOS. Use these commands instead of ad-hoc `cargo run` processes.
+
+### Service
+Name: `ai.hermes.archetype-mesh-dashboard`
+Binary: `~/Documents/GitHub/archetype-mesh-benchmark/target/release/archetype-mesh-dashboard`
+Port: `8768` on `127.0.0.1`
+Database: `postgres://careybalboa:<redacted>@localhost:5432/archetype_mesh`
+Logs: `/tmp/archetype-mesh-dashboard.out`, `/tmp/archetype-mesh-dashboard.err`
+
+### Start / stop / restart
+```bash
+launchctl start ai.hermes.archetype-mesh-dashboard
+launchctl stop ai.hermes.archetype-mesh-dashboard
+launchctl kickstart -k gui/$(id -u)/ai.hermes.archetype-mesh-dashboard
+```
+
+### Health
+```bash
+curl http://127.0.0.1:8768/api/status
+```
+
+### Run control from the backend API
+```bash
+# start a run
+curl -X POST http://127.0.0.1:8768/api/runs \
+  -H 'content-type: application/json' \
+  -d '{"model_key":"google/gemma-4-31b-qat","axes":["vision","reasoning"],"load_mode":"clean-room"}'
+
+# list runs
+curl http://127.0.0.1:8768/api/runs
+
+# run detail
+curl http://127.0.0.1:8768/api/runs/628
+
+# abort an in-flight run
+curl -X POST http://127.0.0.1:8768/api/runs/628/abort
+```
+
+### Database access
+Preferred: **TablePlus** connection `127.0.0.1:5432` → database `archetype_mesh` → user `careybalboa`. The schema *is* the API: every trial row links to its exact test and run seal.
+
+### Troubleshooting
+- If the binary was rebuilt, use `launchctl kickstart -k` instead of `launchctl start` so launchd loads the new executable.
+- If runs show `status = error` but trials exist, the executor preserved partial evidence; the database still contains complete trial results for post-mortem analysis.
+- Quarantined runs are excluded from leaderboard/router scoring by default; review them via `/api/quarantine` when needed.
+
 ## Philosophy
 
 This project believes the flood of AI-generated junk science gets fixed by **making rigorous method cheap**, not by gatekeeping. Everyone with a laptop and curiosity can run a controlled experiment: pinned stimulus, committed answers, N=3, sealed results. The dashboard is deliberately a teacher — it explains its formulas, shows its receipts, and marks its heuristics as heuristics.
