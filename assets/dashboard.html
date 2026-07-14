@@ -887,6 +887,11 @@
   }
   .brain-leg { color: var(--text-muted); transition: color 0.4s; }
   .brain-leg.lit { color: var(--text-primary); }
+  /* Formula stream animation: formulas slide in from the right as they appear */
+  @keyframes formula-enter {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
   .brain-dot {
     display:inline-block; width:8px; height:8px; border-radius:50%;
     background: var(--border); margin-right:7px; vertical-align:baseline;
@@ -1252,7 +1257,7 @@ setTimeout(loadScienceLayer, 0);
      with the axis color, PASS/FAIL tinted. Idle ≠ hidden. -->
 <div id="brain-viz" style="background:var(--bg-secondary);border-top:1px solid var(--border);padding:16px 24px;">
   <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
-    <svg id="brain-svg" viewBox="0 0 420 310" width="320" height="236" role="img" aria-label="Left lateral human brain — functional anatomy" style="flex-shrink:0;">
+    <svg id="brain-svg" viewBox="0 0 420 310" width="420" height="310" role="img" aria-label="Left lateral human brain — functional anatomy" style="flex-shrink:0;max-width:520px;">
       <defs>
         <linearGradient id="hemi-deep" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0%" stop-color="#1a3040" stop-opacity="0.7"/>
@@ -1448,6 +1453,13 @@ setTimeout(loadScienceLayer, 0);
         <div class="brain-leg" data-axis="auxiliary"><span class="brain-dot"></span>The Lantern · auxiliary</div>
       </div>
       <div id="brain-caption" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-height:30px;line-height:1.5;"></div>
+    </div>
+    <!-- Formula stream: Lean formulas fly by as tests execute.
+         Each trial_start event pushes the formal_spec into this stream.
+         This is the mathematical foundation visible in real time. -->
+    <div id="formula-stream-container" style="flex:1;min-width:280px;max-width:400px;max-height:310px;overflow:hidden;position:relative;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,0.3);padding:12px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Lean Formula Stream</div>
+      <div id="formula-stream" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;color:var(--accent-gold);max-height:250px;overflow:hidden;"></div>
     </div>
   </div>
 </div>
@@ -2544,6 +2556,20 @@ function brainTrialStart(d) {
   // Start sustained glow — region stays lit for entire trial duration
   el.style.setProperty('--region-color', `rgba(${rgb},0.5)`);
   el.classList.add('firing');
+  // Push formula into the stream — Lean formulas fly by
+  if (d.formal_spec) {
+    const stream = document.getElementById('formula-stream');
+    if (stream) {
+      const entry = document.createElement('div');
+      entry.style.cssText = 'padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);animation:formula-enter 0.3s ease-in;';
+      entry.innerHTML = `<span style="color:var(--text-muted);font-size:10px;">${d.test_name || d.test || ''}</span><br><span style="color:var(--accent-gold);">${d.formal_spec}</span>`;
+      stream.insertBefore(entry, stream.firstChild);
+      // Keep only last 8 formulas visible
+      while (stream.children.length > 8) {
+        stream.removeChild(stream.lastChild);
+      }
+    }
+  }
   // Update caption with what's being tested + formal spec if available
   const spec = d.formal_spec ? ` — ${d.formal_spec}` : '';
   brainCaption(`${d.test_name || d.test || axis}: trial ${d.trial_num} in progress${spec}`);
