@@ -315,50 +315,74 @@
     background: var(--bg-card-hover);
     border-color: var(--accent-blue);
   }
-  /* ═══ COMPACT ROSTER (2026-07-14) — the Star-Trek picker ═══
-     Dense selection rows: ~10 models visible where 2 cards fit before.
-     The row answers exactly the picking questions — can it see? how big?
-     tested? — and the ⓘ dossier popup carries everything else. Selection
-     state is an explicit checkbox, not a subtle border tint. */
-  .model-grid.compact { grid-template-columns: 1fr; gap: 6px; }
+  /* ═══ COMPACT ROSTER (2026-07-14, scroll-proof v2) — the Star-Trek picker ═══
+     Research-backed (setproduct 2026 data-table guide): in a narrow rail you
+     do NOT cram columns — you stack. Row = a fixed-width checkbox + location
+     glyph on the left, then a flex-1 body that TRUNCATES (never scrolls), with
+     name on line 1 and facts+verdict dots on line 2. Actions are one compact
+     column on the right. Nothing competes for horizontal space, so the
+     left/right mouse-scroll is structurally impossible. ~12 rows/screen. */
+  .model-grid.compact { grid-template-columns: 1fr; gap: 5px; }
   .model-row {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 9px;
     background: var(--bg-card);
     border: 1px solid var(--border);
+    border-left: 3px solid transparent;
     border-radius: 8px;
-    padding: 8px 12px;
+    padding: 7px 10px;
     cursor: pointer;
+    overflow: hidden;                    /* hard stop — no child can force scroll */
     transition: background 100ms, border-color 150ms;
-    position: relative;
   }
-  .model-row:hover { background: var(--bg-card-hover); border-color: var(--accent-gold); }
-  .model-row.selected { border-color: var(--accent-gold); background: rgba(212,168,83,0.10); }
-  .model-row.model-card-unresolved { opacity: 0.6; border-style: dashed; border-color: var(--flaky); }
+  .model-row:hover { background: var(--bg-card-hover); border-left-color: var(--accent-gold); }
+  .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.10); }
+  .model-row.model-card-unresolved { opacity: 0.6; border-style: dashed; }
   .row-check {
-    flex-shrink: 0; width: 18px; height: 18px;
-    border: 1px solid var(--border); border-radius: 4px;
+    flex: 0 0 18px; width: 18px; height: 18px;
+    border: 1.5px solid var(--border); border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
     font-size: 12px; font-weight: 700; color: transparent;
     transition: background 100ms, border-color 100ms, color 100ms;
   }
+  .model-row:hover .row-check { border-color: var(--accent-gold); }
   .model-row.selected .row-check { background: var(--accent-gold); border-color: var(--accent-gold); color: #0d1117; }
-  .row-loc { flex-shrink: 0; font-size: 13px; }
-  .row-main { flex: 1; min-width: 0; }
+  .row-loc { flex: 0 0 auto; font-size: 14px; line-height: 1; }
+  .row-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }  /* min-width:0 = the ellipsis-enabler */
   .row-name {
     font-size: 12.5px; font-weight: 600; color: var(--text-primary);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   }
-  .row-facts { font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row-dots { flex-shrink: 0; display: flex; gap: 4px; align-items: center; }
-  .row-dots .judge-dot { width: 8px; height: 8px; }
-  .row-actions { flex-shrink: 0; display: flex; gap: 4px; }
-  .row-actions .btn-mini { padding: 3px 8px; font-size: 11px; }
+  .row-facts {
+    font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    display: flex; align-items: center; gap: 5px; margin-top: 2px;
+  }
+  .row-dots { display: inline-flex; gap: 3px; align-items: center; flex: 0 0 auto; }
+  .row-dots .judge-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .row-actions { flex: 0 0 auto; display: flex; gap: 3px; align-items: center; }
+  .row-actions .btn-mini { padding: 3px 7px; font-size: 11px; line-height: 1.2; }
   .view-toggle-btn {
     background: var(--bg-card); color: var(--text-secondary);
     border: 1px solid var(--border); border-radius: 6px;
     padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-mono);
   }
   .view-toggle-btn:hover { border-color: var(--accent-gold); color: var(--text-primary); }
+  /* Sticky roster header — column meaning stays visible during scroll
+     (setproduct guide: sticky header is the one situational element a
+     scrolling list always benefits from). */
+  .roster-head {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 10px; margin-bottom: 4px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--text-muted); text-transform: uppercase;
+  }
+  .roster-head .rh-spacer { flex: 0 0 18px; }
+  .roster-head .rh-main { flex: 1 1 auto; }
+  .roster-head .rh-verdict { flex: 0 0 auto; }
+  .roster-head .rh-act { flex: 0 0 auto; }
   .model-card-unresolved {
     opacity: 0.65;
     border-style: dashed;
@@ -1019,7 +1043,7 @@
   @media (min-width: 1200px) {
     #workspace {
       display: grid;
-      grid-template-columns: 360px minmax(0,1fr) 400px;
+      grid-template-columns: 400px minmax(0,1fr) 380px;
       height: calc(100vh - 37px);
       overflow: hidden;
     }
@@ -2367,7 +2391,6 @@ function renderGrid() {
       if (m.size_gb) facts.push(m.size_gb + 'GB');
       const ctx = fmtCtx(m.context_length);
       if (ctx) facts.push(ctx);
-      if (m.quantization) facts.push(m.quantization);
       const tier = costTier(m);
       if (tier) facts.push(tier);
       const rowClasses = ['model-row'];
@@ -2377,21 +2400,28 @@ function renderGrid() {
         ? `<button class="btn-mini" disabled title="Incomplete download — not loadable">⏳</button>`
         : notRunnable
         ? `<button class="btn-mini" disabled title="${esc(m.runnable_reason || 'No working credential path')}">🚫</button>`
-        : `<button class="btn-mini" onclick="event.stopPropagation(); runSingle('${kq}')" title="Run this model now">▶</button>`;
+        : `<button class="btn-mini" onclick="event.stopPropagation(); runSingle('${kq}', '${m.provider}')" title="Run this model now">▶</button>`;
+      // Dots ride INSIDE the facts line (line 2) so they never form a
+      // separate column that competes for the row's horizontal budget.
       return `<div class="${rowClasses.join(' ')}" data-key="${m.key}" data-provider="${m.provider}" data-location="${m.location}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">
         <span class="row-check">✓</span>
         <span class="row-loc" title="${m.location === 'local' ? 'Local — your silicon' : 'Cloud — ' + m.provider}">${m.location === 'local' ? '🖥' : '☁️'}</span>
         <div class="row-main">
           <div class="row-name" title="${escHtml(m.key)}">${m.display_name}</div>
-          <div class="row-facts">${facts.join(' · ')}</div>
+          <div class="row-facts"><span class="row-dots">${dots}</span>${facts.join(' · ')}</div>
         </div>
-        <div class="row-dots">${dots}</div>
         <div class="row-actions">
           <button class="btn-mini" onclick="event.stopPropagation(); openDossier('${kq}')" title="Full dossier — everything we know about this model">ⓘ</button>
           ${runBtn}
         </div>
       </div>`;
     }).join('');
+    // Sticky header labels the two things a picker row shows: the model, and
+    // its 4-axis verdict dots. Prepended once, stays visible during scroll.
+    grid.insertAdjacentHTML('afterbegin',
+      '<div class="roster-head"><span class="rh-spacer"></span><span class="rh-spacer"></span>' +
+      '<span class="rh-main">Model · 👁vision/size/ctx/cost · verdict dots</span>' +
+      '<span class="rh-act">ⓘ &nbsp; ▶</span></div>');
   }
   console.log('[renderGrid] rendered rows:', rows.length);
   restoreSelection(); // re-apply persisted multi-select after every render
