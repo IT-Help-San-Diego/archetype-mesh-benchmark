@@ -368,3 +368,104 @@ pub async fn abort_run(
     let signaled = state.cancellations.cancel(run_id).await;
     Ok(Json(serde_json::json!({ "run_id": run_id, "aborted": signaled })))
 }
+
+/// GET /api/runs/:id/export — the evidence bundle.
+///
+/// Data stewardship contract: everything the database knows about a run
+/// leaves in ONE self-describing JSON document — header, runtime config,
+/// every trial with its full raw response, reasoning trace, latency,
+/// speculative-decode counters, the test text and formal spec it ran
+/// against, and the SHA3-512 provenance seal. A scientist can archive it,
+/// diff it, or re-verify the seal offline without this app existing.
+/// Content-Disposition makes the browser download it as a named artifact.
+pub async fn export_run(
+    State(state): State<AppState>,
+    axum::extract::Path(run_id): axum::extract::Path<i32>,
+) -> AppResult<axum::response::Response> {
+    use axum::response::IntoResponse;
+
+    let header: Option<RunDetailHeader> = sqlx::query_as(
+        r#"SELECT r.id, m.key, r.axis, r.status, r.pass_count, r.total_count,
+                  r.sha3_provenance, r.created_at, r.finished_at, r.load_mode, r.draft_model_key,
+                  r.lmstudio_runtime_config
+           FROM test_runs r JOIN models m ON m.id = r.model_id
+           WHERE r.id = $1"#,
+    )
+    .bind(run_id)
+    .fetch_optional(&state.db)
+    .await?;
+
+    let Some(header) = header else {
+        return Err(AppError::Executor(format!("No run with id {}", run_id)));
+    };
+
+    // Full trial evidence, including the test prompt text — the export must
+    // stand alone: prompt + response + verdict + seal, nothing left behind.
+    #[derive(sqlx::FromRow, serde::Serialize)]
+    struct ExportTrial {
+        trial_num: i32,
+        test_name: Option<String>,
+        prompt_text: Option<String>,
+        expected_result: Option<String>,
+        formal_spec: Option<String>,
+        raw_response: Option<String>,
+        reasoning_content: Option<String>,
+        latency_ms: Option<i64>,
+        passed: Option<bool>,
+        detail: Option<String>,
+        is_infra_error: Option<bool>,
+        speculative_draft_model: Option<String>,
+        total_draft_tokens_count: Option<i64>,
+        accepted_draft_tokens_count: Option<i64>,
+        rejected_draft_tokens_count: Option<i64>,
+    }
+    let trials: Vec<ExportTrial> = sqlx::query_as(
+        r#"SELECT tr.trial_num, t.name as test_name, t.prompt_text, t.expected_result, t.formal_spec,
+                  tr.raw_response, tr.reasoning_content, tr.latency_ms, tr.passed, tr.detail,
+                  tr.is_infra_error, tr.speculative_draft_model, tr.total_draft_tokens_count,
+                  tr.accepted_draft_tokens_count, tr.rejected_draft_tokens_count
+           FROM trial_results tr
+           LEFT JOIN tests t ON t.id = tr.test_id
+           WHERE tr.run_id = $1 ORDER BY tr.id"#,
+    )
+    .bind(run_id)
+    .fetch_all(&state.db)
+    .await?;
+
+    let bundle = serde_json::json!({
+        "format": "archetype-mesh-evidence-bundle",
+        "format_version": 1,
+        "exported_at": chrono::Utc::now().to_rfc3339(),
+        "run": {
+            "id": header.id,
+            "model_key": header.key,
+            "axis": header.axis,
+            "status": header.status,
+            "pass_count": header.pass_count,
+            "total_count": header.total_count,
+            "load_mode": header.load_mode,
+            "draft_model_key": header.draft_model_key,
+            "lmstudio_runtime_config": header.lmstudio_runtime_config,
+            "sha3_provenance": header.sha3_provenance,
+            "created_at": header.created_at.map(|c| c.to_string()),
+            "finished_at": header.finished_at.map(|c| c.to_string()),
+        },
+        "trials": trials,
+        "verification": {
+            "seal_algorithm": "SHA3-512",
+            "note": "sha3_provenance is computed over the ordered trial evidence; recompute offline to verify integrity without this application."
+        }
+    });
+
+    let filename = format!("amb-run-{}-{}-evidence.json", header.id, header.axis);
+    let body = serde_json::to_string_pretty(&bundle)
+        .map_err(|e| AppError::Executor(format!("serialize export: {}", e)))?;
+    Ok((
+        [
+            (axum::http::header::CONTENT_TYPE, "application/json; charset=utf-8".to_string()),
+            (axum::http::header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", filename)),
+        ],
+        body,
+    )
+        .into_response())
+}

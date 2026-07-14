@@ -6,17 +6,17 @@
   <title>Prompt Builder — Archetype Mesh Benchmark</title>
   <style>
     :root {
-      --bg-primary: #0a0a0f;
-      --bg-card: #12121a;
-      --bg-secondary: #1a1a25;
-      --border: rgba(255,255,255,0.08);
-      --text-primary: #e8e6e3;
-      --text-secondary: #9e9a94;
-      --accent-cyan: #7df9ff;
+      --bg-primary: #0d1117;
+      --bg-card: #21262d;
+      --bg-secondary: #161b22;
+      --border: #30363d;
+      --text-primary: rgba(230, 237, 243, 0.9);
+      --text-secondary: #9ca3af;
+      --accent-cyan: #d4a853;
       --accent-gold: #d4a853;
-      --safe: #4ade80;
-      --unsafe: #f87171;
-      --flaky: #fbbf24;
+      --safe: #3fb950;
+      --unsafe: #f85149;
+      --flaky: #e3b341;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -108,11 +108,11 @@
       opacity: 0.55;
       animation: region-pulse 1.6s ease-in-out infinite;
     }
-    .brain-region.active.reasoning { fill: rgba(99,102,241,0.45); stroke: rgba(99,102,241,0.9); }
-    .brain-region.active.vision { fill: rgba(168,85,247,0.45); stroke: rgba(168,85,247,0.9); }
-    .brain-region.active.tools { fill: rgba(34,197,94,0.45); stroke: rgba(34,197,94,0.9); }
-    .brain-region.active.literary { fill: rgba(251,146,60,0.45); stroke: rgba(251,146,60,0.9); }
-    .brain-region.active.security { fill: rgba(239,68,68,0.45); stroke: rgba(239,68,68,0.9); }
+    .brain-region.active.reasoning { fill: rgba(212,168,83,0.45); stroke: rgba(212,168,83,0.9); }
+    .brain-region.active.vision { fill: rgba(191,131,255,0.45); stroke: rgba(191,131,255,0.9); }
+    .brain-region.active.tools { fill: rgba(88,166,255,0.45); stroke: rgba(88,166,255,0.9); }
+    .brain-region.active.literary { fill: rgba(255,158,90,0.45); stroke: rgba(255,158,90,0.9); }
+    .brain-region.active.security { fill: rgba(255,99,99,0.45); stroke: rgba(255,99,99,0.9); }
     .brain-region.active.auxiliary { fill: rgba(212,168,83,0.45); stroke: rgba(212,168,83,0.9); }
     @keyframes region-pulse {
       0%, 100% { opacity: 0.35; }
@@ -204,12 +204,12 @@
           </svg>
         </div>
         <div class="region-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#6366f1;"></div>Reasoning</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#a855f7;"></div>Vision</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Tools</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#fb923c;"></div>Literary</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Security</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#d4a853;"></div>Auxiliary</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d4a853;"></div>Reasoning</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#bf83ff;"></div>Vision</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#58a6ff;"></div>Tools</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff9e5a;"></div>Literary</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff6363;"></div>Security</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;"></div>Auxiliary</div>
         </div>
         <div class="tool-hints">
           <div class="tool-hints-title">Likely Engaged</div>
@@ -237,12 +237,12 @@
     const LITERARY_WORDS = ["write","essay","story","poem","paragraph","prose","narrative","describe in detail","explain like","tutorial","guide","summarize","blog post","article"];
     const SECURITY_WORDS = ["bypass","override","ignore rules","ignore safety","jailbreak","extract secrets","credentials","password","api key","hack","exploit","malicious","unfiltered","uncensored","pretend you"];
     const AXIS_COLORS = {
-      reasoning: "#6366f1",
-      vision: "#a855f7",
-      tools: "#22c55e",
-      literary: "#fb923c",
-      security: "#ef4444",
-      auxiliary: "#d4a853"
+      reasoning: "#d4a853",
+      vision: "#bf83ff",
+      tools: "#58a6ff",
+      literary: "#ff9e5a",
+      security: "#ff6363",
+      auxiliary: "#94a3b8"
     };
     function loadExample(i) {
       document.getElementById('prompt-input').value = EXAMPLES[i];

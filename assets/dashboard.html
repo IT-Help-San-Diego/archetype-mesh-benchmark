@@ -202,7 +202,7 @@
     background: var(--accent-cyan);
     color: #0d1117;
   }
-  .btn-primary:hover { background: #22d3ee; }
+  .btn-primary:hover { background: #e8b54a; } /* amber-gold hover — corporate, not Tailwind cyan */
   .btn-secondary {
     background: var(--bg-card);
     color: var(--text-primary);
@@ -291,7 +291,7 @@
      Palette is deliberately spread across hue space — green / cyan / blue /
      gold — so FREE and TRICKLE can never be confused at a glance. */
   .chip.cost-free { background: rgba(63,185,80,0.18); color: #3fb950; border-color: #3fb950; }
-  .chip.cost-trickle { background: rgba(34,211,238,0.14); color: #22d3ee; border-color: #22d3ee; }
+  .chip.cost-trickle { background: rgba(88,166,255,0.14); color: #58a6ff; border-color: #58a6ff; } /* brand blue, not Tailwind cyan */
   .chip.cost-standard { background: rgba(88,166,255,0.12); color: var(--accent-blue); border-color: var(--accent-blue); }
   .chip.cost-premium { background: rgba(212,168,83,0.15); color: #d4a853; border-color: #d4a853; }
 
@@ -315,6 +315,50 @@
     background: var(--bg-card-hover);
     border-color: var(--accent-blue);
   }
+  /* ═══ COMPACT ROSTER (2026-07-14) — the Star-Trek picker ═══
+     Dense selection rows: ~10 models visible where 2 cards fit before.
+     The row answers exactly the picking questions — can it see? how big?
+     tested? — and the ⓘ dossier popup carries everything else. Selection
+     state is an explicit checkbox, not a subtle border tint. */
+  .model-grid.compact { grid-template-columns: 1fr; gap: 6px; }
+  .model-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 100ms, border-color 150ms;
+    position: relative;
+  }
+  .model-row:hover { background: var(--bg-card-hover); border-color: var(--accent-gold); }
+  .model-row.selected { border-color: var(--accent-gold); background: rgba(212,168,83,0.10); }
+  .model-row.model-card-unresolved { opacity: 0.6; border-style: dashed; border-color: var(--flaky); }
+  .row-check {
+    flex-shrink: 0; width: 18px; height: 18px;
+    border: 1px solid var(--border); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: transparent;
+    transition: background 100ms, border-color 100ms, color 100ms;
+  }
+  .model-row.selected .row-check { background: var(--accent-gold); border-color: var(--accent-gold); color: #0d1117; }
+  .row-loc { flex-shrink: 0; font-size: 13px; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name {
+    font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .row-facts { font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row-dots { flex-shrink: 0; display: flex; gap: 4px; align-items: center; }
+  .row-dots .judge-dot { width: 8px; height: 8px; }
+  .row-actions { flex-shrink: 0; display: flex; gap: 4px; }
+  .row-actions .btn-mini { padding: 3px 8px; font-size: 11px; }
+  .view-toggle-btn {
+    background: var(--bg-card); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-mono);
+  }
+  .view-toggle-btn:hover { border-color: var(--accent-gold); color: var(--text-primary); }
   .model-card-unresolved {
     opacity: 0.65;
     border-style: dashed;
@@ -588,7 +632,7 @@
   .loot-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .loot-table tr:hover td { background: rgba(255,255,255,0.02); }
   .loot-rank { font-family: var(--font-mono); color: var(--text-muted); width: 28px; }
-  .loot-rank.gold { color: #ffd700; font-weight: 700; }
+  .loot-rank.gold { color: #d4a853; font-weight: 700; } /* Athena gold — the brand voice, not web #ffd700 */
   .loot-rank.silver { color: #c0c0c0; font-weight: 700; }
   .loot-rank.bronze { color: #cd7f32; font-weight: 700; }
   .loot-model-name { font-family: var(--font-mono); font-weight: 600; }
@@ -1108,6 +1152,9 @@ async function loadScienceLayer() {
   const grid = document.getElementById('science-grid');
   const status = document.getElementById('science-status');
   const prov = document.getElementById('science-provenance');
+  // DOM race guard: this script block lives in <head>; if called before the
+  // body parses (the old setTimeout(0) bug), bail — bootstrap calls us again.
+  if (!grid || !status || !prov) return;
   status.textContent = 'loading collections…';
   grid.innerHTML = '';
   try {
@@ -1166,7 +1213,8 @@ function clearScienceHighlight() {
   document.querySelectorAll('.science-category').forEach(el => { el.style.opacity = '1'; });
 }
 
-setTimeout(loadScienceLayer, 0);
+// NOTE: called from the main bootstrap (whenReady) — a bare setTimeout(0)
+// here raced the HTML parser on this 260KB page and silently no-opped.
 </script>
 <script defer src="/assets/vendor/katex/contrib/auto-render.min.js"></script>
 </head>
@@ -1217,6 +1265,7 @@ setTimeout(loadScienceLayer, 0);
 <div id="action-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:var(--fib-2);align-items:center;flex-wrap:wrap;">
   <span id="conn-status" style="display:none;font-size:12px;font-weight:600;color:var(--flaky);background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:6px;border:1px solid var(--flaky);"></span>
   <input id="scaffold-supplement" type="text" placeholder="Scaffold supplement: warnings or reminders to watch for (optional)" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:320px;" />
+  <button class="view-toggle-btn" id="view-toggle" onclick="toggleViewMode()" title="Switch between the dense roster picker and full detail cards">☰ Roster</button>
   <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
   <button class="btn btn-primary" onclick="runSelected()">Run Selected</button>
   <button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
@@ -1922,6 +1971,16 @@ let runs = {};
 let activeRunId = null;
 let logEntries = [];
 let selectedModel = null;
+// Roster view mode: 'compact' (default — dense Star-Trek picker rows) or
+// 'cards' (the original full cards). Persisted across refreshes.
+let viewMode = localStorage.getItem('amb-view-mode') || 'compact';
+function toggleViewMode() {
+  viewMode = viewMode === 'compact' ? 'cards' : 'compact';
+  localStorage.setItem('amb-view-mode', viewMode);
+  const btn = document.getElementById('view-toggle');
+  if (btn) btn.textContent = viewMode === 'compact' ? '☰ Roster' : '▦ Cards';
+  renderGrid();
+}
 // Persistent multi-select: survives refresh, filtering, sorting, and sync.
 // Hydrated from localStorage at load; re-applied after every renderGrid().
 let selectedKeys = new Set();
@@ -2196,6 +2255,8 @@ function renderGrid() {
     return;
   }
 
+  if (viewMode === 'cards') {
+  grid.classList.remove('compact');
   grid.innerHTML = rows.map(m => {
     let verdicts = {};
     try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
@@ -2270,6 +2331,57 @@ function renderGrid() {
       </div>
     </div>`;
   }).join('');
+  } // end card mode
+  else {
+    // ═══ COMPACT ROSTER MODE (default) — the Star-Trek picker ═══
+    // One dense row per model: checkbox, location, name, the three facts
+    // that drive a pick (vision/size/ctx), verdict dots, and ⓘ → dossier
+    // popup for full visual detail. Everything else lives one click away.
+    grid.classList.add('compact');
+    grid.innerHTML = rows.map(m => {
+      let verdicts = {};
+      try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
+      const axes = ['vision','tools','reasoning','security'];
+      if (verdicts['literary']) axes.push('literary');
+      const dots = axes.map(a => {
+        const v = vOf(verdicts[a]);
+        const cls = v ? (dotClass(v) || 'safe') : '';
+        const style = v ? '' : 'background:var(--border);box-shadow:none;';
+        return `<span class="judge-dot ${cls}" style="${style}" title="${axisLabel(a)}: ${v || 'untested'}"></span>`;
+      }).join('');
+      const unresolved = m.location === 'local' && !m.context_length;
+      const notRunnable = m.runnable === false;
+      const facts = [];
+      facts.push(m.supports_vision ? '👁' : 'txt');
+      if (m.size_gb) facts.push(m.size_gb + 'GB');
+      const ctx = fmtCtx(m.context_length);
+      if (ctx) facts.push(ctx);
+      if (m.quantization) facts.push(m.quantization);
+      const tier = costTier(m);
+      if (tier) facts.push(tier);
+      const rowClasses = ['model-row'];
+      if (unresolved) rowClasses.push('model-card-unresolved');
+      const kq = m.key.replace(/'/g, "\\'");
+      const runBtn = unresolved
+        ? `<button class="btn-mini" disabled title="Incomplete download — not loadable">⏳</button>`
+        : notRunnable
+        ? `<button class="btn-mini" disabled title="${esc(m.runnable_reason || 'No working credential path')}">🚫</button>`
+        : `<button class="btn-mini" onclick="event.stopPropagation(); runSingle('${kq}')" title="Run this model now">▶</button>`;
+      return `<div class="${rowClasses.join(' ')}" data-key="${m.key}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">
+        <span class="row-check">✓</span>
+        <span class="row-loc" title="${m.location === 'local' ? 'Local — your silicon' : 'Cloud — ' + m.provider}">${m.location === 'local' ? '🖥' : '☁️'}</span>
+        <div class="row-main">
+          <div class="row-name" title="${escHtml(m.key)}">${m.display_name}</div>
+          <div class="row-facts">${facts.join(' · ')}</div>
+        </div>
+        <div class="row-dots">${dots}</div>
+        <div class="row-actions">
+          <button class="btn-mini" onclick="event.stopPropagation(); openDossier('${kq}')" title="Full dossier — everything we know about this model">ⓘ</button>
+          ${runBtn}
+        </div>
+      </div>`;
+    }).join('');
+  }
   console.log('[renderGrid] rendered rows:', rows.length);
   restoreSelection(); // re-apply persisted multi-select after every render
   } catch (e) {
@@ -2784,7 +2896,7 @@ function runSelected() {
     _runClickCount = 0; return;
   }
   _runClickTimer = setTimeout(() => { _runClickCount = 0; }, 800);
-  const cards = Array.from(document.querySelectorAll('.model-card.selected'))
+  const cards = Array.from(document.querySelectorAll('.model-card.selected, .model-row.selected'))
     .filter(c => c.dataset.unresolved !== 'true');
   if (cards.length === 0) {
     alert('Select at least one model first, then run it twice to confirm.'); return;
@@ -2806,7 +2918,7 @@ function runBaselineScaffoldSelected() {
     _runClickCount = 0; return;
   }
   _runClickTimer = setTimeout(() => { _runClickCount = 0; }, 800);
-  const cards = Array.from(document.querySelectorAll('.model-card.selected'))
+  const cards = Array.from(document.querySelectorAll('.model-card.selected, .model-row.selected'))
     .filter(c => c.dataset.unresolved !== 'true');
   if (cards.length === 0) {
     alert('Select at least one model first, then run it twice to confirm.'); return;
@@ -2856,7 +2968,7 @@ updateProviderOptions();
 
 // ============ Model selection ============
 function selectModel(key) {
-  const card = document.querySelector(`.model-card[data-key="${cssEscape(key)}"]`);
+  const card = document.querySelector(`.model-card[data-key="${cssEscape(key)}"], .model-row[data-key="${cssEscape(key)}"]`);
   const nowSelected = card ? !card.classList.contains('selected') : true;
   if (card) card.classList.toggle('selected', nowSelected);
   // Persist the full selected set so a refresh or re-render never loses it.
@@ -2873,7 +2985,7 @@ function persistSelection() {
 // Re-apply the persisted selection to whatever cards are currently in the DOM.
 // Called after every renderGrid() so filtering/sorting/sync never drops it.
 function restoreSelection() {
-  document.querySelectorAll('.model-card').forEach(c => {
+  document.querySelectorAll('.model-card, .model-row').forEach(c => {
     c.classList.toggle('selected', selectedKeys.has(c.dataset.key));
   });
 }
@@ -3641,7 +3753,7 @@ async function toggleRunDetail(runId) {
   const isLive = status === 'queued' || status === 'running' || status === 'loading';
   const abortHtml = isLive
     ? `<div style="margin:8px 0;"><button class="btn" style="background:var(--unsafe);color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;" onclick="abortRun(${run.id})">⛔ Abort run #${run.id}</button><span style="color:var(--text-muted);margin-left:8px;font-size:11px;">stops LM Studio/provider work immediately</span></div>`
-    : '';
+    : `<div style="margin:8px 0;"><a class="btn" style="background:var(--bg-card);color:var(--accent-gold);border:1px solid var(--accent-gold);padding:6px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;" href="/api/runs/${run.id}/export" download title="Download the complete evidence bundle: every prompt, response, reasoning trace, latency, spec-decode counter, and the SHA3-512 seal — self-verifying, app-independent">⬇ Export evidence bundle</a><span style="color:var(--text-muted);margin-left:8px;font-size:11px;">one JSON file — prompts, responses, seals; verifiable offline</span></div>`;
   if (!run.trials || !run.trials.length) {
     panel.innerHTML = `${abortHtml}<span style="color:var(--text-muted)">No trials recorded for this run.</span>`;
     return;
@@ -4493,10 +4605,48 @@ function whenReady(fn) {
 }
 whenReady(function() {
   setTimeout(checkLandingReality, 500);
+  restoreFilters();      // re-apply saved filter/sort state BEFORE first render
+  const _vt = document.getElementById('view-toggle');
+  if (_vt) _vt.textContent = viewMode === 'compact' ? '☰ Roster' : '▦ Cards';
   loadModels();
   loadSpecDecodePairs();
   hydrateLiveRuns();
+  loadScienceLayer();    // body is parsed now — the science layer can find its DOM
 });
+
+// ── Filter persistence ─────────────────────────────────────────────────
+// Every filter/sort control keeps its last value across refreshes. The user
+// set "Local Only" and lost it on every reload — state that cheap to keep
+// must never be thrown away. localStorage key: amb-filters.
+const FILTER_IDS = ['filter-location','filter-provider','filter-axis','filter-verdict','filter-cost','filter-vision','filter-runnable','sort-by','filter-search'];
+function persistFilters() {
+  try {
+    const state = {};
+    FILTER_IDS.forEach(id => { const el = document.getElementById(id); if (el) state[id] = el.value; });
+    localStorage.setItem('amb-filters', JSON.stringify(state));
+  } catch(e) {}
+}
+function restoreFilters() {
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem('amb-filters') || '{}'); } catch(e) {}
+  FILTER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || state[id] == null) return;
+    // Guard: only restore <select> values that still exist as options
+    // (provider list is dynamic — a vanished provider must not wedge the select).
+    if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === state[id])) return;
+    el.value = state[id];
+  });
+  // filter-provider options are rebuilt from the location value after models
+  // load; updateProviderOptions() runs inside loadModels' snapshot path.
+}
+// Save on every change without touching the existing inline handlers.
+FILTER_IDS.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', persistFilters);
+});
+const _searchEl = document.getElementById('filter-search');
+if (_searchEl) _searchEl.addEventListener('input', persistFilters);
 
 // If the page loads (or reloads) while a run is already live, arm the abort
 // bar immediately — don't wait for the next SSE run_started, which may never
