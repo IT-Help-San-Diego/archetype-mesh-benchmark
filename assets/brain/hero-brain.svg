@@ -1,129 +1,214 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="520" height="560" viewBox="0 0 520 560" xmlns="http://www.w3.org/2000/svg">
+<svg width="520" height="400" viewBox="0 0 520 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Left lateral view of the human brain — functional anatomy, six benchmark axes mapped onto their cortical origin">
   <defs>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <!-- Dark background gradients -->
+    <linearGradient id="brain-deep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1c3c50" stop-opacity="0.9"/>
+      <stop offset="55%" stop-color="#10222e" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#070f14" stop-opacity="0.45"/>
+    </linearGradient>
+    
+    <radialGradient id="brain-sheen" cx="30%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="#dce8ee" stop-opacity="0.18"/>
+      <stop offset="45%" stop-color="#dce8ee" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#dce8ee" stop-opacity="0"/>
+    </radialGradient>
+    
+    <!-- Color-specific gradients for each region -->
+    <linearGradient id="grad-reasoning" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d4a853"/>
+      <stop offset="100%" stop-color="#b08d3e"/>
+    </linearGradient>
+    
+    <linearGradient id="grad-tools" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#3d84c7"/>
+    </linearGradient>
+    
+    <linearGradient id="grad-vision" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#bf83ff"/>
+      <stop offset="100%" stop-color="#9465d3"/>
+    </linearGradient>
+    
+    <linearGradient id="grad-literary" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff9e5a"/>
+      <stop offset="100%" stop-color="#d68240"/>
+    </linearGradient>
+    
+    <linearGradient id="grad-security" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff6363"/>
+      <stop offset="100%" stop-color="#d64a4a"/>
+    </linearGradient>
+    
+    <linearGradient id="grad-auxiliary" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#758496"/>
+    </linearGradient>
+    
+    <!-- Glow filter for active regions -->
+    <filter id="region-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
+    
+    <!-- Rim gradient for brain outline -->
+    <linearGradient id="brain-rim" x1="0" y1="0" x2="0.75" y2="1">
+      <stop offset="0%" stop-color="#e8c069" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#e8c069" stop-opacity="0.03"/>
+    </linearGradient>
   </defs>
-  
-  <!-- Brain outline (simplified) -->
-  <path d="M 100 80 
-           C 120 50, 400 50, 420 80
-           L 430 120
-           C 440 150, 440 250, 430 280
-           L 420 320
-           C 410 350, 380 380, 350 390
-           L 260 400
-           C 230 410, 170 410, 140 400
-           L 100 380
-           C 70 370, 40 340, 40 300
-           L 40 250
-           C 40 210, 70 180, 100 160
-           L 100 120
-           C 120 100, 180 100, 200 120
-           L 220 140
-           C 240 160, 240 200, 220 220
-           L 200 240
-           C 180 260, 120 260, 100 240
-           L 80 220
-           C 60 200, 60 160, 80 140
-           L 100 120 Z" 
-        fill="#f0f0f0" stroke="#333" stroke-width="2"/>
-  
-  <!-- Frontal Lobe -->
-  <path id="frontal-lobe" class="brain-region" 
-        d="M 180 120
-           C 200 100, 280 100, 300 120
-           L 320 140
-           C 340 160, 340 200, 320 220
-           L 300 240
-           C 280 260, 220 260, 200 240
-           L 180 220
-           C 160 200, 160 160, 180 140
-           L 180 120 Z"
-        fill="#ff6b6b" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-  
-  <!-- Parietal Lobe -->
-  <path id="parietal-lobe" class="brain-region"
-        d="M 200 240
-           C 220 260, 280 260, 300 240
-           L 320 220
-           C 340 200, 340 160, 320 140
-           L 300 120
-           C 280 100, 200 100, 180 120
-           L 200 140
-           C 220 160, 220 200, 200 220
-           L 200 240 Z"
-        fill="#4ecdc4" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-  
-  <!-- Temporal Lobe -->
-  <path id="temporal-lobe" class="brain-region"
-        d="M 100 160
-           C 80 180, 40 210, 40 250
-           L 40 300
-           C 40 340, 70 370, 100 380
-           L 140 400
-           C 170 410, 230 410, 260 400
-           L 350 390
-           C 380 380, 410 350, 420 320
-           L 430 280
-           C 440 250, 440 150, 430 120
-           L 420 80
-           C 400 50, 120 50, 100 80
-           L 100 120
-           C 120 100, 180 100, 200 120
-           L 220 140
-           C 240 160, 240 200, 220 220
-           L 200 240
-           C 180 260, 120 260, 100 240
-           L 80 220
-           C 60 200, 60 160, 80 140
-           L 100 120 Z"
-        fill="#45b7d1" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-  
-  <!-- Occipital Lobe -->
-  <path id="occipital-lobe" class="brain-region"
-        d="M 260 400
-           C 290 410, 350 410, 380 400
-           L 410 380
-           C 440 370, 440 340, 410 300
-           L 380 280
-           C 350 260, 290 260, 260 280
-           L 260 300
-           C 240 320, 240 360, 260 380
-           L 260 400 Z"
-        fill="#96ceb4" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-  
-  <!-- Cerebellum -->
-  <path id="cerebellum" class="brain-region"
-        d="M 180 440
-           C 200 460, 240 460, 260 440
-           L 280 420
-           C 300 400, 300 360, 280 340
-           L 260 320
-           C 240 300, 200 300, 180 320
-           L 160 340
-           C 140 360, 140 400, 160 420
-           L 180 440 Z"
-        fill="#ffeaa7" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-  
-  <!-- Brainstem -->
-  <path id="brainstem" class="brain-region"
-        d="M 240 320
-           C 250 340, 270 360, 260 380
-           L 250 400
-           C 240 420, 220 420, 210 400
-           L 220 380
-           C 210 360, 190 340, 200 320
-           L 240 320 Z"
-        fill="#dda0dd" stroke="#333" stroke-width="1.5" opacity="0.9"/>
-        
-  <!-- Labels for debugging/verification -->
-  <text x="250" y="140" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">frontal</text>
-  <text x="250" y="180" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">parietal</text>
-  <text x="120" y="260" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">temporal</text>
-  <text x="330" y="340" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">occipital</text>
-  <text x="220" y="460" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">cerebellum</text>
-  <text x="230" y="360" font-family="sans-serif" font-size="10" fill="#333" text-anchor="middle">brainstem</text>
+
+  <!-- Dark backdrop -->
+  <rect x="0" y="0" width="520" height="400" fill="#0b141a"/>
+
+  <!-- Upper mass: frontal + parietal + occipital, one continuous silhouette -->
+  <path d="M 58,185 C 48.8,158.3 63.0,95.8 95,70 C 127.0,44.2 199.2,32.5 250,30 C 300.8,27.5 362.5,35.8 400,55 C 437.5,74.2 466.3,114.2 475,145 C 483.7,175.8 486.2,221.7 452,240 C 417.8,258.3 320.3,256.7 270,255 C 219.7,253.3 185.3,241.7 150,230 C 114.7,218.3 67.2,211.7 58,185 Z"
+        fill="url(#brain-deep)" stroke="url(#brain-rim)" stroke-width="2.5"/>
+
+  <!-- Temporal lobe — overlaps up into the belly of the upper mass -->
+  <path d="M 135,220 C 120.0,230.7 102.8,255.7 100,272 C 97.2,288.3 103.8,307.3 118,318 C 132.2,328.7 158.8,337.0 185,336 C 211.2,335.0 250.0,323.0 275,312 C 300.0,301.0 328.3,282.8 335,270 C 341.7,257.2 328.3,244.2 315,235 C 301.7,225.8 275.8,219.5 255,215 C 234.2,210.5 210.0,207.2 190,208 C 170.0,208.8 150.0,209.3 135,220 Z"
+        fill="#152a38" fill-opacity="0.85" stroke="none"/>
+
+  <!-- Cerebellum, tucked posterior-inferior behind the occipital pole -->
+  <path d="M 396,224 C 418,214 444,214 464,226 C 480,236 488,254 484,272 C 480,290 462,304 438,308 C 416,312 396,306 384,290 C 376,278 376,262 382,248 C 386,238 390,230 396,224 Z"
+        fill="rgba(14,28,36,0.6)" stroke="#5a7a88" stroke-width="1.8"/>
+  <path d="M 400,232 C 416,226 436,226 452,236" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.55"/>
+  <path d="M 396,244 C 414,238 436,238 454,248" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.5"/>
+  <path d="M 394,258 C 412,252 434,252 454,262" fill="none" stroke="#080f14" stroke-width="1.1" opacity="0.45"/>
+  <path d="M 396,272 C 412,267 432,267 450,276" fill="none" stroke="#080f14" stroke-width="1" opacity="0.4"/>
+
+  <!-- Brainstem: medulla through midbrain, tapered stalk -->
+  <path id="br-auxiliary" class="brain-region" data-axis="auxiliary"
+        fill="url(#grad-auxiliary)" stroke="rgba(148,163,184,0.7)" stroke-width="1.5"
+        d="M 356,292 C 366,304 372,318 372,334 C 372,350 364,364 352,374 L 334,378 C 328,364 328,348 332,332 C 336,316 344,302 354,291 C 355,291 355,292 356,292 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Frontal lobe — reasoning, "The Person" -->
+  <path id="br-reasoning" class="brain-region" data-axis="reasoning"
+        fill="url(#grad-reasoning)" stroke="rgba(212,168,83,0.7)" stroke-width="1.5"
+        d="M 58,185 C 46.3,162.5 63.0,118.8 80,95 C 97.0,71.2 137.0,51.2 160,42 C 183.0,32.8 209.7,27.0 218,40 C 226.3,53.0 213.0,95.0 210,120 C 207.0,145.0 205.3,173.0 200,190 C 194.7,207.0 186.3,215.3 178,222 C 169.7,228.7 170.0,236.2 150,230 C 130.0,223.8 69.7,207.5 58,185 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Precentral gyrus — tools, "The Hand" -->
+  <path id="br-tools" class="brain-region" data-axis="tools"
+        fill="url(#grad-tools)" stroke="rgba(88,166,255,0.7)" stroke-width="1.5"
+        d="M 218,40 C 212.0,53.0 213.0,95.0 210,120 C 207.0,145.0 205.3,173.0 200,190 C 194.7,207.0 177.0,216.3 178,222 C 179.0,227.7 197.7,229.7 206,224 C 214.3,218.3 222.3,205.7 228,188 C 233.7,170.3 237.0,142.3 240,118 C 243.0,93.7 249.7,55.0 246,42 C 242.3,29.0 224.0,27.0 218,40 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Occipital pole — vision, "The Window" -->
+  <path id="br-vision" class="brain-region" data-axis="vision"
+        fill="url(#grad-vision)" stroke="rgba(191,131,255,0.7)" stroke-width="1.5"
+        d="M 400,55 C 410.8,55.8 466.3,114.2 475,145 C 483.7,175.8 464.5,225.5 452,240 C 439.5,254.5 407.0,248.7 400,232 C 393.0,215.3 410.0,169.5 410,140 C 410.0,110.5 389.2,54.2 400,55 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Temporal, posterior/superior (Wernicke's) — literary, "The Voice" -->
+  <path id="br-literary" class="brain-region" data-axis="literary"
+        fill="url(#grad-literary)" stroke="rgba(255,158,90,0.7)" stroke-width="1.5"
+        d="M 190,208 C 199.2,203.0 234.2,210.5 255,215 C 275.8,219.5 301.7,225.8 315,235 C 328.3,244.2 341.7,257.2 335,270 C 328.3,282.8 293.3,309.5 275,312 C 256.7,314.5 237.5,296.2 225,285 C 212.5,273.8 205.8,257.8 200,245 C 194.2,232.2 180.8,213.0 190,208 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!-- Temporal, anterior + amygdala — security, "The Alarm" -->
+  <path id="br-security" class="brain-region" data-axis="security"
+        fill="url(#grad-security)" stroke="rgba(255,99,99,0.7)" stroke-width="1.5"
+        d="M 135,220 C 120.0,230.7 102.8,255.7 100,272 C 97.2,288.3 103.8,307.3 118,318 C 132.2,328.7 167.2,341.5 185,336 C 202.8,330.5 222.5,300.2 225,285 C 227.5,269.8 205.8,257.8 200,245 C 194.2,232.2 200.8,212.2 190,208 C 179.2,203.8 150.0,209.3 135,220 Z">
+    <animate attributeName="fill-opacity" values="0.15;0.45;0.15" dur="3s" repeatCount="indefinite"/>
+  </path>
+
+  <!--Amygdala — the deep almond, subcortical, anterior-medial temporal -->
+  <ellipse cx="150" cy="248" rx="19" ry="13" transform="rotate(-18 150 248)"
+           fill="rgba(200,45,40,0.35)" stroke="#e05550" stroke-width="1.3" opacity="0.9"/>
+
+  <!-- Sylvian fissure line - separates temporal from frontal/parietal -->
+  <path d="M 218,40 C 216.7,53.3 213.0,95.0 210,120 C 207.0,145.0 205.3,173.0 200,190 C 194.7,207.0 181.7,216.7 178,222"
+        fill="none" stroke="#080f14" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <path d="M 190,208 C 200.8,209.2 234.2,210.5 255,215 C 275.8,219.5 301.7,225.8 315,235 C 328.3,244.2 341.7,257.2 335,270 C 328.3,282.8 285.0,305.0 275,312"
+        fill="none" stroke="#080f14" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Central sulcus - separates frontal from parietal -->
+  <path d="M 218,40 C 213.7,75.3 210.0,118.0 200,190 C 194.7,207.0 186.3,215.3 178,222"
+        fill="none" stroke="#080f14" stroke-width="3.2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Occipital sulcus - in occipital lobe -->
+  <path d="M 400,55 C 402.0,69.2 412.3,111.7 412,140 C 411.7,168.3 400.3,210.8 398,225"
+        fill="none" stroke="#080f14" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+
+  <!-- Gyral texture - cortical folds throughout the brain -->
+  <path d="M 75,120 C 95,112 118,110 138,116" fill="none" stroke="#080f14" stroke-width="1.5" opacity="0.32"/>
+  <path d="M 70,140 C 90,132 112,130 132,136" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.28"/>
+  <path d="M 68,160 C 86,154 106,152 124,156" fill="none" stroke="#080f14" stroke-width="1.3" opacity="0.25"/>
+  <path d="M 260,58 C 290,50 322,49 350,58" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.28"/>
+  <path d="M 270,78 C 300,71 330,70 356,80" fill="none" stroke="#080f14" stroke-width="1.3" opacity="0.24"/>
+  <path d="M 420,110 C 434,122 440,138 436,154" fill="none" stroke="#080f14" stroke-width="1.4" opacity="0.3"/>
+  <path d="M 430,130 C 442,142 447,156 443,170" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.26"/>
+  <path d="M 128,250 C 118,262 116,278 124,292" fill="none" stroke="#080f14" stroke-width="1.3" opacity="0.28"/>
+  <path d="M 150,270 C 142,282 142,296 150,308" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.24"/>
+  <path d="M 240,240 C 258,248 274,260 284,276" fill="none" stroke="#080f14" stroke-width="1.3" opacity="0.26"/>
+  <path d="M 270,250 C 286,258 300,270 308,284" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.22"/>
+  <path d="M 350,180 C 360,172 370,170 380,176" fill="none" stroke="#080f14" stroke-width="1.3" opacity="0.26"/>
+  <path d="M 360,190 C 372,184 382,182 392,186" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.24"/>
+  <path d="M 370,200 C 380,194 390,192 400,196" fill="none" stroke="#080f14" stroke-width="1.1" opacity="0.22"/>
+  <path d="M 85,230 C 95,224 105,222 115,226" fill="none" stroke="#080f14" stroke-width="1.2" opacity="0.26"/>
+  <path d="M 95,240 C 105,234 115,232 125,236" fill="none" stroke="#080f14" stroke-width="1.1" opacity="0.24"/>
+
+  <!-- Rim sheen -->
+  <path d="M 58,185 C 48.8,158.3 63.0,95.8 95,70 C 127.0,44.2 199.2,32.5 250,30 C 300.8,27.5 362.5,35.8 400,55 C 437.5,74.2 466.3,114.2 475,145 C 483.7,175.8 486.2,221.7 452,240 C 417.8,258.3 320.3,256.7 270,255 C 219.7,253.3 185.3,241.7 150,230 C 114.7,218.3 67.2,211.7 58,185 Z"
+        fill="url(#brain-sheen)"/>
+
+  <!-- CSS styles for brain regions -->
+  <style>
+    /* Base state - subtle, darkened regions */
+    .brain-region {
+      fill-opacity: 0.15;
+      stroke-opacity: 0.4;
+      stroke-width: 1.5px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      filter: url(#region-glow);
+    }
+
+    /* Firing (active) state - glowing brightly */
+    .brain-region.firing {
+      fill-opacity: 0.95;
+      stroke-opacity: 1;
+      stroke-width: 2px;
+    }
+
+    /* Specific region animations when firing */
+    #br-reasoning.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(212, 168, 83, 0.9));
+    }
+    
+    #br-tools.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(88, 166, 255, 0.9));
+    }
+    
+    #br-vision.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(191, 131, 255, 0.9));
+    }
+    
+    #br-literary.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(255, 158, 90, 0.9));
+    }
+    
+    #br-security.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(255, 99, 99, 0.9));
+    }
+    
+    #br-auxiliary.firing {
+      filter: url(#region-glow) drop-shadow(0 0 12px rgba(148, 163, 184, 0.9));
+    }
+
+    /* Hover effect for interactivity */
+    .brain-region:hover {
+      stroke-width: 1.8px;
+      transition: all 0.2s ease-in-out;
+    }
+  </style>
 </svg>
