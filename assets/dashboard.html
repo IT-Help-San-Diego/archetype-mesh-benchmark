@@ -233,12 +233,45 @@
     flex-wrap: wrap;
     align-items: center;
   }
+  /* ═══ AFFORDANCE SYSTEM (2026-07-14) ═══
+     User mandate: from the top of the page down, every region that holds a
+     CONTROL the user can click/change must read as interactive and distinct
+     from flat readout areas (stats). The vocabulary, applied consistently:
+       • Flat readout  → .stat: quiet, no left-rail, default cursor, no hover.
+       • Control zone   → .control-zone: a subtle raised panel with a gold
+         left-rail and an uppercase micro-label, so 'you can act here' is
+         legible before the user reads a single word.
+       • Interactive control → select/input/button: visible border that
+         warms to gold on hover, gold ring on focus. Never ambiguous. */
+  .control-zone {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .control-zone > .cz-label {
+    display: block;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent-gold);
+    margin-bottom: 8px; opacity: 0.85;
+  }
+  /* A flat readout strip carries a matching micro-label so the CONTRAST with
+     control zones is explicit: same size label, but steel/muted, no rail. */
+  .readout-zone > .rz-label {
+    display: block;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 8px;
+  }
   .stat {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 16px;
     min-width: 100px;
+    cursor: default;          /* readout, not a control — say so */
   }
   .stat-value {
     font-size: 22px;
@@ -263,10 +296,13 @@
     flex-wrap: wrap;
   }
   .filter-label {
-    font-size: 12px;
-    color: var(--text-muted);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent-gold);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.1em;
+    opacity: 0.85;
+    width: 100%;
   }
   select, .chip {
     background: var(--bg-card);
@@ -277,6 +313,15 @@
     font-size: 13px;
     font-family: var(--font-sans);
   }
+  /* Interactive affordance: every select/input the user can change warms to
+     gold on hover and shows a gold focus ring — the 'you can act here' cue
+     the affordance mandate requires, applied to the controls themselves. */
+  select { cursor: pointer; transition: border-color 120ms, box-shadow 120ms; }
+  select:hover { border-color: var(--accent-gold); }
+  select:focus { outline: none; border-color: var(--accent-gold); box-shadow: 0 0 0 2px rgba(212,168,83,0.25); }
+  input[type="text"] { transition: border-color 120ms, box-shadow 120ms; }
+  input[type="text"]:hover { border-color: var(--accent-gold); }
+  input[type="text"]:focus { outline: none; border-color: var(--accent-gold); box-shadow: 0 0 0 2px rgba(212,168,83,0.25); }
   .chip {
     cursor: pointer;
     transition: background 120ms;
@@ -1056,12 +1101,19 @@
     #ws-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
     #center-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
-    /* rail: action bar first, always visible */
-    #action-bar { justify-content: flex-start !important; padding: 10px 12px; margin-bottom: 0 !important; border-bottom: 1px solid var(--border); }
+    /* rail: action bar first, always visible. CONTROL ZONE — gold left-rail
+       marks it as interactive (affordance mandate). */
+    #action-bar { justify-content: flex-start !important; padding: 9px 12px; margin-bottom: 0 !important; border-bottom: 1px solid var(--border); border-left: 3px solid var(--accent-gold); background: var(--bg-card); }
     #action-bar #scaffold-supplement { width: 100% !important; order: 9; }
-    #ws-rail .stats-bar { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 10px 12px; margin: 0; }
-    #ws-rail .stat-value { font-size: 17px; }
-    #ws-rail .filters { padding: 8px 12px; gap: 6px; }
+    /* Stats = READOUT zone: quieter, denser, no interactive cue. Space math:
+       7 stats in a 3-col grid at compact size reclaims the wasted rail height
+       the old 2-col loose layout burned. */
+    #ws-rail .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px 12px; margin: 0; background: var(--bg-secondary); }
+    #ws-rail .stat { padding: 5px 8px; min-width: 0; text-align: center; }
+    #ws-rail .stat-value { font-size: 15px; line-height: 1.1; }
+    #ws-rail .stat-label { font-size: 8px; margin-top: 1px; }
+    /* Filters = CONTROL ZONE: gold left-rail + interactive controls inside. */
+    #ws-rail .filters { padding: 8px 12px; gap: 6px; border-left: 3px solid var(--accent-gold); background: var(--bg-card); border-bottom: 1px solid var(--border); }
     #ws-rail .filters select, #ws-rail .filters input { font-size: 11px; max-width: 100%; }
     #ws-rail #filter-search { width: 100%; }
     #ws-rail .model-grid { flex: 1; min-height: 0; overflow-y: auto; grid-template-columns: 1fr; gap: 10px; padding: 12px; }
@@ -1306,8 +1358,10 @@ function clearScienceHighlight() {
   <button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
 </div>
 
-<!-- Stats Bar -->
-<div class="stats-bar">
+<!-- Stats Bar — READOUT zone (no gold rail, no hover: these are numbers to
+     read, not controls to click — the deliberate visual counterpart to the
+     gold-railed control zones above and below). -->
+<div class="stats-bar readout-zone">
   <div class="stat">
     <div class="stat-value" id="stat-total" style="color: var(--accent-cyan)">—</div>
     <div class="stat-label">Total Selectable</div>
@@ -1340,7 +1394,7 @@ function clearScienceHighlight() {
 
 <!-- Filters -->
 <div class="filters">
-  <span class="filter-label">FILTER:</span>
+  <span class="filter-label">⚙ Filter &amp; sort the roster</span>
   <select id="filter-location" onchange="onLocationFilterChanged()">
     <option value="all">All Locations</option>
     <option value="local">Local Only</option>
