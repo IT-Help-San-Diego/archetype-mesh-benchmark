@@ -100,6 +100,9 @@ async fn main() {
         .route("/api/quarantine", get(routes::quarantine::list_quarantined))
         .route("/api/quarantine/{id}/release", post(routes::quarantine::release_quarantined))
         .route("/api/quarantine/{id}/notes", post(routes::quarantine::append_notes))
+        .route("/api/neurovault/collections", get(routes::neurovault::neurovault_collections))
+        .route("/api/neurovault/images/{collection_id}", get(routes::neurovault::neurovault_images))
+        .route("/api/neurovault/manifest", get(routes::neurovault::neurovault_manifest))
         .nest_service("/assets", static_files)
         // 16MB body cap: a 10MB image (Prompt Builder max) is ~13.7MB as base64.
         .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024))
