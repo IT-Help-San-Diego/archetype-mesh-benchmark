@@ -872,6 +872,17 @@
   .confirm-detail { font-size: 12px; color: var(--text-secondary); margin: var(--fib-2) 0; line-height: 1.6; }
   .confirm-detail code { background: var(--bg-primary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold); }
   .confirm-warn { padding: var(--fib-2); background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2); border-radius: 6px; margin: var(--fib-2) 0; font-size: 11px; color: var(--unsafe); }
+  /* Spend monitor — money-out-the-door intelligence. Gold border = cost,
+     not danger; the number is grounded in real measured token averages. */
+  .confirm-spend { padding: var(--fib-2) var(--fib-3); background: rgba(212,168,83,0.08); border: 1px solid rgba(212,168,83,0.35); border-radius: 6px; margin: var(--fib-2) 0; font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+  .confirm-spend .spend-hd { font-weight: 700; color: var(--accent-gold); font-size: 12px; letter-spacing: 0.04em; }
+  .confirm-spend .spend-amt { font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold); }
+  .confirm-spend .spend-local { color: var(--safe); font-weight: 600; }
+  .confirm-spend table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .confirm-spend td { padding: 2px 6px; font-family: var(--font-mono); font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .confirm-spend td.r { text-align: right; }
+  .confirm-scope { padding: var(--fib-2) var(--fib-3); background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.25); border-radius: 6px; margin: var(--fib-2) 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .confirm-scope b { color: var(--accent-blue); }
   .confirm-actions { display: flex; gap: var(--fib-2); justify-content: flex-end; margin-top: var(--fib-3); }
   .confirm-btn { padding: 8px 20px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card-hover); color: var(--text-primary); font-family: var(--font-mono); }
   .confirm-btn:hover { border-color: var(--text-primary); }
@@ -4681,6 +4692,50 @@ console.log('%cLogic came before the abacus.\nReason came before the transistor.
 // Run confirmation — DNS-tool style diagram + impatient motherfucker protection
 // (_runClickCount/_runClickTimer declared once near the run actions block)
 let _runConfirmCallback = null;
+
+// ── Spend monitor ──────────────────────────────────────────────────────
+// Per-axis token averages MEASURED from real completed runs in this DB
+// (trial_results.prompt_tokens / completion_tokens, 2026-07-14). Not a
+// guess — grounded in what these tests actually cost when they ran. Used
+// to estimate money-out-the-door BEFORE a cloud run starts.
+const AXIS_TOKENS = {
+  reasoning: { prompt: 97,  completion: 181, tests: 30 },
+  vision:    { prompt: 531, completion: 139, tests: 4  },
+  tools:     { prompt: 76,  completion: 114, tests: 1  },
+  security:  { prompt: 45,  completion: 263, tests: 1  },
+  literary:  { prompt: 106, completion: 7,   tests: 12 },
+  auxiliary: { prompt: 90,  completion: 100, tests: 5  }, // modest default; sparse metering
+};
+const N_TRIALS = 3; // trials_per_run default across the battery
+// The axes runSingle actually runs (the button hardcodes these). Keep in
+// sync with runSingle's body so the confirm dialog never lies about scope.
+const RUN_AXES = ['vision','tools','reasoning','security'];
+
+// Estimate USD for one model over the given axes. Local models cost $0 in
+// dollars (their cost is your watts/RAM) — we say so explicitly rather than
+// showing a fake number. Cloud cost = Σ over axes of
+// tests·trials·(prompt·price_prompt + completion·price_completion).
+function estimateModelSpend(m, axes) {
+  if (m.location === 'local') return { usd: 0, local: true };
+  const pp = m.price_prompt, pc = m.price_completion;
+  if (pp == null && pc == null) return { usd: null, local: false, unpriced: true };
+  let usd = 0, calls = 0;
+  axes.forEach(ax => {
+    const a = AXIS_TOKENS[ax];
+    if (!a) return;
+    const c = a.tests * N_TRIALS;
+    calls += c;
+    usd += c * (a.prompt * (pp || 0) + a.completion * (pc || 0));
+  });
+  return { usd, local: false, calls };
+}
+function fmtUSD(v) {
+  if (v == null) return 'unpriced';
+  if (v === 0) return '$0.00';
+  if (v < 0.01) return '<$0.01';
+  return '$' + v.toFixed(v < 1 ? 3 : 2);
+}
+
 function confirmRun(callback, models, axes) {
   // Source truth comes from each model's real location (from the clicked
   // card), NOT a key string-split. A dual-location twin now labels honestly.
@@ -4693,7 +4748,12 @@ function confirmRun(callback, models, axes) {
     ? models.map(m => (m.provider || 'cloud') + ':' + m.key).join(', ')
     : 'mixed: ' + models.map(m => (m.location === 'local' ? '🖥 ' : '☁️ ') + m.key).join(', ');
   const targetLabel = 'Benchmark execution engine';
-  const axesLabel = axes.length ? axes.join(', ') : 'all axes';
+  // SCOPE TRUTH: the Run button executes RUN_AXES (hardcoded core-4), NOT
+  // the free-text 'axes' arg (which is empty — the axis-check UI doesn't
+  // exist). Tell the user exactly which axes will run and how many trials.
+  const effectiveAxes = (axes && axes.length) ? axes : RUN_AXES;
+  const axesLabel = effectiveAxes.join(', ');
+  const totalTrials = models.length * effectiveAxes.reduce((s, ax) => s + ((AXIS_TOKENS[ax]?.tests || 0) * N_TRIALS), 0);
 
   let flowHtml = '<div class="confirm-flow">';
   flowHtml += '<div class="confirm-node ' + sourceType + '">' + sourceLabel + '</div>';
@@ -4703,20 +4763,51 @@ function confirmRun(callback, models, axes) {
   flowHtml += '<div class="confirm-node target">' + targetLabel + '</div>';
   flowHtml += '</div>';
 
-  const detailHtml = '<div class="confirm-detail"><b>Models:</b> <code>' + models.length + '</code><br><b>Axes:</b> <code>' + axesLabel + '</code><br><b>Source:</b> <code>' + sourceType + '</code></div>';
+  const detailHtml = '<div class="confirm-detail"><b>Models:</b> <code>' + models.length + '</code><br><b>Source:</b> <code>' + sourceType + '</code></div>';
+
+  // ── Scope: exactly what's about to run, in plain terms ──
+  const scopeHtml = '<div class="confirm-scope">This runs <b>' + effectiveAxes.length + ' axes</b> (' + axesLabel +
+    ') \u00d7 <b>' + N_TRIALS + ' trials</b> each, per model \u2014 about <b>' + totalTrials + '</b> total model calls' +
+    (models.length > 1 ? ' across ' + models.length + ' models' : '') + '.</div>';
+
+  // ── Spend monitor: money out the door, grounded in measured tokens ──
+  let spendHtml = '';
+  const cloudModels = models.filter(m => m.location === 'cloud');
+  if (cloudModels.length) {
+    const rows = cloudModels.map(m => {
+      const est = estimateModelSpend(m, effectiveAxes);
+      const amt = est.unpriced ? '<span style="color:var(--flaky)">unpriced \u2014 no catalog rate</span>' : '<span class="spend-amt">\u2248 ' + fmtUSD(est.usd) + '</span>';
+      return '<tr><td>\u2601\ufe0f ' + esc(m.key) + '</td><td class="r">' + amt + '</td></tr>';
+    }).join('');
+    const totalUsd = cloudModels.reduce((s, m) => { const e = estimateModelSpend(m, effectiveAxes); return s + (e.usd || 0); }, 0);
+    const anyUnpriced = cloudModels.some(m => estimateModelSpend(m, effectiveAxes).unpriced);
+    spendHtml = '<div class="confirm-spend">' +
+      '<div class="spend-hd">\ud83d\udcb8 MONEY OUT THE DOOR</div>' +
+      'You have <b>' + cloudModels.length + ' cloud model' + (cloudModels.length === 1 ? '' : 's') + '</b> selected. This sends billable API calls to a paid provider using your key:' +
+      '<table>' + rows + '</table>' +
+      '<div style="margin-top:6px;">Estimated total: <span class="spend-amt">\u2248 ' + fmtUSD(totalUsd) + '</span>' +
+      (anyUnpriced ? ' <span style="color:var(--flaky)">(+ unpriced models)</span>' : '') +
+      '</div>' +
+      '<div style="margin-top:4px;font-size:10.5px;color:var(--text-muted);">Estimate from real measured token averages per axis \u00d7 this model\u2019s catalog price. Actual cost varies with response length; the run records true metered tokens.</div>' +
+      '</div>';
+  }
+  const localCount = models.filter(m => m.location === 'local').length;
+  if (localCount && !cloudModels.length) {
+    spendHtml = '<div class="confirm-spend"><span class="spend-local">\ud83d\udda5 ' + localCount + ' local model' + (localCount === 1 ? '' : 's') + ' \u2014 $0 in dollars.</span> The cost is your watts and RAM, not your wallet.</div>';
+  }
 
   let warnHtml = '';
   if (sourceType === 'local' || sourceType === 'mixed') {
     warnHtml += '<div class="confirm-warn">\u26a0\ufe0f LOCAL models will be EJECTED from LM Studio during clean-room execution. Other apps using LM Studio will be interrupted.</div>';
   }
   if (models.length > 3) {
-    warnHtml += '<div class="confirm-warn">\u26a0\ufe0f ' + models.length + ' models selected — this will take significant time. Each model is loaded, tested across ' + axesLabel + ', then ejected.</div>';
+    warnHtml += '<div class="confirm-warn">\u26a0\ufe0f ' + models.length + ' models selected \u2014 this will take significant time. Each model is loaded, tested across ' + axesLabel + ', then ejected.</div>';
   }
 
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = '<div class="confirm-modal"><div class="confirm-title">\u269b\ufe0f Confirm Execution</div>' +
-    flowHtml + detailHtml + warnHtml +
+    flowHtml + detailHtml + scopeHtml + spendHtml + warnHtml +
     '<div class="confirm-actions"><button class="confirm-btn" onclick="this.closest(\'.confirm-overlay\').remove()">Cancel</button><button class="confirm-btn danger" onclick="confirmRunExecute()">Execute</button></div></div>';
   document.body.appendChild(overlay);
   _runConfirmCallback = callback;
