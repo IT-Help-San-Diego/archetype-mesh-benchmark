@@ -179,8 +179,8 @@ pub async fn start_runs(
         }
 
         let (run_id,): (i32,) = sqlx::query_as(
-            r#"INSERT INTO test_runs (model_id, test_id, axis, status, load_mode, draft_model_key)
-               VALUES ($1, NULL, $2, 'queued', $3, $4) RETURNING id"#,
+            r#"INSERT INTO test_runs (model_id, test_id, axis, status, load_mode, draft_model_key, scaffold_supplement)
+               VALUES ($1, NULL, $2, 'queued', $3, $4, $5) RETURNING id"#,
         )
         .bind(model.id)
         .bind(axis)
@@ -190,6 +190,12 @@ pub async fn start_runs(
             LoadMode::Scaffolded => "scaffolded",
         })
         .bind(req.draft_model_key.clone())
+        // Persist the scaffold text ON the run row. The supplement used to
+        // ride only the in-memory param into execute_run — runs 657-674
+        // (the whole scaffold-framing arc) are sealed with NULL here, so
+        // the exact prompt wrapper had to be recovered from session notes.
+        // Provenance means the row itself must carry what the model saw.
+        .bind(req.scaffold_supplement.clone())
         .fetch_one(&state.db)
         .await?;
         run_ids.push(run_id);
