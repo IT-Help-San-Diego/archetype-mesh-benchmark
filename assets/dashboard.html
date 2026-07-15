@@ -367,6 +367,9 @@
      muted BELOW it, and a real 20px checkbox that's obvious empty AND filled.
      Selection = whole row clickable + gold fill + gold left-rail. */
   .model-grid.compact { grid-template-columns: 1fr; gap: 6px; }
+
+  // Visual instrumentation: data-click-count so we can verify clicks reach
+  // the row, and instant visual feedback for selected/unselected state.
   .model-row {
     display: flex; align-items: center; gap: 11px;
     background: var(--bg-card);
@@ -380,6 +383,8 @@
   }
   .model-row:hover { background: var(--bg-card-hover); border-left-color: var(--accent-gold); }
   .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.12); }
+  /* Visual feedback so a click always has a visible consequence */
+  .model-row.flash { transition: background 0ms; background: rgba(212,168,83,0.35); }
   .model-row.model-card-unresolved { opacity: 0.55; border-style: dashed; }
   /* Real, obvious checkbox — 20px, clear empty box, gold-filled + ✓ when selected. */
   .row-check {
@@ -1383,6 +1388,7 @@ function clearScienceHighlight() {
   <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
   <button class="btn btn-primary" onclick="runSelected()">Run Selected</button>
   <button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
+      <span id="selector-counter" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">last=<span id="selector-counter-key">—</span> <span id="selector-counter-count">clicked=0 handled=0 selected=0</span></span>
 </div>
 
 <!-- Stats Bar — READOUT zone (no gold rail, no hover: these are numbers to
@@ -2195,9 +2201,8 @@ evtSource.onmessage = (e) => {
     log('info', `Trial ${data.trial_num} starting: ${data.test_name || data.test || ''}`);
     brainTrialStart(data);
   } else if (data.type === 'trial_result') {
-    const trialLevel = data.passed ? 'pass' : 'fail';
     const owlTick = data.owl_cites_rule ? '<span class="owl-tick" title="Owl σₕ: model cited the correct rule">🦉✓</span>' : '';
-    log(trialLevel, `Trial ${data.trial_num}: ${data.passed ? 'PASS' : 'FAIL'} ${owlTick}— ${data.detail || ''} (${data.latency_ms}ms)`);
+    log(data.passed ? 'pass' : 'fail', `Trial ${data.trial_num}: ${data.passed ? 'PASS' : 'FAIL'} ${owlTick}— ${data.detail || ''} (${data.latency_ms}ms)`);
     if (data.axis) brainTrialResult(data);
   } else if (data.type === 'verdict') {
     const verdictLevel = (data.overall === 'PASS' || data.overall === 'SAFE') ? 'pass' : (data.overall === 'FAIL' || data.overall === 'UNSAFE') ? 'fail' : 'verdict';
@@ -2506,7 +2511,7 @@ function renderGrid() {
         modelName = rawName.slice(idx + 2);
       }
       // publisher now renders on its own line inside .row-main (see below)
-      return `<div class="${rowClasses.join(' ')}" data-key="${m.key}" data-provider="${m.provider}" data-location="${m.location}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">
+      return `<div class="${rowClasses.join(' ')}" data-key="${escHtml(m.key)}" data-provider="${m.provider}" data-location="${m.location}" data-unresolved="${unresolved}">
         <span class="row-check">✓</span>
         <span class="row-loc" title="${m.location === 'local' ? 'Local — your silicon' : 'Cloud — ' + m.provider}">${m.location === 'local' ? '🖥' : '☁️'}</span>
         <div class="row-main">
@@ -2531,6 +2536,7 @@ function renderGrid() {
   }
   console.log('[renderGrid] rendered rows:', rows.length);
   restoreSelection(); // re-apply persisted multi-select after every render
+  gridClickWire(); // re-bind delegated click after every render
   } catch (e) {
     console.error('[renderGrid] failed:', e);
   }
@@ -3054,7 +3060,18 @@ function runSelected() {
   const cards = Array.from(document.querySelectorAll('.model-card.selected, .model-row.selected'))
     .filter(c => c.dataset.unresolved !== 'true');
   if (cards.length === 0) {
-    alert('Select at least one model first, then run it twice to confirm.'); return;
+    const allSelected = document.querySelectorAll('.model-card.selected, .model-row.selected').length;
+    const unresolved = document.querySelectorAll('.model-card[data-unresolved="true"].selected, .model-row[data-unresolved="true"].selected').length;
+    const saved = JSON.parse(localStorage.getItem('amb-selected-keys') || '[]');
+    const dbg = `DEBUG selector dump\n` +
+      `selected in DOM (any): ${allSelected}\n` +
+      `filtered unresolved: ${unresolved}\n` +
+      `saved in localStorage: ${saved.length} → ${JSON.stringify(saved).slice(0,80)}\n` +
+      `selectedKeys set size: ${selectedKeys.size}\n` +
+      `grid innerHTML len: ${(document.getElementById('model-grid')?.innerHTML || '').length}`;
+    console.debug(dbg);
+    alert('Select at least one model first, then run it twice to confirm.\n\nDEBUG: ' +
+      `DOM selected=${allSelected} unresolved=${unresolved} localStorage=${saved.length} set=${selectedKeys.size}`); return;
   }
   const axes = Array.from(document.querySelectorAll('.axis-check:checked')).map(cb => cb.value);
   // Build from the REAL card attributes — provider+location come straight
@@ -3083,7 +3100,9 @@ function runBaselineScaffoldSelected() {
   const keys = cards.map(c => c.dataset.key);
   const axes = Array.from(document.querySelectorAll('.axis-check:checked')).map(cb => cb.value);
   if (axes.length === 0) {
-    alert('Select at least one axis first.'); return;
+    const checked = document.querySelectorAll('.axis-check:checked');
+    console.debug('DEBUG axes', checked.length, Array.from(checked).map(cb => cb.value));
+    alert('Select at least one axis first.\n\nDEBUG checked=' + checked.length); return;
   }
   const supplement = document.getElementById('scaffold-supplement')?.value?.trim() || '';
   const models = cards.map(c => ({ key: c.dataset.key, provider: c.dataset.provider, location: c.dataset.location }));
@@ -3124,6 +3143,27 @@ if (localStorage.getItem('amb-protocol-collapsed') === '1') {
 updateProviderOptions();
 
 // ============ Model selection ============
+
+// Delegated selection — reads `data-key` directly from the clicked row
+// so we never depend on inline JS string escaping of model keys.
+function gridClickHandler(e) {
+  _selectorClicks++;
+  const row = e.target.closest('[data-key]');
+  if (!row || !row.dataset.key) return;
+  // Ignore clicks on action buttons inside the row.
+  if (e.target.closest('button')) return;
+  _selectorHandled++;
+  _lastSelectedKey = row.dataset.key;
+  selectModel(row.dataset.key);
+  updateSelectorCounter();
+}
+function updateSelectorCounter() {
+  const key = document.getElementById('selector-counter-key');
+  const count = document.getElementById('selector-counter-count');
+  if (key) key.textContent = _lastSelectedKey || '—';
+  if (count) count.textContent = 'clicked=' + _selectorClicks + ' handled=' + _selectorHandled + ' selected=' + document.querySelectorAll('.model-card.selected, .model-row.selected').length;
+}
+
 function selectModel(key) {
   const card = document.querySelector(`.model-card[data-key="${cssEscape(key)}"], .model-row[data-key="${cssEscape(key)}"]`);
   const nowSelected = card ? !card.classList.contains('selected') : true;
