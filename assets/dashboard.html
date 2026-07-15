@@ -360,54 +360,57 @@
     background: var(--bg-card-hover);
     border-color: var(--accent-blue);
   }
-  /* ═══ COMPACT ROSTER (2026-07-14, scroll-proof v2) — the Star-Trek picker ═══
-     Research-backed (setproduct 2026 data-table guide): in a narrow rail you
-     do NOT cram columns — you stack. Row = a fixed-width checkbox + location
-     glyph on the left, then a flex-1 body that TRUNCATES (never scrolls), with
-     name on line 1 and facts+verdict dots on line 2. Actions are one compact
-     column on the right. Nothing competes for horizontal space, so the
-     left/right mouse-scroll is structurally impossible. ~12 rows/screen. */
-  .model-grid.compact { grid-template-columns: 1fr; gap: 5px; }
+  /* ═══ ROSTER PICKER (2026-07-14 v3 — legible rebuild) ═══
+     Prior version rendered cramped: 12.5px name, publisher fighting on the
+     same baseline, checkbox collapsed to an invisible sliver. Rebuilt for
+     legibility: taller rows, big bold white name on its own line, publisher
+     muted BELOW it, and a real 20px checkbox that's obvious empty AND filled.
+     Selection = whole row clickable + gold fill + gold left-rail. */
+  .model-grid.compact { grid-template-columns: 1fr; gap: 6px; }
   .model-row {
-    display: flex; align-items: center; gap: 9px;
+    display: flex; align-items: center; gap: 11px;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-left: 3px solid transparent;
     border-radius: 8px;
-    padding: 7px 10px;
+    padding: 11px 12px;
     cursor: pointer;
-    overflow: hidden;                    /* hard stop — no child can force scroll */
+    overflow: hidden;
     transition: background 100ms, border-color 150ms;
   }
   .model-row:hover { background: var(--bg-card-hover); border-left-color: var(--accent-gold); }
-  .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.10); }
-  .model-row.model-card-unresolved { opacity: 0.6; border-style: dashed; }
+  .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.12); }
+  .model-row.model-card-unresolved { opacity: 0.55; border-style: dashed; }
+  /* Real, obvious checkbox — 20px, clear empty box, gold-filled + ✓ when selected. */
   .row-check {
-    flex: 0 0 18px; width: 18px; height: 18px;
-    border: 1.5px solid var(--border); border-radius: 4px;
+    flex: 0 0 20px; width: 20px; height: 20px;
+    border: 2px solid var(--text-muted); border-radius: 5px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; color: transparent;
+    font-size: 13px; font-weight: 800; color: transparent;
+    background: var(--bg-primary);
     transition: background 100ms, border-color 100ms, color 100ms;
   }
   .model-row:hover .row-check { border-color: var(--accent-gold); }
   .model-row.selected .row-check { background: var(--accent-gold); border-color: var(--accent-gold); color: #0d1117; }
-  .row-loc { flex: 0 0 auto; font-size: 14px; line-height: 1; }
-  .row-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }  /* min-width:0 = the ellipsis-enabler */
+  .row-loc { flex: 0 0 auto; font-size: 16px; line-height: 1; }
+  .row-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  /* Name: big, bold, bright, its OWN line — the thing the eye needs. */
   .row-name {
-    font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+    font-size: 14px; font-weight: 700; color: var(--text-primary);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    display: flex; align-items: baseline; gap: 6px;
+    line-height: 1.3;
   }
-  /* Model name leads at full weight and is allowed to consume the row; the
-     publisher rides after it, small + muted, and is the FIRST thing to
-     truncate when space is tight (min-width:0 + flex-shrink). The eye lands
-     on the distinctive token immediately. */
-  .row-model { font-weight: 700; color: var(--text-primary); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row-pub { font-size: 10px; font-weight: 500; color: var(--text-muted); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .row-model { color: var(--text-primary); }
+  /* Publisher: its own line BELOW the name, muted, small — never competes. */
+  .row-pub {
+    display: block; font-size: 10.5px; font-weight: 500; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    margin-top: 1px; text-transform: none; letter-spacing: 0;
+  }
   .row-facts {
     font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    display: flex; align-items: center; gap: 5px; margin-top: 2px;
+    display: flex; align-items: center; gap: 6px; margin-top: 3px;
   }
   .row-dots { display: inline-flex; gap: 3px; align-items: center; flex: 0 0 auto; }
   .row-dots .judge-dot { width: 7px; height: 7px; border-radius: 50%; }
@@ -2479,12 +2482,13 @@ function renderGrid() {
         publisher = rawName.slice(0, idx);
         modelName = rawName.slice(idx + 2);
       }
-      const pubTag = publisher ? `<span class="row-pub">${escHtml(publisher)}</span>` : '';
+      // publisher now renders on its own line inside .row-main (see below)
       return `<div class="${rowClasses.join(' ')}" data-key="${m.key}" data-provider="${m.provider}" data-location="${m.location}" data-unresolved="${unresolved}" onclick="selectModel('${escHtml(m.key)}')">
         <span class="row-check">✓</span>
         <span class="row-loc" title="${m.location === 'local' ? 'Local — your silicon' : 'Cloud — ' + m.provider}">${m.location === 'local' ? '🖥' : '☁️'}</span>
         <div class="row-main">
-          <div class="row-name" title="${escHtml(m.key)}"><span class="row-model">${escHtml(modelName)}</span>${pubTag}</div>
+          <div class="row-name" title="${escHtml(m.key)}"><span class="row-model">${escHtml(modelName)}</span></div>
+          ${publisher ? `<span class="row-pub">${escHtml(publisher)}</span>` : ''}
           <div class="row-facts"><span class="row-dots">${dots}</span>${facts.join(' · ')}</div>
         </div>
         <div class="row-actions">
