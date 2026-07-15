@@ -382,7 +382,7 @@
     transition: background 100ms, border-color 150ms;
   }
   .model-row:hover { background: var(--bg-card-hover); border-left-color: var(--accent-gold); }
-  .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.12); }
+  .model-row.selected { border-color: var(--accent-gold); border-left-color: var(--accent-gold); background: rgba(212,168,83,0.22); box-shadow: inset 0 0 0 1px rgba(212,168,83,0.45); }
   /* Visual feedback so a click always has a visible consequence */
   .model-row.flash { transition: background 0ms; background: rgba(212,168,83,0.35); }
   .model-row.model-card-unresolved { opacity: 0.55; border-style: dashed; }
@@ -407,24 +407,24 @@
   .row-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
   /* Name: big, bold, bright, its OWN line — the thing the eye needs. */
   .row-name {
-    font-size: 14px; font-weight: 700; color: var(--text-primary);
+    font-size: 15px; font-weight: 800; color: #e6edf3;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    line-height: 1.3;
+    line-height: 1.35;
   }
   .row-model { color: var(--text-primary); }
   /* Publisher: its own line BELOW the name, muted, small — never competes. */
   .row-pub {
-    display: block; font-size: 10.5px; font-weight: 500; color: var(--text-muted);
+    display: block; font-size: 12px; font-weight: 600; color: #c9d1d9;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    margin-top: 1px; text-transform: none; letter-spacing: 0;
+    margin-top: 2px; text-transform: none; letter-spacing: 0.01em;
   }
   .row-facts {
-    font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 12px; color: #c9d1d9; font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    display: flex; align-items: center; gap: 6px; margin-top: 3px;
+    display: flex; align-items: center; gap: 8px; margin-top: 3px;
   }
   .row-dots { display: inline-flex; gap: 3px; align-items: center; flex: 0 0 auto; }
-  .row-dots .judge-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .row-dots .judge-dot { width: 10px; height: 10px; border-radius: 50%; }
   .row-actions { flex: 0 0 auto; display: flex; gap: 3px; align-items: center; }
   .row-actions .btn-mini { padding: 3px 7px; font-size: 11px; line-height: 1.2; }
   .view-toggle-btn {
@@ -1387,8 +1387,8 @@ function clearScienceHighlight() {
   <button class="view-toggle-btn" id="view-toggle" onclick="toggleViewMode()" title="Switch between the dense roster picker and full detail cards">☰ Roster</button>
   <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
   <button class="btn btn-primary" onclick="runSelected()">Run Selected</button>
-  <button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
-      <span id="selector-counter" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">last=<span id="selector-counter-key">—</span> <span id="selector-counter-count">clicked=0 handled=0 selected=0</span></span>
+<button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
+  <span id="selected-readout" style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">0 selected</span>
 </div>
 
 <!-- Stats Bar — READOUT zone (no gold rail, no hover: these are numbers to
@@ -1480,15 +1480,12 @@ function clearScienceHighlight() {
          style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:180px;">
 </div>
 <!-- Model Grid -->
-<div style="display:flex;gap:8px;align-items:flex-start;">
-  <select id="model-pick" multiple size="24" style="width:320px;font-family:var(--font-mono);font-size:12px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;"></select>
-  <div class="model-grid" id="model-grid">
+<div class="model-grid" id="model-grid">
   <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
     <div style="font-size:13px;margin-bottom:6px;">Loading model registry via SSE…</div>
     <div style="font-size:11px;font-family:var(--font-mono);">Waiting for /api/events</div>
   </div>
 </div>
-<div id="selector-counter" style="grid-column:1/-1;text-align:center;padding:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-muted);">last=— clicked=0 handled=0 selected=0</div>
 </aside>
 
 <!-- ═══ CENTER — the brain, pinned; teaching layers scroll beneath ═══ -->
