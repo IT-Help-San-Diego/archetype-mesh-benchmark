@@ -2777,7 +2777,6 @@ function renderGrid() {
   }
   console.log('[renderGrid] rendered rows:', rows.length);
   restoreSelection(); // re-apply persisted multi-select after every render
-  gridClickWire(); // re-bind delegated click after every render
   } catch (e) {
     console.error('[renderGrid] failed:', e);
   }
@@ -3435,6 +3434,16 @@ document.getElementById('deselect-all-btn')?.addEventListener('click', () => { t
   selectedKeys.clear();
   document.querySelectorAll('.model-card, .model-row').forEach(c => c.classList.remove('selected'));
   persistSelection();
+});
+document.getElementById('model-grid').addEventListener('click', function(e) {
+  const btn = e.target.closest('button');
+  if (btn) return;
+  const card = e.target.closest('[data-key]');
+  if (!card || !card.dataset.key) return;
+  const count = document.querySelectorAll('.model-card.selected, .model-row.selected').length;
+  selectModel(card.dataset.key);
+  const badge = document.getElementById('selected-count-badge');
+  if (badge) badge.textContent = (count + (document.querySelector('.model-card.selected, .model-row.selected') ? 1 : 0)) + ' selected';
 });
 // ============ Tab navigation — makes the top-nav tabs actually work ============
 const PAGES = ['setup', 'benchmark', 'prompt-builder', 'loot-page', 'tests-page', 'runs-page', 'lmstudio'];
