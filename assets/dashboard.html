@@ -1533,7 +1533,9 @@ function clearScienceHighlight() {
 <div id="action-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:var(--fib-2);align-items:center;flex-wrap:wrap;">
   <span id="conn-status" style="display:none;font-size:12px;font-weight:600;color:var(--flaky);background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:6px;border:1px solid var(--flaky);"></span>
   <input id="scaffold-supplement" type="text" placeholder="Scaffold supplement: warnings or reminders to watch for (optional)" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:320px;" />
-  <button class="view-toggle-btn" id="view-toggle" onclick="openNativeSelector()" title="Select models to test">🧪 Select Models…</button>
+  <button class="view-toggle-btn" id="view-toggle" title="Select models to test">🧪 Select Models…</button>
+          <span id="selected-count-badge" style="margin-left:10px;font-size:11px;color:var(--text-muted);">0 selected</span>
+          <button class="view-toggle-btn" id="view-toggle-multi" onclick="openNativeSelector()" style="margin-left:6px;" title="Open full selection panel">Manage…</button>
   <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
   <button class="btn btn-primary" onclick="runSelected()">Run Selected</button>
 <button class="btn btn-secondary" onclick="runBaselineScaffoldSelected()">Baseline vs Scaffold</button>
@@ -3400,11 +3402,13 @@ function selectModel(key) { try { console.log('[selector-debug] selectModel', ke
   if (card) card.classList.toggle('selected', nowSelected);
   // Persist the full selected set so a refresh or re-render never loses it.
   if (nowSelected) selectedKeys.add(key); else selectedKeys.delete(key);
-  selectedModel = key; // keep last-touched for single-model helpers (prompt length, etc.)
-  try { console.log('[selector-debug] selectedKeys=' + JSON.stringify([...selectedKeys])); } catch(e) {}
-  try { console.log('[selectModel] after toggle selectedKeys=' + JSON.stringify([...(selectedKeys||[])])); } catch(e) {}
+  selectedModel = key;
   persistSelection();
+  const count = document.querySelectorAll('.model-card.selected, .model-row.selected').length;
+  const badge = document.getElementById('selected-count-badge');
+  if (badge) badge.textContent = count + ' selected';
 }
+
 // CSS.escape isn't safe for arbitrary keys in every engine path we hit; this
 // covers the model-key charset (slashes, dots, colons, @, hyphens).
 function cssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
