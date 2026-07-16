@@ -2444,10 +2444,14 @@ evtSource.onmessage = (e) => {
   } else if (data.type === 'verdict') {
     const verdictLevel = (data.overall === 'PASS' || data.overall === 'SAFE') ? 'pass' : (data.overall === 'FAIL' || data.overall === 'UNSAFE') ? 'fail' : 'verdict';
     log(verdictLevel, `VERDICT: ${data.overall} — ${data.pass_count}/${data.total_count} trials passed`);
+    refreshAbortBar();
+    if (typeof loadRunsPage === 'function') { runDetailCache = {}; loadRunsPage(); }
   } else if (data.type === 'run_complete') {
     log('verdict', `Run ${data.run_id} complete. Overall: ${data.overall}`);
     brainRunComplete(data);
     disarmAbortRun(data.run_id);
+    refreshAbortBar();
+    if (typeof loadRunsPage === 'function') { runDetailCache = {}; loadRunsPage(); }
     // Update the focus banner with the finished verdict, so the user who
     // followed the run down sees the result in the same place they landed.
     const banner = document.getElementById('run-theatre');
@@ -4242,6 +4246,7 @@ async function abortRun(runId) {
   }
   log('warn', `Run #${runId} abort requested: ${JSON.stringify(r.data)}`);
   runDetailCache[runId] = null;
+  refreshAbortBar();
   loadRunsPage();
 }
 
