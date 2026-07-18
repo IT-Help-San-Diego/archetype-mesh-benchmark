@@ -1,5 +1,7 @@
 # Archetype Mesh Benchmark
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 **Test your local AI models like a scientist — on your own hardware, with evidence you can audit.**
 
 A local-first benchmarking dashboard for [LM Studio](https://lmstudio.ai) and cloud LLMs that measures what models can *actually* do — vision, tool use, reasoning, prompt-injection resistance — using ground-truth tests, N=3 trials, SHA3-sealed evidence, and zero trust in anyone's marketing numbers. Built in Rust (Axum + Tokio + SQLx + PostgreSQL) with a single-file live dashboard driven by Server-Sent Events.
@@ -142,4 +144,14 @@ If a number on the screen can't cite where it came from, that's a bug. File it.
 
 ## License & attribution
 
-© IT Help San Diego Inc. Research published under Carey James Balboa and IT Help San Diego Inc. — see the [Intellectual Resistance](https://intellectualresistance.com/) program.
+**Archetype Mesh Benchmark is licensed under the [Apache License, Version 2.0](LICENSE).**
+
+- Copyright © 2026 **IT Help San Diego Inc.** All rights reserved under the terms of the Apache-2.0 license.
+- Research published under Carey James Balboa and IT Help San Diego Inc., as part of the [Intellectual Resistance](https://intellectualresistance.com/) program.
+- The benchmark methodology, test battery, scoring logic, and SHA3-provenance design are original works of IT Help San Diego Inc.
+- Patent grant included (Section 3 of Apache-2.0): contributors grant a perpetual, royalty-free patent license for their contributions.
+- Trademark: "Archetype Mesh", "IT Help San Diego", and the Owl of Athena mark are trademarks of IT Help San Diego Inc. The license does not grant rights to use these marks except for reasonable attribution.
+- See [NOTICE](NOTICE) for attribution and trademark details.
+
+This is a permissive license: you may use, modify, and redistribute the work (including commercial use), provided you retain the license, note modifications, and preserve attribution. It is intentionally more permissive than the DNS Tool product (BUSL-1.1) because a benchmark's value depends on broad, independent adoption — the methodology is the asset, not a hosted service.
+
