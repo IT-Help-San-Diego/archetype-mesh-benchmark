@@ -150,7 +150,7 @@ If a number on the screen can't cite where it came from, that's a bug. File it.
 - Research published under Carey James Balboa and IT Help San Diego Inc., as part of the [Intellectual Resistance](https://intellectualresistance.com/) program.
 - The benchmark methodology, test battery, scoring logic, and SHA3-provenance design are original works of IT Help San Diego Inc.
 - Patent grant included (Section 3 of Apache-2.0): contributors grant a perpetual, royalty-free patent license for their contributions.
-- Trademark: "Archetype Mesh", "IT Help San Diego", and the Owl of Athena mark are trademarks of IT Help San Diego Inc. The license does not grant rights to use these marks except for reasonable attribution.
+- Trademark: "Archetype Mesh" and "IT Help San Diego" are trademarks of IT Help San Diego Inc. The Owl of Athena is a historical/public symbol used for thematic identity and is not claimed as a trademark. The license does not grant rights to use the Archetype Mesh or IT Help San Diego marks except for reasonable attribution.
 - See [NOTICE](NOTICE) for attribution and trademark details.
 
 This is a permissive license: you may use, modify, and redistribute the work (including commercial use), provided you retain the license, note modifications, and preserve attribution. It is intentionally more permissive than the DNS Tool product (BUSL-1.1) because a benchmark's value depends on broad, independent adoption — the methodology is the asset, not a hosted service.
