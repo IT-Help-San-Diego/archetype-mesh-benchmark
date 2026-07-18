@@ -477,11 +477,13 @@ async fn check_memory_safety(
             crate::routes::runs::LoadMode::CleanRoom | crate::routes::runs::LoadMode::Scaffolded => {
                 emit(tx, serde_json::json!({
                     "type": "phase", "run_id": run_id, "phase": "ejecting",
+                    "model_key": model_key,
                     "message": "Clean room: ejecting all loaded models from LM Studio", "at": now_iso()
                 }));
                 let ejected = cancellable!(lmstudio::eject_all(&client, &config.lmstudio_base_url))?;
                 emit(tx, serde_json::json!({
                     "type": "phase", "run_id": run_id, "phase": "ejected",
+                    "model_key": model_key,
                     "message": format!("Ejected {} instance(s): {:?}", ejected.len(), ejected), "at": now_iso()
                 }));
 
@@ -489,6 +491,7 @@ async fn check_memory_safety(
 
                 emit(tx, serde_json::json!({
                     "type": "phase", "run_id": run_id, "phase": "loading",
+                    "model_key": model_key,
                     "message": format!("Loading {} — watch LM Studio's server tab", model_key), "at": now_iso()
                 }));
                 let load_start = std::time::Instant::now();
@@ -506,6 +509,7 @@ async fn check_memory_safety(
                 }
                 emit(tx, serde_json::json!({
                     "type": "phase", "run_id": run_id, "phase": "resident",
+                    "model_key": model_key,
                     "message": format!("{} verified resident in RAM ({}s load)", model_key, load_start.elapsed().as_secs()),
                     "at": now_iso()
                 }));
@@ -517,6 +521,8 @@ async fn check_memory_safety(
 
                 emit(tx, serde_json::json!({
                     "type": "phase", "run_id": run_id, "phase": "pair_loading",
+                    "model_key": model_key,
+                    "draft_key": draft_key,
                     "message": format!("Speculative pair: loading {} + {}", model_key, draft_key), "at": now_iso()
                 }));
 

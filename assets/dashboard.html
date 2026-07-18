@@ -1698,6 +1698,16 @@ function clearScienceHighlight() {
      the brain + live log into view so focus follows the action. -->
 <div id="run-theatre" style="display:none;background:linear-gradient(90deg,rgba(212,168,83,0.08),transparent);border-top:1px solid var(--border);border-left:3px solid var(--accent-gold,#d4a853);padding:10px 24px;font-family:var(--font-mono);font-size:12px;"></div>
 
+<!-- ═══ Resident roster — what is LOADED in RAM right now (silicon presence).
+     Fed by structured `phase` events (model_key / draft_key). During a run
+     the user sees exactly which model(s) are resident: the primary, plus the
+     speculative draft if a pair was loaded. Mirrors "is this assistant here
+     and ready?" for an organic subject. Cleared on run_complete / abort. -->
+<div id="resident-roster" style="display:none;background:var(--bg-secondary);border-top:1px solid var(--border);padding:6px 24px;font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">
+  <span style="color:var(--safe);font-weight:600;">● RESIDENT NOW:</span>
+  <span id="resident-list" style="margin-left:8px;"></span>
+</div>
+
 <!-- ═══ Brain topology — the benchmark's axes mapped onto the organ that
      invented them. ALWAYS VISIBLE (user mandate 2026-07-09): this is a
      teaching surface first — neurologists and AI researchers are studying
@@ -2471,6 +2481,10 @@ evtSource.onmessage = (e) => {
     armAbortBar(data.run_id);
   } else if (data.type === 'phase') {
     log('phase', `[${data.phase}] ${data.message || ''}`);
+    if (data.phase === 'loading' || data.phase === 'resident' ||
+        data.phase === 'pair_loading' || data.phase === 'ejected' || data.phase === 'ejecting') {
+      updateResidentRoster(data);
+    }
   } else if (data.type === 'trial_start') {
     log('info', `Trial ${data.trial_num} starting: ${data.test_name || data.test || ''}`);
     updateNowTesting(data);
@@ -2489,6 +2503,12 @@ evtSource.onmessage = (e) => {
     brainRunComplete(data);
     disarmAbortRun(data.run_id);
     refreshAbortBar();
+    // Clear the resident roster — run is done, nothing is loaded by us now.
+    window._residentModels = {};
+    const rr = document.getElementById('resident-roster');
+    const rl = document.getElementById('resident-list');
+    if (rr) rr.style.display = 'none';
+    if (rl) rl.innerHTML = '';
     if (typeof loadRunsPage === 'function') { runDetailCache = {}; loadRunsPage(); }
     // Update the focus banner with the finished verdict, so the user who
     // followed the run down sees the result in the same place they landed.
@@ -3152,6 +3172,31 @@ function updateNowTesting(d) {
     `<span style="color:var(--text-primary);font-weight:600;">${escHtml(test)}</span> ` +
     `<span style="color:var(--text-muted);">— trial ${d.trial_num || '?'} · model ${escHtml(d.model_key || '?')}</span>` +
     spec;
+}
+function updateResidentRoster(d) {
+  const wrap = document.getElementById('resident-roster');
+  const list = document.getElementById('resident-list');
+  if (!wrap || !list) return;
+  wrap.style.display = 'block';
+  if (typeof window._residentModels === 'undefined') window._residentModels = {};
+  const phase = d.phase;
+  if (phase === 'loading' || phase === 'resident' || phase === 'pair_loading') {
+    if (d.model_key) window._residentModels[d.model_key] = (phase === 'pair_loading') ? 'pair' : 'primary';
+    if (d.draft_key) window._residentModels[d.draft_key] = 'draft';
+  } else if (phase === 'ejected' || phase === 'ejecting') {
+    if (d.model_key && window._residentModels[d.model_key] === 'primary') {
+      window._residentModels = {};
+    } else if (d.draft_key) {
+      delete window._residentModels[d.draft_key];
+    }
+  }
+  const entries = Object.entries(window._residentModels);
+  if (!entries.length) { list.innerHTML = '<span style="color:var(--text-faint);">—</span>'; return; }
+  list.innerHTML = entries.map(([k, role]) => {
+    const tag = role === 'draft' ? ' <span style="color:var(--accent-cyan);">(draft)</span>'
+              : role === 'pair' ? ' <span style="color:var(--accent-blue);">(pair)</span>' : '';
+    return `<span style="color:var(--text-primary);font-weight:600;">${escHtml(k)}</span>${tag}`;
+  }).join(' <span style="color:var(--text-faint);">·</span> ');
 }
 function brainFire(axis, passed) {
   const el = document.getElementById('br-' + axis);
