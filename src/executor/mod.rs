@@ -269,21 +269,25 @@ pub async fn execute_run(
             .ok()
             .flatten();
             let sha3 = sha3.and_then(|t| t.0);
-            let _ = sqlx::query(
+            // Always mark the run as terminal on error so it cannot hang in
+            // `running` and block re-runs (the re-run guard only exempts
+            // 'done'/'error'/'aborted'). Previously this used a CASE that
+            // could leave the run as 'completed_with_errors' (also blocking
+            // re-runs) or — if the UPDATE itself failed — as 'running'
+            // forever. Set 'error' unconditionally and surface any DB error.
+            if let Err(db_err) = sqlx::query(
                 r#"UPDATE test_runs
-                   SET status = CASE
-                       WHEN pass_count IS NULL AND total_count IS NULL
-                       THEN 'error'
-                       ELSE 'completed_with_errors'
-                   END,
-                       finished_at = NOW(),
+                   SET status = 'error', finished_at = NOW(),
                        sha3_provenance = COALESCE(sha3_provenance, $2)
                    WHERE id = $1"#,
             )
             .bind(run_id)
             .bind(&sha3)
             .execute(&db)
-            .await;
+            .await
+            {
+                tracing::error!("Failed to mark run {} as error in DB: {}", run_id, db_err);
+            }
             emit(
                 &tx,
                 serde_json::json!({

@@ -94,13 +94,26 @@ pub async fn chat(
     });
 
     let start = Instant::now();
-    let resp = client
+    // Hard watchdog: a stalled cloud provider (Nous 400 "missing user tag"
+    // on free models, hung TLS, slow endpoint) must NOT hang the run forever
+    // — a hung call would leave the run stuck in `running` at 0/0 and block
+    // all future runs of that model. Bound the whole request at 90s; on
+    // timeout treat as infrastructure error and let the trial loop continue.
+    let send_fut = client
         .post(endpoint)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&body)
         .timeout(Duration::from_secs(120))
-        .send()
-        .await?;
+        .send();
+    let resp = match tokio::time::timeout(Duration::from_secs(90), send_fut).await {
+        Ok(inner) => inner?,
+        Err(_) => {
+            return Err(AppError::Executor(format!(
+                "{} request timed out after 90s (stalled provider connection)",
+                provider
+            )))
+        }
+    };
     let elapsed = start.elapsed().as_millis() as u64;
 
     let status = resp.status();
@@ -263,13 +276,20 @@ pub async fn gemini_chat(
     });
 
     let start = Instant::now();
-    let resp = client
+    let send_fut = client
         .post(&url)
         .header("Content-Type", "application/json")
         .json(&body)
         .timeout(Duration::from_secs(120))
-        .send()
-        .await?;
+        .send();
+    let resp = match tokio::time::timeout(Duration::from_secs(90), send_fut).await {
+        Ok(inner) => inner?,
+        Err(_) => {
+            return Err(AppError::Executor(
+                "gemini request timed out after 90s (stalled provider connection)".into(),
+            ))
+        }
+    };
     let elapsed = start.elapsed().as_millis() as u64;
 
     let status = resp.status();
