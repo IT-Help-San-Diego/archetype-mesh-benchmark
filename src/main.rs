@@ -24,12 +24,16 @@ async fn main() {
         )
         .init();
 
-    let config = Config::from_env();
     // Load cloud API keys from the secrets file (~/.archetype-mesh/cloud-keys.json)
-    // into the environment, so cloud runs work without manual env setup or
-    // launchd plist edits. Keys set via the dashboard's setup page are persisted
-    // there and auto-loaded on every restart.
+    // into the environment FIRST, so Config::from_env() (called next) captures
+    // them into the Config struct. Keys set via the dashboard's setup page are
+    // persisted there and auto-loaded on every restart — this is the canonical
+    // secrets store, not the launchd plist (which carries only DATABASE_URL).
+    // Order matters: load env before building Config, or config.gemini_api_key
+    // etc. freeze to None and cloud runs fail to resolve the key.
     routes::cloud_keys::load_keys_to_env();
+
+    let config = Config::from_env();
     tracing::info!("Starting Archetype Mesh Dashboard on {}:{}", config.listen_addr, config.listen_port);
 
     let state = AppState::new(config.clone())
