@@ -1297,24 +1297,18 @@
     };
   });
 })();
+window.esc = window.esc || function esc(s) { if (s == null) return ''; return String(s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); };
 
+// ── Live run / abort observability — visible telemetry, no DevTools required ──
 (function(){
-  const body = document.getElementById('amb-selector-debug-body');
-  if (!body) return;
-  window.__updateSelectorDebug = function(){
-    try {
-      const saved = JSON.parse(localStorage.getItem('amb-selected-keys') || '[]');
-      const cards = Array.from(document.querySelectorAll('.model-card, .model-row'));
-      const matched = cards.filter(c => selectedKeys && selectedKeys.has(c.dataset.key)).map(c => c.dataset.key);
-      const view = (document.getElementById('view-toggle') && document.getElementById('view-toggle').textContent || '').trim();
-      const modal = document.getElementById('native-selector-overlay');
-      body.textContent = 'button=' + view + '\nlocalStorage=' + saved.length + '\nset=' + (selectedKeys ? selectedKeys.size : 0) + '\nmatched=' + matched.length + '\noverlay=' + (modal ? (modal.classList.contains('open') ? 'OPEN' : 'closed') : 'missing');
-    } catch(e) {
-      body.textContent = 'debug error: ' + e;
-    }
-  };
-  setInterval(window.__updateSelectorDebug, 500);
-  setTimeout(window.__updateSelectorDebug, 0);
+  const el = document.getElementById('live-run-debug');
+  if (!el) return;
+  window.__liveRunDebug = { events: [], abort: null, lastSse: null, update() { el.textContent = JSON.stringify({ events: this.events.slice(-8), abort: this.abort, lastSse: this.lastSse }, null, 2); } };
+  const origArm = window.armAbortBar || function(){};
+  window.armAbortBar = function(runId) { origArm(runId); window.__liveRunDebug.events.push({ t: Date.now(), type: 'arm', runId }); window.__liveRunDebug.update(); };
+  const origDisarm = window.disarmAbortRun || function(){};
+  window.disarmAbortRun = function(runId) { origDisarm(runId); window.__liveRunDebug.events.push({ t: Date.now(), type: 'disarm', runId }); window.__liveRunDebug.update(); };
+  window.__liveRunDebug.update();
 })();
 
 (function(){
@@ -2479,6 +2473,7 @@ evtSource.onmessage = (e) => {
     log('phase', `[${data.phase}] ${data.message || ''}`);
   } else if (data.type === 'trial_start') {
     log('info', `Trial ${data.trial_num} starting: ${data.test_name || data.test || ''}`);
+    updateNowTesting(data);
     brainTrialStart(data);
   } else if (data.type === 'trial_result') {
     const owlTick = data.owl_cites_rule ? '<span class="owl-tick" title="Owl σₕ: model cited the correct rule">🦉✓</span>' : '';
@@ -3051,18 +3046,23 @@ function refreshAbortBar() {
 }
 async function abortAllLiveRuns() {
   const ids = [..._liveRunIds];
-  if (ids.length === 0) return;
-  if (!confirm(`STOP ${ids.length} live run${ids.length === 1 ? '' : 's'} now? This cancels LM Studio / provider work immediately.`)) return;
   const btn = document.getElementById('abort-bar-btn');
+  const memEl = document.getElementById('abort-mem');
+  const labelEl = document.getElementById('abort-run-label');
+  function setStatus(msg){ if (labelEl) labelEl.textContent = msg; if (memEl) memEl.textContent = ids.length ? ('aborting ' + ids.length) : ''; }
   if (btn) { btn.disabled = true; btn.textContent = '⛔ STOPPING…'; }
+  setStatus('STOPPING');
+  if (!ids.length) { setStatus('NO LIVE RUNS'); if (btn) { btn.disabled = false; btn.textContent = '⛔ STOP ALL RUNS'; } return; }
   const results = await Promise.allSettled(
     ids.map(id => apiFetch('/api/runs/' + id + '/abort', { method: 'POST' }))
   );
   let stopped = 0;
   results.forEach((r, i) => {
-    if (r.status === 'fulfilled' && r.value.ok) { stopped++; _liveRunIds.delete(ids[i]); }
+    if (r.status === 'fulfilled' && r.value && r.value.ok) { stopped++; _liveRunIds.delete(ids[i]); }
+    else { console.warn('[abort] run=' + ids[i] + ' result=' + (r.status === 'fulfilled' ? JSON.stringify(r.value) : r.reason)); }
   });
-  log('warn', `Emergency abort: signalled ${stopped}/${ids.length} run(s).`);
+  const remaining = [..._liveRunIds];
+  setStatus(remaining.length ? ('ABORTED ' + stopped + '; ' + remaining.length + ' still live') : ('ABORTED ' + stopped));
   if (btn) { btn.disabled = false; btn.textContent = '⛔ STOP ALL RUNS'; }
   refreshAbortBar();
   if (typeof loadRunsPage === 'function') { runDetailCache = {}; loadRunsPage(); }
@@ -3126,6 +3126,32 @@ function brainRunStarted(d) {
   _brainActiveRuns.add(d.run_id);
   const axes = d.axes ? d.axes.join(', ') : d.axis;
   brainCaption(`${d.model_key} under examination — ${axes}`);
+  const banner = document.getElementById('run-theatre');
+  if (banner) {
+    banner.style.display = 'block';
+    banner.innerHTML = `<span style="color:var(--accent-gold,#d4a853);font-weight:600;">▶ ${escHtml(d.model_key || 'model')}</span> <span style="color:var(--text-muted);">— loading ${escHtml(axes || '')} battery…</span>`;
+  }
+}
+
+// Persistent "Now Testing" panel: names exactly what is under examination
+// on every trial_start, so the user always sees WHO/WHAT is being measured
+// (silicon or organic) — not just a scrolling log. Consumes the existing
+// trial_start SSE payload (model_key, axis, trial_num, test, formal_spec).
+function updateNowTesting(d) {
+  const banner = document.getElementById('run-theatre');
+  if (!banner) return;
+  banner.style.display = 'block';
+  const axis = d.axis || '';
+  const axisColor = 'rgb(' + (BRAIN_AXIS_COLORS[axis] || '212,168,83') + ')';
+  const test = d.test_name || d.test || 'test';
+  const spec = d.formal_spec
+    ? `<span style="color:var(--text-muted);margin-left:10px;">📐 ${escHtml(d.formal_spec)}</span>`
+    : '';
+  banner.innerHTML =
+    `<span style="color:${axisColor};font-weight:700;">● ${escHtml(axis.toUpperCase())}</span> ` +
+    `<span style="color:var(--text-primary);font-weight:600;">${escHtml(test)}</span> ` +
+    `<span style="color:var(--text-muted);">— trial ${d.trial_num || '?'} · model ${escHtml(d.model_key || '?')}</span>` +
+    spec;
 }
 function brainFire(axis, passed) {
   const el = document.getElementById('br-' + axis);
@@ -4245,7 +4271,7 @@ async function loadRunsPage() {
 // judged as "reasoned correctly but misspoke" vs. "reasoned itself into the
 // wrong answer" vs. "no reasoning shown, just guessed" — fetched on demand,
 // not baked into the compact run list.
-const runDetailCache = {};
+let runDetailCache = {};
 async function toggleRunDetail(runId) {
   const panel = document.getElementById('run-detail-' + runId);
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
