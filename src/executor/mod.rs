@@ -593,6 +593,20 @@ async fn check_memory_safety(
         return Err(AppError::Executor(format!("No active tests for axis '{}'", axis)));
     }
 
+    // Emit a run_plan with the total trial count for THIS axis-execution so
+    // the dashboard can show real progress ("trial 14 of 29") instead of a
+    // spinner. One run_id may span multiple axis-executions; each emits its
+    // own plan with its own total, and the frontend tracks per-axis progress.
+    let total_trials: i32 = tests
+        .iter()
+        .map(|t| t.trials_per_run.unwrap_or(3).max(1))
+        .sum();
+    emit(tx, serde_json::json!({
+        "type": "run_plan", "run_id": run_id, "axis": axis,
+        "total_tests": tests.len() as i32,
+        "total_trials": total_trials, "at": now_iso()
+    }));
+
     sqlx::query("UPDATE test_runs SET status = 'running' WHERE id = $1")
         .bind(run_id)
         .execute(db)
@@ -603,6 +617,7 @@ async fn check_memory_safety(
     let mut total_count: i32 = 0;
     let mut infra_error_count: i32 = 0;
     let mut evidence_lines: Vec<String> = Vec::new();
+    let mut completed_trials: i32 = 0;
 
     for test in &tests {
         let n_trials = test.trials_per_run.unwrap_or(3).max(1);
@@ -765,12 +780,14 @@ async fn check_memory_safety(
                 ),
             });
 
+            completed_trials += 1;
             emit(tx, serde_json::json!({
                 "type": "trial_result", "run_id": run_id, "test": test.name,
                 "axis": test.axis,
                 "trial_num": trial_num, "passed": passed, "latency_ms": latency_ms,
                 "detail": detail, "reasoning_content": reasoning,
-                "owl_cites_rule": meta.cites_correct_rule, "at": now_iso()
+                "owl_cites_rule": meta.cites_correct_rule, "at": now_iso(),
+                "completed_trials": completed_trials
             }));
         }
     }

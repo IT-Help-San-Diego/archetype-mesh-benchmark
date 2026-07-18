@@ -1568,14 +1568,6 @@ function clearScienceHighlight() {
             <label style="font-size:12px;cursor:pointer;"><input class="axis-check" type="checkbox" value="security" checked> Security</label>
             <span class="axis-chip" id="baseline-axis-count">4 selected</span>
           </div>
-          <div class="axis-picker" id="baseline-axis-picker" style="margin-left:6px;">
-            <span style="color:var(--text-muted);font-size:11px;">Axes:</span>
-            <label style="font-size:12px;cursor:pointer;"><input class="axis-check" type="checkbox" value="vision" checked> Vision</label>
-            <label style="font-size:12px;cursor:pointer;"><input class="axis-check" type="checkbox" value="tools" checked> Tools</label>
-            <label style="font-size:12px;cursor:pointer;"><input class="axis-check" type="checkbox" value="reasoning" checked> Reasoning</label>
-            <label style="font-size:12px;cursor:pointer;"><input class="axis-check" type="checkbox" value="security" checked> Security</label>
-            <span class="axis-chip" id="baseline-axis-count">4 selected</span>
-          </div>
   <span id="selected-readout" style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);margin-left:8px;">0 selected</span>
 </div>
 
@@ -1696,7 +1688,18 @@ function clearScienceHighlight() {
 <!-- ═══ Run theatre banner — the user's anchor when a run starts. Hidden
      until Run is clicked; then names what's under test and (via JS) scrolls
      the brain + live log into view so focus follows the action. -->
-<div id="run-theatre" style="display:none;background:linear-gradient(90deg,rgba(212,168,83,0.08),transparent);border-top:1px solid var(--border);border-left:3px solid var(--accent-gold,#d4a853);padding:10px 24px;font-family:var(--font-mono);font-size:12px;"></div>
+<div id="run-theatre" style="display:none;background:linear-gradient(90deg,rgba(212,168,83,0.08),transparent);border-top:1px solid var(--border);border-left:3px solid var(--accent-gold,#d4a853);padding:10px 24px;font-family:var(--font-mono);font-size:12px;">
+  <div id="run-theatre-body"></div>
+  <div id="progress-wrap" style="margin-top:6px;display:none;">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+      <span id="progress-label">Progress</span>
+      <span id="progress-count">0 / 0</span>
+    </div>
+    <div style="height:6px;background:var(--bg-primary);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
+      <div id="progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent-gold,#d4a853),var(--accent-cyan));transition:width 0.4s ease;"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ Resident roster — what is LOADED in RAM right now (silicon presence).
      Fed by structured `phase` events (model_key / draft_key). During a run
@@ -1848,7 +1851,7 @@ function clearScienceHighlight() {
          Each trial_start event pushes the formal_spec into this stream.
          This is the mathematical foundation visible in real time. -->
     <div id="formula-stream-container" style="flex:1;min-width:280px;max-width:400px;max-height:310px;overflow:hidden;position:relative;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,0.3);padding:12px;">
-      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Lean Formula Stream</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Specification Stream <span style="color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0;">· Lean for logic, spatial/schema/policy for other axes</span></div>
       <div id="formula-stream" style="font-family:var(--font-mono);font-size:13px;line-height:1.8;color:var(--accent-gold);max-height:250px;overflow:hidden;"></div>
     </div>
 
@@ -2475,6 +2478,13 @@ evtSource.onmessage = (e) => {
   const data = JSON.parse(e.data);
   if (data.type === 'initial' || data.type === 'refresh') {
     applyModelSnapshot(data.models);
+  } else if (data.type === 'run_plan') {
+    // Per-axis plan: total trial count for THIS axis-execution. Initializes
+    // the progress bar so the user sees "trial 14 of 29" instead of a spinner.
+    const total = data.total_trials || 0;
+    window._runProgress = window._runProgress || {};
+    window._runProgress[data.axis] = { total: total, done: 0 };
+    updateProgress(data.axis, 0, total);
   } else if (data.type === 'run_started') {
     log('info', `Run ${data.run_id} started: ${data.model_key} — ${data.axis}${data.axes ? ' + ' + data.axes.join(',') : ''}`);
     brainRunStarted(data);
@@ -2493,6 +2503,12 @@ evtSource.onmessage = (e) => {
     const owlTick = data.owl_cites_rule ? '<span class="owl-tick" title="Owl σₕ: model cited the correct rule">🦉✓</span>' : '';
     log(data.passed ? 'pass' : 'fail', `Trial ${data.trial_num}: ${data.passed ? 'PASS' : 'FAIL'} ${owlTick}— ${data.detail || ''} (${data.latency_ms}ms)`);
     if (data.axis) brainTrialResult(data);
+    // Advance the per-axis progress counter.
+    if (data.axis && window._runProgress && window._runProgress[data.axis]) {
+      const p = window._runProgress[data.axis];
+      p.done = data.completed_trials || (p.done + 1);
+      updateProgress(data.axis, p.done, p.total);
+    }
   } else if (data.type === 'verdict') {
     const verdictLevel = (data.overall === 'PASS' || data.overall === 'SAFE') ? 'pass' : (data.overall === 'FAIL' || data.overall === 'UNSAFE') ? 'fail' : 'verdict';
     log(verdictLevel, `VERDICT: ${data.overall} — ${data.pass_count}/${data.total_count} trials passed`);
@@ -2509,6 +2525,12 @@ evtSource.onmessage = (e) => {
     const rl = document.getElementById('resident-list');
     if (rr) rr.style.display = 'none';
     if (rl) rl.innerHTML = '';
+    // Clear progress bar + per-axis counters for this run.
+    window._runProgress = {};
+    const pw = document.getElementById('progress-wrap');
+    if (pw) pw.style.display = 'none';
+    const pb = document.getElementById('progress-bar');
+    if (pb) pb.style.width = '0%';
     if (typeof loadRunsPage === 'function') { runDetailCache = {}; loadRunsPage(); }
     // Update the focus banner with the finished verdict, so the user who
     // followed the run down sees the result in the same place they landed.
@@ -3161,17 +3183,33 @@ function updateNowTesting(d) {
   const banner = document.getElementById('run-theatre');
   if (!banner) return;
   banner.style.display = 'block';
+  const body = document.getElementById('run-theatre-body') || banner;
+  body.innerHTML = '';
   const axis = d.axis || '';
   const axisColor = 'rgb(' + (BRAIN_AXIS_COLORS[axis] || '212,168,83') + ')';
   const test = d.test_name || d.test || 'test';
   const spec = d.formal_spec
     ? `<span style="color:var(--text-muted);margin-left:10px;">📐 ${escHtml(d.formal_spec)}</span>`
     : '';
-  banner.innerHTML =
+  body.innerHTML =
     `<span style="color:${axisColor};font-weight:700;">● ${escHtml(axis.toUpperCase())}</span> ` +
     `<span style="color:var(--text-primary);font-weight:600;">${escHtml(test)}</span> ` +
     `<span style="color:var(--text-muted);">— trial ${d.trial_num || '?'} · model ${escHtml(d.model_key || '?')}</span>` +
     spec;
+}
+
+// Real progress, not a spinner: shows "trial N of M" + a live bar per axis.
+function updateProgress(axis, done, total) {
+  const wrap = document.getElementById('progress-wrap');
+  const bar = document.getElementById('progress-bar');
+  const count = document.getElementById('progress-count');
+  const label = document.getElementById('progress-label');
+  if (!wrap || !bar || !count) return;
+  wrap.style.display = 'block';
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  bar.style.width = pct + '%';
+  count.textContent = done + ' / ' + total + ' trials';
+  if (label) label.textContent = (axis ? axis.toUpperCase() + ' ' : '') + 'Progress';
 }
 function updateResidentRoster(d) {
   const wrap = document.getElementById('resident-roster');
@@ -3227,15 +3265,21 @@ function brainTrialStart(d) {
   // Start sustained glow — region stays lit for entire trial duration
   el.style.setProperty('--region-color', `rgba(${rgb},0.5)`);
   el.classList.add('firing');
-  // Push formula into the stream — Lean formulas fly by
+  // Push spec into the stream — labeled by notation so we never falsely
+  // claim "Lean" for non-logic axes. Reasoning specs are pure Lean (no
+  // prefix); vision/tools/security carry a spatial:/schema:/policy: prefix.
   if (d.formal_spec) {
     const stream = document.getElementById('formula-stream');
     if (stream) {
+      let tag = 'Lean', color = 'var(--accent-gold)';
+      if (d.formal_spec.startsWith('spatial:')) { tag = 'Spatial'; color = 'var(--accent-purple)'; }
+      else if (d.formal_spec.startsWith('schema:')) { tag = 'Schema'; color = 'var(--accent-cyan)'; }
+      else if (d.formal_spec.startsWith('policy:')) { tag = 'Policy'; color = 'var(--accent-amber)'; }
       const entry = document.createElement('div');
       entry.style.cssText = 'padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);animation:formula-enter 0.3s ease-in;';
-      entry.innerHTML = `<span style="color:var(--text-muted);font-size:10px;">${d.test_name || d.test || ''}</span><br><span style="color:var(--accent-gold);">${d.formal_spec}</span>`;
+      entry.innerHTML = `<span style="color:var(--text-muted);font-size:10px;">${d.test_name || d.test || ''}</span> <span style="color:${color};font-weight:700;font-size:9px;border:1px solid ${color};border-radius:3px;padding:0 4px;">${tag}</span><br><span style="color:${color};">${escHtml(d.formal_spec)}</span>`;
       stream.insertBefore(entry, stream.firstChild);
-      // Keep only last 8 formulas visible
+      // Keep only last 8 specs visible
       while (stream.children.length > 8) {
         stream.removeChild(stream.lastChild);
       }
