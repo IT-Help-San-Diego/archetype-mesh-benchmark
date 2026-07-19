@@ -1722,6 +1722,16 @@ function clearScienceHighlight() {
   </div>
 </div>
 
+<!-- Global run-state banner: tells EVERY open dashboard (tab/browser) that a
+     run is in flight. The backend serializes runs (lm_guard queue) and
+     broadcasts run_started/run_complete to all SSE viewers, so this is honest
+     shared state — not a per-tab illusion. Closes the "I forgot I had 3 tabs
+     open and double-clicked Run" communication gap. -->
+<div id="run-active-banner" style="display:none;position:sticky;top:0;z-index:50;background:linear-gradient(90deg,rgba(56,189,248,0.16),rgba(212,168,83,0.10));border-bottom:1px solid var(--accent-cyan);color:var(--text-primary);font:12px/1.4 var(--font-mono);padding:7px 24px;align-items:center;gap:8px;">
+  <span style="color:var(--accent-cyan);font-weight:800;">● RUN ACTIVE</span>
+  <span id="run-active-text">A benchmark run is in progress — streaming to all open dashboards. Starting another run queues behind it (no conflict).</span>
+</div>
+
 <!-- ═══ Resident roster — what is LOADED in RAM right now (silicon presence).
      Fed by structured `phase` events (model_key / draft_key). During a run
      the user sees exactly which model(s) are resident: the primary, plus the
@@ -2514,6 +2524,7 @@ evtSource.onmessage = (e) => {
     log('info', `Run ${data.run_id} started: ${data.model_key} — ${data.axis}${data.axes ? ' + ' + data.axes.join(',') : ''}`);
     brainRunStarted(data);
     armAbortBar(data.run_id);
+    showRunActiveBanner(data);
   } else if (data.type === 'phase') {
     log('phase', `[${data.phase}] ${data.message || ''}`);
     if (data.phase === 'loading' || data.phase === 'resident' ||
@@ -2544,6 +2555,7 @@ evtSource.onmessage = (e) => {
     brainRunComplete(data);
     disarmAbortRun(data.run_id);
     refreshAbortBar();
+    hideRunActiveBanner();
     // Clear the resident roster — run is done, nothing is loaded by us now.
     window._residentModels = {};
     const rr = document.getElementById('resident-roster');
@@ -3099,6 +3111,24 @@ function armAbortBar(runId) {
 function disarmAbortRun(runId) {
   if (runId != null) _liveRunIds.delete(runId);
   refreshAbortBar();
+}
+// Global run-state banner — honest shared state across all open dashboards.
+// The backend broadcasts run_started/run_complete to every SSE viewer, so any
+// tab/browser knows when a run is in flight (even one started from another
+// tab). No lock needed: runs are serialized by lm_guard; this just communicates.
+function showRunActiveBanner(d) {
+  const banner = document.getElementById('run-active-banner');
+  const text = document.getElementById('run-active-text');
+  if (!banner) return;
+  if (text && d) {
+    const where = d.location === 'local' ? 'your local LM Studio' : (d.location || 'cloud');
+    text.textContent = `Run ${d.run_id} (${escHtml(d.model_key || '?')} · ${escHtml((d.axis||'').toUpperCase())}) is in progress on ${escHtml(where)} — streaming to all open dashboards. Another run queues behind it (no conflict).`;
+  }
+  banner.style.display = 'flex';
+}
+function hideRunActiveBanner() {
+  const banner = document.getElementById('run-active-banner');
+  if (banner) banner.style.display = 'none';
 }
 function refreshAbortBar() {
   const bar = document.getElementById('abort-bar');
