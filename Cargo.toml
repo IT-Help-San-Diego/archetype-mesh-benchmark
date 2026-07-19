@@ -1,14 +1,14 @@
 [package]
-name = "archetype-mesh-dashboard"
+name = "calibration-scope"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "archetype_mesh_dashboard"
+name = "calibration_scope_dashboard"
 path = "src/lib.rs"
 
 [[bin]]
-name = "archetype-mesh-dashboard"
+name = "calibration-scope-dashboard"
 path = "src/main.rs"
 
 [dependencies]

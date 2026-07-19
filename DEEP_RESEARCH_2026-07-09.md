@@ -1,4 +1,4 @@
-# Archetype Mesh Benchmark — Updated Cross-Reference Research
+# Calibration Scope — Updated Cross-Reference Research
 ## July 9, 2026 — Second Pass (Deeper, More Honest)
 
 ### Purpose
@@ -27,7 +27,7 @@ Our claim is about the COMBINATION and the APPROACH.
 | **ProofWriter** | Deductive reasoning over synthetic facts | No | No | No | No | No |
 | **MAFALDA** | Fallacy detection and classification (30+ types) | Yes | No | No | No | No |
 | **LogiEval** | Domain-agnostic logical reasoning | Partial | No | No | No | No |
-| **Archetype Mesh (ours)** | Logic + fallacy detection + ... | **YES** | **YES** | **YES** | **YES (SHA-3)** | **YES (separate axis)** |
+| **Calibration Scope (ours)** | Logic + fallacy detection + ... | **YES** | **YES** | **YES** | **YES (SHA-3)** | **YES (separate axis)** |
 
 ### What This Means for Our Claim
 
@@ -87,7 +87,7 @@ connection. We can — because we test both axes on the same model and can corre
 
 ## Part 3: Feature Uniqueness — The 9-Feature Audit
 
-| Feature | Archetype Mesh | lm-eval-harness | HELM | LiveBench | Chatbot Arena | SWE-bench | AgentBench | OpenCompass | LogicBench | VisualPuzzles |
+| Feature | Calibration Scope | lm-eval-harness | HELM | LiveBench | Chatbot Arena | SWE-bench | AgentBench | OpenCompass | LogicBench | VisualPuzzles |
 |---------|---------------|-----------------|------|-----------|---------------|-----------|------------|-------------|------------|---------------|
 | 1. Local models on user HW | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 2. Clean-room execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |

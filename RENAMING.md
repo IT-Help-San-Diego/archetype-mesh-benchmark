@@ -1,7 +1,7 @@
 # RENAMING — the renameability contract
 
 The product name is **Calibration Scope** (ratified 2026-07-19, replacing the
-working name "Archetype Mesh", and superseding the earlier "Carrier Scope"
+working name "Calibration Scope", and superseding the earlier "Carrier Scope"
 ratification which was dropped because `carrierscope.com` is a live commercial
 mark). **Domain: `calibrationscope.com`** (registered 2026-07-19, Amazon
 Registrar; processing). Calibration Scope is derived from the instrument's ACT:
@@ -45,15 +45,28 @@ calibration first. Measure yourself before you trust the reflection.
 
 ## Where the name lives (the anchor points)
 
-Verified 2026-07-19 by grep (~39 references total for the old name; only ~4 are
-code anchors). On rename, update:
+Verified 2026-07-19 by grep. The rename to **Calibration Scope** was executed
+in commit <rename commit> — all anchors below were updated to their final
+values (no further rename pending):
 
-| File | Role | What to change |
-|------|------|----------------|
-| `Cargo.toml` | package name `archetype-mesh-benchmark`, binary `archetype-mesh-dashboard` | → `carrier-scope` / `carrier-scope-dashboard` |
-| `src/main.rs` | process name; `ARCHETYPE_MESH_*` env prefix (e.g. `ARCHETYPE_MESH_DATABASE_URL`) | → `CARRIER_SCOPE_*` prefix |
-| `assets/dashboard.html` | title string + visible labels | titled literals |
-| `README.md` | 11 doc references | prose |
+| File | Role | Final value |
+|------|------|-------------|
+| `Cargo.toml` | package + binary name | `calibration-scope` / `calibration-scope-dashboard` |
+| `src/main.rs` | log filter + startup log | `calibration_scope_dashboard` / "Starting Calibration Scope Dashboard" |
+| `src/routes/cloud_keys.rs` | secrets dir const | `.calibration-scope` |
+| `assets/dashboard.html` | title + hero | "Calibration Scope" |
+| `scripts/deploy.sh` | bin/plist/service/errlog paths | `calibration-scope-dashboard` |
+| secrets dir | `~/.archetype-mesh/` → | `~/.calibration-scope/` |
+| database | `archetype_mesh` → | `calibration_scope` |
+| launchd plist | Label + binary + WorkingDirectory + DATABASE_URL | `ai.hermes.calibration-scope-dashboard` / `calibration_scope` |
+| local folder | `archetype-mesh-benchmark` → | `calibration-scope` |
+
+NOTE: there is no `ARCHETYPE_MESH_*` env prefix in code — the only env-style
+reference is the `DATABASE_URL` (and `GEMINI_API_KEY` etc., deployment env
+only). The secrets directory (`.calibration-scope`) is the canonical key store.
+`CARGO_MANIFEST_DIR` is baked at compile time, so a folder move REQUIRES a
+forced rebuild (`touch src/main.rs && cargo build --release`) — cargo does not
+track the manifest dir as a dependency.
 
 ## Rename procedure (mechanical)
 

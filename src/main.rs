@@ -20,11 +20,11 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "archetype_mesh_dashboard=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "calibration_scope_dashboard=debug,tower_http=debug".into()),
         )
         .init();
 
-    // Load cloud API keys from the secrets file (~/.archetype-mesh/cloud-keys.json)
+    // Load cloud API keys from the secrets file (~/.calibration-scope/cloud-keys.json)
     // into the environment FIRST, so Config::from_env() (called next) captures
     // them into the Config struct. Keys set via the dashboard's setup page are
     // persisted there and auto-loaded on every restart — this is the canonical
@@ -34,7 +34,7 @@ async fn main() {
     routes::cloud_keys::load_keys_to_env();
 
     let config = Config::from_env();
-    tracing::info!("Starting Archetype Mesh Dashboard on {}:{}", config.listen_addr, config.listen_port);
+    tracing::info!("Starting Calibration Scope Dashboard on {}:{}", config.listen_addr, config.listen_port);
 
     let state = AppState::new(config.clone())
         .await

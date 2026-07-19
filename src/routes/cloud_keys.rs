@@ -2,7 +2,7 @@
 //! GET /api/cloud-keys — return which providers are configured (never the keys themselves).
 //! DELETE /api/cloud-keys/{provider} — remove a provider's key.
 //!
-//! Keys are stored in ~/.archetype-mesh/cloud-keys.json (chmod 600), never
+//! Keys are stored in ~/.calibration-scope/cloud-keys.json (chmod 600), never
 //! in the database, never in git, never logged. The dashboard can set them
 //! up without touching the shell or launchd plist.
 use axum::extract::Path;
@@ -13,7 +13,7 @@ use std::fs;
 
 use crate::error::{AppError, AppResult};
 
-const SECRETS_DIR: &str = ".archetype-mesh";
+const SECRETS_DIR: &str = ".calibration-scope";
 const SECRETS_FILE: &str = "cloud-keys.json";
 
 fn secrets_path() -> std::path::PathBuf {

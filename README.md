@@ -1,4 +1,4 @@
-# Archetype Mesh Benchmark
+# Calibration Scope
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -88,8 +88,8 @@ No telemetry. No external calls except the model endpoints you configure. Binds 
 
 ```bash
 # Prereqs: Rust toolchain, PostgreSQL, LM Studio with its local server on :1234
-git clone https://github.com/IT-Help-San-Diego/archetype-mesh-benchmark.git
-cd archetype-mesh-benchmark
+git clone https://github.com/IT-Help-San-Diego/calibration-scope.git
+cd calibration-scope
 cp .env.example .env          # set DATABASE_URL (and optional cloud API keys)
 cargo run --release           # migrations run automatically
 # open http://127.0.0.1:8768
@@ -102,17 +102,17 @@ Sync your LM Studio library from the dashboard (**LM Studio → Sync**), pick a 
 This repo includes a launchd-managed backend on macOS. Use these commands instead of ad-hoc `cargo run` processes.
 
 ### Service
-Name: `ai.hermes.archetype-mesh-dashboard`
-Binary: `~/Documents/GitHub/archetype-mesh-benchmark/target/release/archetype-mesh-dashboard`
+Name: `ai.hermes.calibration-scope-dashboard`
+Binary: `~/Documents/GitHub/calibration-scope/target/release/calibration-scope-dashboard`
 Port: `8768` on `127.0.0.1`
-Database: `postgres://<dbuser>:<dbpass>@localhost:5432/archetype_mesh`
-Logs: `/tmp/archetype-mesh-dashboard.out`, `/tmp/archetype-mesh-dashboard.err`
+Database: `postgres://<dbuser>:<dbpass>@localhost:5432/calibration_scope`
+Logs: `/tmp/calibration-scope-dashboard.out`, `/tmp/calibration-scope-dashboard.err`
 
 ### Start / stop / restart
 ```bash
-launchctl start ai.hermes.archetype-mesh-dashboard
-launchctl stop ai.hermes.archetype-mesh-dashboard
-launchctl kickstart -k gui/$(id -u)/ai.hermes.archetype-mesh-dashboard
+launchctl start ai.hermes.calibration-scope-dashboard
+launchctl stop ai.hermes.calibration-scope-dashboard
+launchctl kickstart -k gui/$(id -u)/ai.hermes.calibration-scope-dashboard
 ```
 
 ### Health
@@ -138,7 +138,7 @@ curl -X POST http://127.0.0.1:8768/api/runs/628/abort
 ```
 
 ### Database access
-Preferred: **TablePlus** connection `127.0.0.1:5432` → database `archetype_mesh` → your configured PostgreSQL user. The schema *is* the API: every trial row links to its exact test and run seal.
+Preferred: **TablePlus** connection `127.0.0.1:5432` → database `calibration_scope` → your configured PostgreSQL user. The schema *is* the API: every trial row links to its exact test and run seal.
 
 ### Troubleshooting
 - If the binary was rebuilt, use `launchctl kickstart -k` instead of `launchctl start` so launchd loads the new executable.
@@ -153,13 +153,13 @@ If a number on the screen can't cite where it came from, that's a bug. File it.
 
 ## License & attribution
 
-**Archetype Mesh Benchmark is licensed under the [Apache License, Version 2.0](LICENSE).**
+**Calibration Scope is licensed under the [Apache License, Version 2.0](LICENSE).**
 
 - Copyright © 2026 **IT Help San Diego Inc.** All rights reserved under the terms of the Apache-2.0 license.
 - Research published under Carey James Balboa and IT Help San Diego Inc., as part of the [Intellectual Resistance](https://intellectualresistance.com/) program.
 - The benchmark methodology, test battery, scoring logic, and SHA3-provenance design are original works of IT Help San Diego Inc.
 - Patent grant included (Section 3 of Apache-2.0): contributors grant a perpetual, royalty-free patent license for their contributions.
-- Trademark: "Archetype Mesh" and "IT Help San Diego" are trademarks of IT Help San Diego Inc. The Owl of Athena is a historical/public symbol used for thematic identity and is not claimed as a trademark. The license does not grant rights to use the Archetype Mesh or IT Help San Diego marks except for reasonable attribution.
+- Trademark: "Calibration Scope" and "IT Help San Diego" are trademarks of IT Help San Diego Inc. The Owl of Athena is a historical/public symbol used for thematic identity and is not claimed as a trademark. The license does not grant rights to use the Calibration Scope or IT Help San Diego marks except for reasonable attribution.
 - See [NOTICE](NOTICE) for attribution and trademark details.
 
 This is a permissive license: you may use, modify, and redistribute the work (including commercial use), provided you retain the license, note modifications, and preserve attribution. It is intentionally more permissive than the DNS Tool product (BUSL-1.1) because a benchmark's value depends on broad, independent adoption — the methodology is the asset, not a hosted service.

@@ -1,8 +1,8 @@
 {
-  "ConnectionName": "Archetype Mesh Benchmark",
+  "ConnectionName": "Calibration Scope",
   "DatabaseType": "SQLite",
   "Driver": "SQLite",
-  "DatabasePath": "/Users/careybalboa/Documents/GitHub/archetype-mesh-benchmark/data/archetype_mesh_benchmark.sqlite",
+  "DatabasePath": "/Users/careybalboa/Documents/GitHub/calibration-scope/data/calibration_scope.sqlite",
   "DatabaseName": "agent_security_benchmark",
   "tLSMode": 0,
   "Enviroment": "local"

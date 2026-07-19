@@ -1,5 +1,5 @@
 /-!
-# Archetype Mesh Benchmark — Lean 4 Formalization of the Logic Battery
+# Calibration Scope — Lean 4 Formalization of the Logic Battery
 
 Every formal-logic test seeded in migrations 013/025 is stated and
 machine-checked here by the Lean 4 kernel — the third independent verifier

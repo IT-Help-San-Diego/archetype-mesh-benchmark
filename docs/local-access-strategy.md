@@ -1,6 +1,6 @@
 # Local-Access Strategy
 
-How users reach the Archetype Mesh dashboard — and the security/honesty
+How users reach the Calibration Scope dashboard — and the security/honesty
 principles that govern it. This is a **foundation document**: it records a
 deliberate design decision, verified against real DNS behavior, so future
 work builds on facts rather than assumptions.

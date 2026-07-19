@@ -1,4 +1,4 @@
-# Archetype Mesh Benchmark — v2 Architecture
+# Calibration Scope — v2 Architecture
 ## Scientific LLM Capability Benchmark for Constrained Hardware
 
 ### Mission (the real test)

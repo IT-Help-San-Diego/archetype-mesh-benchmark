@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ground-truth oracle for the Archetype Mesh formal logic battery.
+"""Ground-truth oracle for the Calibration Scope formal logic battery.
 
 Every formal-logic test seeded in migrations 013/025 is re-verified here by a
 COMPLETE decision procedure — not a heuristic, not an LLM:

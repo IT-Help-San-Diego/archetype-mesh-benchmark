@@ -1,9 +1,9 @@
-# SciSpace Research Package — Archetype Mesh Benchmark
+# SciSpace Research Package — Calibration Scope
 ## For Scientific Paper Discovery & Citation Mapping
 
 ### Project Summary (for SciSpace bot context)
 
-We are building a scientific LLM capability benchmark called "Archetype Mesh Benchmark" that tests whether local and cloud LLMs can actually perform agentic tasks — Vision, Tool Use, Reasoning, and Security — on the user's own hardware. Unlike existing benchmarks (MMLU, HELM, Chatbot Arena, lm-eval-harness), our system tests models locally via LM Studio with clean-room execution (eject all models, load only target, verify RAM residency before testing), blind testing (ground truth never sent to model), SHA-3 cryptographic provenance on every trial, and objective scoring (no LLM-as-judge). It also measures speculative decoding performance (draft model acceptance rates and speedup factors) and latency alongside accuracy — features no existing benchmark provides.
+We are building a scientific LLM capability benchmark called "Calibration Scope" that tests whether local and cloud LLMs can actually perform agentic tasks — Vision, Tool Use, Reasoning, and Security — on the user's own hardware. Unlike existing benchmarks (MMLU, HELM, Chatbot Arena, lm-eval-harness), our system tests models locally via LM Studio with clean-room execution (eject all models, load only target, verify RAM residency before testing), blind testing (ground truth never sent to model), SHA-3 cryptographic provenance on every trial, and objective scoring (no LLM-as-judge). It also measures speculative decoding performance (draft model acceptance rates and speedup factors) and latency alongside accuracy — features no existing benchmark provides.
 
 ### Key Research Questions (papers we need)
 
@@ -74,7 +74,7 @@ Our benchmark combines 9 features that no single existing benchmark provides:
 - Deployment: macOS launchd service
 
 ### Repository
-https://github.com/IT-Help-San-Diego/archetype-mesh-benchmark
+https://github.com/IT-Help-San-Diego/calibration-scope
 
 ### Authors
 Carey James Balboa — IT Help San Diego Inc.

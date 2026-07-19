@@ -1,6 +1,6 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────
-# Archetype Mesh — the verification gate (seL4 discipline, our scale)
+# Calibration Scope — the verification gate (seL4 discipline, our scale)
 #
 # seL4's contribution to software isn't the kernel — it's the refusal:
 # nothing ships unless the proof chain holds end to end. This gate is that
@@ -8,7 +8,7 @@
 # the seeded ground truth, then the build and its tests must be green:
 #
 #   1. Lean 4 kernel      — proofs over arbitrary domains + explicit
-#                           countermodels (lean/ArchetypeMesh.lean)
+#                           countermodels (lean/CalibrationScope.lean)
 #   2. Python oracle      — exhaustive truth tables + complete small-model
 #                           search (scripts/verify_logic_ground_truth.py)
 #   3. cargo test         — 68 unit + integration tests incl. scoring,
@@ -23,11 +23,11 @@ cd "$(dirname "$0")/.."
 LEAN="${LEAN:-$HOME/.elan/bin/lean}"
 FAIL=0
 
-echo "═══ Archetype Mesh Verification Gate ═══"
+echo "═══ Calibration Scope Verification Gate ═══"
 echo
 
 echo "── [1/3] Lean 4 kernel: formal proofs + countermodel refutations"
-if "$LEAN" lean/ArchetypeMesh.lean; then
+if "$LEAN" lean/CalibrationScope.lean; then
   echo "    PASS — every theorem checked by the Lean kernel"
 else
   echo "    FAIL — a proof no longer holds. A seeded ground truth or spec changed."

@@ -1,4 +1,4 @@
-# Archetype Mesh Dashboard — Architecture Plan
+# Calibration Scope Dashboard — Architecture Plan
 ## Foundation-Grade Rust Backend + SSE Dashboard
 
 ### Mission
@@ -16,7 +16,7 @@ Scientific benchmarking dashboard: lightweight, fast, secure, replicable, scalab
 
 ### Project Structure (modular, scalable)
 ```
-archetype-mesh-benchmark/
+calibration-scope/
 ├── Cargo.toml
 ├── .env                    # DATABASE_URL for sqlx compile-time checking
 ├── .sqlx/                  # Offline SQL query cache (checked into git)
@@ -45,7 +45,7 @@ archetype-mesh-benchmark/
 │   ├── dashboard.html      # SSE client, responsive, Apple-friendly
 │   └── owl.png             # Branding
 └── data/
-    └── archetype_mesh_benchmark.sqlite  # SQLite database
+    └── calibration_scope.sqlite  # SQLite database
 ```
 
 ### API Endpoints
@@ -104,4 +104,4 @@ archetype-mesh-benchmark/
 - `cargo build --release` — optimized binary
 - `cargo sqlx prepare` — cache SQL queries for offline compilation
 - `cargo test` — run integration tests
-- Binary path: `target/release/archetype-mesh-dashboard`
+- Binary path: `target/release/calibration-scope-dashboard`

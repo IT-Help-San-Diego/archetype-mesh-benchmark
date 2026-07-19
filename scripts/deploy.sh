@@ -8,7 +8,7 @@ if [[ -f .env ]]; then
   set +a
 fi
 # ═══════════════════════════════════════════════════════════════════════════
-# deploy.sh — the ONE way to ship the Archetype Mesh dashboard.
+# deploy.sh — the ONE way to ship the Calibration Scope dashboard.
 #
 # Exists because every step below has ALREADY bitten us when done by hand:
 #
@@ -36,11 +36,11 @@ fi
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BIN="$REPO/target/release/archetype-mesh-dashboard"
-PLIST="$HOME/Library/LaunchAgents/ai.hermes.archetype-mesh-dashboard.plist"
-SERVICE="ai.hermes.archetype-mesh-dashboard"
+BIN="$REPO/target/release/calibration-scope-dashboard"
+PLIST="$HOME/Library/LaunchAgents/ai.hermes.calibration-scope-dashboard.plist"
+SERVICE="ai.hermes.calibration-scope-dashboard"
 DOMAIN="gui/$(id -u)"
-ERRLOG="$HOME/.hermes/logs/archetype-mesh-dashboard.err.log"
+ERRLOG="$HOME/.hermes/logs/calibration-scope-dashboard.err.log"
 URL="http://127.0.0.1:8768"
 SKIP_GATE=0
 [[ "${1:-}" == "--skip-gate" ]] && SKIP_GATE=1
@@ -127,7 +127,7 @@ launchctl print "$DOMAIN/$SERVICE" >/dev/null 2>&1 && die "service refused to un
 STRAY=$(lsof -ti :8768 2>/dev/null || true)
 if [[ -n "$STRAY" ]]; then
   for pid in $STRAY; do
-    if ps -p "$pid" -o comm= | grep -q archetype-mesh-dashboard; then
+    if ps -p "$pid" -o comm= | grep -q calibration-scope-dashboard; then
       kill "$pid" 2>/dev/null || true
       ok "killed stray dashboard pid $pid holding :8768"
     else

@@ -644,7 +644,7 @@ pub async fn export_run(
     .await?;
 
     let bundle = serde_json::json!({
-        "format": "archetype-mesh-evidence-bundle",
+        "format": "calibration-scope-evidence-bundle",
         "format_version": 1,
         "exported_at": chrono::Utc::now().to_rfc3339(),
         "run": {

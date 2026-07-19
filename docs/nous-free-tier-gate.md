@@ -7,7 +7,7 @@
 
 Nous Research's **free models** (e.g. `tencent/hy3:free`) are **not reachable
 via a raw `NOUS_API_KEY`** pasted into the benchmark's secrets store
-(`~/.archetype-mesh/cloud-keys.json`). They require a **Nous Portal OAuth
+(`~/.calibration-scope/cloud-keys.json`). They require a **Nous Portal OAuth
 identity** that only exists when authenticated through the Portal (the path
 the Hermes agent uses via `~/.hermes/auth.json`).
 
