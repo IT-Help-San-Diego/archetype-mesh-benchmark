@@ -1324,6 +1324,28 @@
     display: flex; justify-content: space-between; align-items: center;
   }
   .native-selector-count { color: var(--text-muted, #8b949e); font-size: 13px; }
+  /* Demo Bots panel — Goldilocks starter set */
+  .demo-bots-panel {
+    background: var(--bg-card, #0d1117);
+    border: 1px solid var(--border, #30363d);
+    border-left: 3px solid var(--accent-gold, #d4af37);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 12px 0;
+  }
+  .db-header { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text-primary, #e6edf3); margin-bottom: 8px; }
+  .db-sub { font-weight: 400; font-size: 11px; color: var(--text-muted, #8b949e); margin-left: 6px; }
+  .db-card { background: var(--bg-secondary, #161b22); border: 1px solid var(--border, #30363d); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+  .db-card:last-child { margin-bottom: 0; }
+  .db-title { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--text-primary, #e6edf3); }
+  .db-key { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted, #8b949e); margin: 2px 0 4px; word-break: break-all; }
+  .db-story { font-size: 11px; line-height: 1.4; color: var(--text-muted, #8b949e); margin-bottom: 6px; }
+  .db-btn { background: var(--accent-gold, #d4af37); color: #0d1117; border: none; border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); }
+  .db-btn:hover { filter: brightness(1.1); }
+  .db-btn:disabled { opacity: 0.6; cursor: default; }
+  .db-installed { font-family: var(--font-mono); font-size: 11px; color: #3fb950; }
+  .db-prog { font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold, #d4af37); }
+  .db-note { font-size: 10px; color: var(--text-muted, #8b949e); margin-top: 8px; line-height: 1.3; }
 </style>
 <script>
 
@@ -1683,6 +1705,13 @@ function clearScienceHighlight() {
     <div class="stat-value" id="stat-flaky" style="color: var(--flaky)">—</div>
     <div class="stat-label">Intermittent</div>
   </div>
+</div>
+
+<!-- Demo Bots — Goldilocks starter set (foundation feature) -->
+<div class="demo-bots-panel" id="demo-bots-panel">
+  <div class="db-header">🤖 Demo Bots <span class="db-sub">find your Goldilocks zone — start small, scale up</span></div>
+  <div id="demo-bots"></div>
+  <div class="db-note">Download pulls from LM Studio's pipeline. Pause/resume in your LM Studio downloader. Sizes are real (written on completion).</div>
 </div>
 
 <!-- Filters -->
@@ -2409,6 +2438,37 @@ Is this formula satisfiable? Answer SAT or UNSAT.</div>
 <script>
 // State
 let models = [];
+// Live LM Studio download progress, keyed by model_key. Fed by SSE
+// model_download_* events from the backend poller. Only populated for
+// downloads WE initiated (we hold the job_id). GUI downloads stay out.
+let downloadProgress = {};
+// Curated "Demo Bots" — the Goldilocks starter set. Picked from our VERIFIED
+// local benchmark leaderboard (real pass/fail per axis + measured size_gb),
+// NOT a live LM Studio catalog query (no such API exists). Smallest-first.
+// See docs/demo-bots.md. Manifest is data, not a catalog scrape.
+const DEMO_BOTS = [
+  {
+    key: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF',
+    quantization: 'Q4_K_M',
+    title: 'Bot A · The Floor',
+    story: 'Smallest local model we ship. Pulls in seconds. Likely scores low on reasoning — that is the point: shows the instrument works end-to-end and where the floor is.',
+    axis: 'reasoning'
+  },
+  {
+    key: 'ibm/granite-3.2-8b',
+    quantization: null,
+    title: 'Bot B · Scaffold Heals',
+    story: '8B. Fails raw logic (45/90) but passes when given the generalized scaffold (63/90). Demonstrates the core science: a model that heals with structure, no answer leakage.',
+    axis: 'reasoning'
+  },
+  {
+    key: 'qwen/qwen3-vl-8b',
+    quantization: null,
+    title: 'Bot C · Vision',
+    story: '8B, vision 12/12 verified. Smallest local bot that actually sees. Pairs with the reasoning bots to show the full axis spread.',
+    axis: 'vision'
+  }
+];
 let runs = {};
 let activeRunId = null;
 let logEntries = [];
@@ -2601,6 +2661,7 @@ function applyModelSnapshot(list, force) {
     populateNousExpModels();
     loadNewestBots();
     loadSpecDecodePairs();
+    renderDemoBots();
   } catch (e) {
     console.error('[amb] applyModelSnapshot failed:', e);
     // Surface, don't swallow: a broken render must be visible, not a silent
@@ -2616,6 +2677,64 @@ async function loadModels() {
   const r = await apiFetch('/api/models');
   if (r.ok && Array.isArray(r.data)) applyModelSnapshot(r.data, true);
   else console.warn('loadModels: registry fetch failed —', r.error);
+}
+
+// Demo Bots panel — Goldilocks starter set. Renders into #demo-bots.
+// Each card checks the LIVE registry: if the model is already installed
+// (user downloaded it, or prior session), show "✓ Installed · {size_gb}"
+// with no Download button. Only absent models show Download. While a
+// download is active (our job_id), show live progress from downloadProgress.
+function renderDemoBots() {
+  const host = document.getElementById('demo-bots');
+  if (!host) return;
+  const installed = new Set(models.map(m => m.key));
+  host.innerHTML = DEMO_BOTS.map(b => {
+    const isInstalled = installed.has(b.key);
+    const prog = downloadProgress[b.key];
+    let action;
+    if (prog) {
+      const gb = (prog.downloaded / 1e9).toFixed(1);
+      const tot = (prog.total / 1e9).toFixed(1);
+      const icon = prog.status === 'paused' ? '⏸' : '⏳';
+      action = `<div class="db-prog">${icon} ${prog.pct}% · ${gb}/${tot} GB${prog.status === 'paused' ? ' · paused in LM Studio' : ''}</div>`;
+    } else if (isInstalled) {
+      const m = models.find(x => x.key === b.key);
+      const sz = (m && m.size_gb) ? m.size_gb + ' GB' : '—';
+      action = `<div class="db-installed">✓ Installed · ${sz}</div>`;
+    } else {
+      action = `<button class="db-btn" onclick="startDownload('${b.key}','${b.quantization || ''}')">Download</button>`;
+    }
+    return `<div class="db-card">
+      <div class="db-title">${escHtml(b.title)}</div>
+      <div class="db-key">${escHtml(b.key)}</div>
+      <div class="db-story">${escHtml(b.story)}</div>
+      ${action}
+    </div>`;
+  }).join('');
+}
+
+async function startDownload(key, quantization) {
+  const btn = event && event.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+  const body = { model: 'https://huggingface.co/' + key, key };
+  if (quantization) body.quantization = quantization;
+  try {
+    const r = await apiFetch('/api/lmstudio/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      downloadProgress[key] = { pct: 0, status: 'downloading', downloaded: 0, total: 0 };
+      renderDemoBots();
+    } else {
+      log('err', `Download start failed for ${key}: ${r.error || 'unknown'}`);
+      if (btn) { btn.disabled = false; btn.textContent = 'Download'; }
+    }
+  } catch (e) {
+    log('err', `Download start error for ${key}: ${e}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Download'; }
+  }
 }
 
 // SSE — live data push, zero polling
@@ -2703,6 +2822,23 @@ evtSource.onmessage = (e) => {
     log('verdict', `FOUNTAIN VERDICT probe ${data.probe_id}: ${data.verdict} — ${data.ok}/${data.sent} ok, ${data.rate_limited} rate-limited${data.first_429_at_request ? ', first 429 at req ' + data.first_429_at_request : ''} (${(data.duration_ms/1000).toFixed(1)}s)`);
   } else if (data.type === 'fountain_error') {
     log('err', `Fountain probe ${data.probe_id} failed: ${data.message}`);
+  } else if (data.type === 'model_download_progress') {
+    // Live download progress from the backend poller. The backend reads
+    // LM Studio's download/status every 3s; when idle it does zero work.
+    downloadProgress[data.model_key] = {
+      pct: data.pct || 0,
+      status: data.status || 'downloading',
+      downloaded: data.downloaded_bytes || 0,
+      total: data.total_size_bytes || 0
+    };
+    renderDemoBots();
+  } else if (data.type === 'model_download_complete') {
+    delete downloadProgress[data.model_key];
+    renderDemoBots();
+    loadModels(); // pull the new row (with size_gb) into the registry
+  } else if (data.type === 'model_download_failed') {
+    delete downloadProgress[data.model_key];
+    renderDemoBots();
   } else if (data.type === 'error') {
     log('err', `ERROR: ${data.message}`);
   }
