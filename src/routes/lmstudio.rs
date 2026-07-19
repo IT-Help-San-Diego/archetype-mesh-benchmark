@@ -9,6 +9,19 @@ use std::collections::{HashMap, HashSet};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+/// (lmstudio_key, id, supports_vision, publisher, quantization, arch, active)
+/// — the shape of an active LM Studio registry row. Factored out of the
+/// sync function's tuple-heavy query so clippy doesn't flag type complexity.
+type LmStudioRow = (
+    String,
+    i32,
+    Option<bool>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<bool>,
+);
+
 #[derive(Debug, Deserialize)]
 pub struct LsModelInfo {
     pub id: String,
@@ -187,7 +200,7 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
     };
 
     // Existing active registry rows by lmstudio_key.
-    let mut existing_by_key: HashMap<String, i32> = sqlx::query_as::<_, (String, i32)>(
+    let existing_by_key: HashMap<String, i32> = sqlx::query_as::<_, (String, i32)>(
         "SELECT lmstudio_key, id FROM models WHERE provider = 'lmstudio' AND active = true AND lmstudio_key IS NOT NULL",
     )
     .fetch_all(&state.db)
@@ -206,7 +219,7 @@ pub async fn lmstudio_sync(State(state): State<AppState>) -> AppResult<Json<Sync
     .map(|(k, id)| (gguf_filename_for(&k), id))
     .collect();
 
-    let canonical_by_file: HashMap<String, (String, i32, Option<bool>, Option<String>, Option<String>, Option<String>, Option<bool>)> = sqlx::query_as::<_, (String, i32, Option<bool>, Option<String>, Option<String>, Option<String>, Option<bool>)>(
+    let canonical_by_file: HashMap<String, LmStudioRow> = sqlx::query_as::<_, LmStudioRow>(
         "SELECT lmstudio_key, context_length, supports_vision, publisher, quantization, arch, active FROM models WHERE provider = 'lmstudio' AND active = true AND lmstudio_key IS NOT NULL",
     )
     .fetch_all(&state.db)

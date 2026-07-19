@@ -95,7 +95,7 @@ pub async fn tests_for_ids(db: &PgPool, ids: &[i32]) -> AppResult<Vec<TestDef>> 
     )
     .fetch_all(db)
     .await?;
-    let want: std::collections::HashSet<i32> = ids.iter().copied().collect();
+    let _want: std::collections::HashSet<i32> = ids.iter().copied().collect();
     // Preserve the caller's selection order (top-to-bottom as chosen).
     let mut ordered: Vec<TestDef> = Vec::new();
     let mut seen: std::collections::HashSet<i32> = std::collections::HashSet::new();
@@ -560,8 +560,7 @@ async fn check_memory_safety(
                 .await
                 .ok()
                 .flatten()
-                .map(|v| serde_json::to_string(&v).ok())
-                .flatten();
+                .and_then(|v| serde_json::to_string(&v).ok());
 
                 let _ = sqlx::query(
                     "UPDATE test_runs SET draft_model_key = $1, lmstudio_runtime_config = COALESCE($2, lmstudio_runtime_config) WHERE id = $3"

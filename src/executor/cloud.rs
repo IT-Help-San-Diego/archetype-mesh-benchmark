@@ -178,9 +178,7 @@ pub async fn chat(
             // the answer as its final token (VALID/INVALID/TRUE/FALSE/etc.)
             if let Some(ref r) = reasoning_content {
                 let last_token = r
-                    .split(|c: char| !c.is_ascii_alphanumeric())
-                    .filter(|t| !t.is_empty())
-                    .last()
+                    .split(|c: char| !c.is_ascii_alphanumeric()).rfind(|t| !t.is_empty())
                     .unwrap_or("");
                 if !last_token.is_empty() {
                     tracing::warn!(

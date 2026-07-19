@@ -172,13 +172,12 @@ pub async fn start_runs(
     }
 
     let load_mode = req.load_mode.unwrap_or(LoadMode::CleanRoom);
-    if matches!(load_mode, LoadMode::SpeculativePair) {
-        if req.draft_model_key.as_ref().map(|s| s.trim().is_empty()).unwrap_or(false) {
+    if matches!(load_mode, LoadMode::SpeculativePair)
+        && req.draft_model_key.as_ref().map(|s| s.trim().is_empty()).unwrap_or(false) {
             return Err(AppError::Executor(
                 "draft_model_key is required when load_mode is 'speculative-pair'".into(),
             ));
         }
-    }
 
     let mut run_ids = Vec::new();
     // MODULAR SEGMENTS: an explicit test_ids set runs ONLY those tests
@@ -301,6 +300,7 @@ pub async fn start_runs(
 /// Spawn the background task that executes ONE queued run. Shared by
 /// `start_runs` and `start_baseline_scaffold` so the LM Studio serialization
 /// gate and GPU-telemetry RAII guard are impossible to fork out of sync.
+#[allow(clippy::too_many_arguments)]
 fn spawn_run_task(
     state: &AppState,
     run_id: i32,

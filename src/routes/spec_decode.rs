@@ -12,11 +12,8 @@
 use axum::{
     extract::State,
     response::Json,
-    routing::{get, post},
-    Router,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -119,17 +116,14 @@ fn scan_draft_pairs() -> Vec<SpecPair> {
                     for f in fields {
                         let key = f.get("key").and_then(|k| k.as_str()).unwrap_or("");
                         let value = f.get("value");
-                        match key {
-                            "llm.load.llama.speculativeDecoding.draftModel" => {
-                                draft_model = value.and_then(|v| v.as_str()).map(|s| s.to_string());
-                                let mtp = fields.iter().any(|f2| {
-                                    f2.get("key").and_then(|k| k.as_str())
-                                        == Some("llm.load.llama.speculativeDecoding.draftMtp")
-                                        && f2.get("value") == Some(&serde_json::json!(true))
-                                });
-                                draft_source = if mtp { DraftSource::Mtp } else { DraftSource::Simple };
-                            }
-                            _ => {}
+                        if key == "llm.load.llama.speculativeDecoding.draftModel" {
+                            draft_model = value.and_then(|v| v.as_str()).map(|s| s.to_string());
+                            let mtp = fields.iter().any(|f2| {
+                                f2.get("key").and_then(|k| k.as_str())
+                                    == Some("llm.load.llama.speculativeDecoding.draftMtp")
+                                    && f2.get("value") == Some(&serde_json::json!(true))
+                            });
+                            draft_source = if mtp { DraftSource::Mtp } else { DraftSource::Simple };
                         }
                     }
                 }
@@ -161,7 +155,7 @@ fn scan_draft_pairs() -> Vec<SpecPair> {
 
 fn normalize_for_match(s: &str) -> String {
     let lower = s.to_lowercase();
-    let no_pub = lower.split('/').last().unwrap_or(&lower);
+    let no_pub = lower.split('/').next_back().unwrap_or(&lower);
     let no_ext = no_pub.strip_suffix(".gguf").unwrap_or(no_pub);
     let no_ext = no_ext.strip_suffix(".gguf.bak").unwrap_or(no_ext);
     no_ext
@@ -187,7 +181,7 @@ async fn fetch_ls_models(base_url: &str) -> AppResult<Vec<serde_json::Value>> {
     }
 
     let json: serde_json::Value = resp.json().await?;
-    Ok(json.get("data").and_then(|d| d.as_array()).map(|a| a.clone()).unwrap_or_default())
+    Ok(json.get("data").and_then(|d| d.as_array()).cloned().unwrap_or_default())
 }
 
 // endpoints
@@ -307,7 +301,7 @@ async fn run_timing(base_url: &str, model: &str, prompt: &str, max_tokens: u32) 
 
     let start = std::time::Instant::now();
     let resp = reqwest::Client::new()
-        .post(&format!("{}/v1/chat/completions", base_url))
+        .post(format!("{}/v1/chat/completions", base_url))
         .json(&payload)
         .timeout(Duration::from_secs(120))
         .send()
@@ -346,7 +340,7 @@ async fn run_without_draft(
     max_tokens: u32,
 ) -> AppResult<TimingRun> {
     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
-    let config_path = home.join(LMSTUDIO_CONFIG_DIR).join(&format!("{}.json", model));
+    let config_path = home.join(LMSTUDIO_CONFIG_DIR).join(format!("{}.json", model));
 
     let original_config = std::fs::read_to_string(&config_path).map_err(|e| {
         AppError::Executor(format!("Failed to read LM Studio config for {}: {}", model, e))
@@ -380,10 +374,3 @@ async fn run_without_draft(
     result
 }
 
-// router mount
-
-pub fn router() -> Router<crate::state::AppState> {
-    Router::new()
-        .route("/api/spec-decode/pairs", get(spec_decode_pairs))
-        .route("/api/spec-decode/test", post(spec_decode_test))
-}

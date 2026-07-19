@@ -210,8 +210,8 @@ pub async fn cloud_sync(State(state): State<AppState>) -> AppResult<Json<CloudSy
             for entry in &entries {
                 let id = match entry.get("name").and_then(|v| v.as_str()) {
                     // Gemini returns "models/gemini-3.5-flash" — strip prefix.
-                    Some(s) if is_chat_model(s.split('/').last().unwrap_or(s)) => {
-                        s.split('/').last().unwrap_or(s).to_string()
+                    Some(s) if is_chat_model(s.split('/').next_back().unwrap_or(s)) => {
+                        s.split('/').next_back().unwrap_or(s).to_string()
                     }
                     _ => continue,
                 };

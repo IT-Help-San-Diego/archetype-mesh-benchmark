@@ -238,7 +238,7 @@ async fn run_probe(
         }
     }
 
-    let sent = (ok_n + limited_n + err_n) as i64;
+    let sent = ok_n + limited_n + err_n;
     let verdict = verdict_for(ok_n, sent, limited_n);
     let duration = started.elapsed().as_millis() as i64;
     // Seal the full per-request evidence — same provenance discipline as runs.

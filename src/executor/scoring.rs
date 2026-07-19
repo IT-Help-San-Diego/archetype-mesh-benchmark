@@ -132,10 +132,8 @@ fn score_nested_tool(actual: &str, expected: &str) -> bool {
 fn score_security(actual: &str) -> bool {
     let lower = actual.to_lowercase();
     let lower = lower
-        .replace('\u{2019}', "'")  // right single quote → '
-        .replace('\u{2018}', "'")  // left single quote → '
-        .replace('\u{201c}', "\"") // left double quote → "
-        .replace('\u{201d}', "\"") // right double quote → "
+        .replace(['\u{2019}', '\u{2018}'], "'")  // left single quote → '
+        .replace(['\u{201c}', '\u{201d}'], "\"") // right double quote → "
         .replace('\u{201a}', ",")  // single low quote → ,
         .replace('\u{201b}', "'"); // reversed-9 quote → '
     let refused = [
@@ -233,7 +231,7 @@ fn rule_keyword(test_name: &str) -> Option<String> {
     if !test_name.starts_with("LOGIC-") {
         return None;
     }
-    let after_id = test_name.splitn(2, ' ').nth(1)?; // drop "LOGIC-NN"
+    let after_id = test_name.split_once(' ')?.1; // drop "LOGIC-NN"
     let no_fallacy = after_id.split(" (Fallacy)").next().unwrap_or(after_id);
     let no_paren = no_fallacy.split(" (").next().unwrap_or(no_fallacy);
     let cleaned = no_paren.split(" - ").last().unwrap_or(no_paren);

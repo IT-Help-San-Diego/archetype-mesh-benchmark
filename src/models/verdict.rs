@@ -54,6 +54,8 @@ pub fn compute(axis: &str, pass_count: i64, total_count: i64) -> &'static str {
 
 /// Accept historical spellings when reading old JSON verdict roll-ups.
 /// "FLAKY" was the pre-2026-07-09 spelling of INTERMITTENT.
+/// (Used in unit tests; allowed dead_code for the non-test build.)
+#[allow(dead_code)]
 pub fn canonicalize(v: &str) -> &'static str {
     match v {
         "PASS" => PASS,

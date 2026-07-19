@@ -8,6 +8,12 @@
 //! onto the Klein four-group V4 = {I, σᵥ, C2, σₕ}.
 use serde::{Deserialize, Serialize};
 
+// NOTE: these two types are the data models for the Owl Semaphore metacognitive
+// (σₕ) pass and the family-coverage roll-up. They are not yet constructed in the
+// happy path (the metacognitive scoring is wired but the persist path is staged),
+// so clippy flags them as dead. Kept intentionally — removing them would break the
+// migration 018 / 036 contract. Allowed rather than deleted.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct MetacognitiveScore {
     pub id: i32,
@@ -37,6 +43,7 @@ pub struct MetacognitiveResult {
 /// each Identity test, does it have paraphrase (N) and/or adversarial (C)
 /// siblings yet? Mirrors the `owl_family_coverage` SQL view 1:1 — query
 /// the view directly rather than recomputing this in Rust.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct OwlFamilyCoverage {
     pub identity_id: i32,

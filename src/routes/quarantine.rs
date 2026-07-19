@@ -125,7 +125,7 @@ pub async fn release_quarantined(
             .fetch_optional(&state.db)
             .await?;
 
-    let (was_quarantined, old_reason, old_notes) = existing.unwrap_or((false, None, None));
+    let (was_quarantined, _old_reason, old_notes) = existing.unwrap_or((false, None, None));
 
     if !was_quarantined {
         return Ok(ResponseJson(serde_json::json!({
