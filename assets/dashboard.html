@@ -2566,9 +2566,33 @@ async function apiFetch(url, options) {
 
 // Single render pipeline — SSE envelopes and explicit fetches both land here,
 // so the grid can never disagree with itself about what a "model update" means.
-function applyModelSnapshot(list) {
+// SIGNATURE GUARD: the SSE stream pushes a snapshot every ~5s. If the payload
+// is byte-for-byte unchanged from the last render, rebuilding the 346-row grid
+// (and the bot/NC-model lists) every tick causes a visible repaint flicker and
+// tears selection out from under the user's click. Skip the rebuild when the
+// data signature is unchanged — live updates still fire the instant it differs.
+let _lastModelSig = '';
+function modelSignature(arr) {
+  // Cheap, collision-resistant enough for render decisions: count + a rolling
+  // composite of the volatile per-model fields a user can SEE change
+  // (loaded-in-RAM state, location, runnable) + last-updated marker.
+  let sig = arr.length + '|';
+  for (let i = 0; i < arr.length; i++) {
+    const m = arr[i];
+    sig += (m.key || '') + ':' + (m.loaded ? 1 : 0) + ':' + (m.location || '') + ':' + (m.runnable === false ? 0 : 1) + ';';
+  }
+  return sig;
+}
+function applyModelSnapshot(list, force) {
   const arr = Array.isArray(list) ? list : [];
   models = arr;
+  const sig = modelSignature(arr);
+  // force=true (explicit loadModels() / refresh) always renders.
+  if (!force && sig === _lastModelSig) {
+    console.log('[amb] applyModelSnapshot skipped — unchanged (' + arr.length + ' models)');
+    return;
+  }
+  _lastModelSig = sig;
   console.log('[amb] applyModelSnapshot count=', arr.length);
   try {
     updateStats();
@@ -2590,7 +2614,7 @@ function applyModelSnapshot(list) {
 // immediately instead of waiting for the next SSE snapshot.
 async function loadModels() {
   const r = await apiFetch('/api/models');
-  if (r.ok && Array.isArray(r.data)) applyModelSnapshot(r.data);
+  if (r.ok && Array.isArray(r.data)) applyModelSnapshot(r.data, true);
   else console.warn('loadModels: registry fetch failed —', r.error);
 }
 
@@ -4203,6 +4227,13 @@ function renderSquad() {
   const bySlot = {};
   (lootData.recommended_squad || []).forEach(s => { bySlot[s.axis] = s; });
 
+  // The /api/loot squad payload carries only benchmark evidence (axis,
+  // best_ms, model_key, sha3…) — NOT provider/size_gb/location. The live
+  // model registry (already in memory via SSE) has those, so enrich here
+  // instead of forcing a backend JOIN. Fallback gracefully if not found.
+  const regByKey = {};
+  (models || []).forEach(m => { regByKey[m.key] = m; });
+
   el.innerHTML = AXIS_ORDER.map(axis => {
     const pick = bySlot[axis];
     if (!pick) {
@@ -4212,11 +4243,17 @@ function renderSquad() {
         <div style="font-size:10px;color:var(--text-muted)">Run benchmarks to populate this slot.</div>
       </div>`;
     }
+    const reg = regByKey[pick.model_key] || {};
+    const provider = pick.location === 'local' ? 'lmstudio' : (pick.provider || reg.provider || 'unknown');
+    const location = pick.location || reg.location || (provider === 'lmstudio' ? 'local' : 'cloud');
+    const sizeGb = pick.size_gb != null ? pick.size_gb : reg.size_gb;
     const speedColor = pick.best_ms < 2000 ? 'var(--safe)' : pick.best_ms < 10000 ? 'var(--flaky)' : 'var(--unsafe)';
+    const locLabel = location === 'local' ? '💻 LM Studio' : '☁️ ' + (provider || 'cloud');
+    const sizeLabel = sizeGb != null ? (typeof sizeGb === 'number' ? sizeGb.toFixed(1) : sizeGb) + ' GB' : 'size unknown';
     return `<div class="squad-card">
       <div class="squad-card-title">${AXIS_ICON[axis]} ${axis.toUpperCase()} — CHAMPION</div>
       <div class="squad-card-model">${pick.display_name}</div>
-      <div class="squad-card-meta">${pick.location === 'local' ? '💻 LM Studio' : '☁️ ' + pick.provider} · ${pick.size_gb ? pick.size_gb.toFixed(1) + ' GB' : 'size unknown'}</div>
+      <div class="squad-card-meta">${locLabel} · ${sizeLabel}</div>
       <div style="display:flex;gap:var(--fib-2);margin-top:var(--fib-2)">
         <div style="flex:1;text-align:center;padding:6px;background:var(--bg-primary);border-radius:4px">
           <div style="font-size:16px;font-weight:700;font-family:var(--font-mono);color:${speedColor}">${fmtMs(pick.best_ms)}</div>
