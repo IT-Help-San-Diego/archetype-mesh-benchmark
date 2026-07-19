@@ -9,9 +9,28 @@ answer-leakage) and Intellectual Resistance as the program roof. Carrier Scope
 is NOT a fourth framework — it is the instrument that puts the other three
 (Owl Semaphore, Carrier Color, Verification Principle) to work.
 
-**Domain (TBD, budget pending):** likely `carrierscope.com`. Local-access
-subdomain would be `local.carrierscope.com A 127.0.0.1` (see
-`docs/local-access-strategy.md`).
+**Domain (TBD, budget pending):** `carrierscope.com` is **already registered
+to a commercial entity** (verified 2026-07-19) — not available. Alternatives to
+evaluate when budget allows: `carrierscope.science` (fits the instrument's
+scientific framing), `carrierscope.dev` / `carrierscope.io` (dev/tech), or a
+prefix form (`getcarrierscope.com`, `trycarrierscope.com`). Local-access
+subdomain would be `local.<domain> A 127.0.0.1` (see
+`docs/local-access-strategy.md`). Decision deferred.
+
+## Naming rule (locked)
+
+> The product name stays **substrate-neutral**: **Carrier Scope**. It does NOT
+> carry "LM", "AI", or any substrate/era marker. The instrument's act (scoping
+> signal from carrier) applies to silicon AND carbon; tying the name to "AI" or
+> "local models" (the current trend) would (1) narrow it below what it is,
+> (2) date it to a trend that won't hold, and (3) force a rename the moment
+> human calibration ships. Discoverability ("what is this?") is handled by a
+> **concrete tagline**, not by polluting the name:
+>
+> *Carrier Scope — a scientific instrument that scopes signal from carrier in
+> any cognitive source, silicon or carbon, with sealed, auditable evidence.*
+>
+> Substrate/use-case lives in the tagline where it can change; the name stays.
 
 **Human calibration first (core priority):** silicon and carbon are measured
 under one battery, but the HUMAN is the prior term — a person takes the battery
