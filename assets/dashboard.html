@@ -1562,7 +1562,7 @@ function clearScienceHighlight() {
 </div>
 
 <!-- Top Nav -->
-<div class="top-nav">
+<div class="top-nav" id="top-nav">
   <img class="logo" src="/assets/owl-semaphore-logo.png" alt="Owl of Athena" onerror="this.style.display='none'" style="height:32px;margin-right:6px;cursor:pointer" onclick="showPage('benchmark')">
   <button id="a11y-toggle" class="tab" onclick="toggleA11y()" title="High-contrast / large-text mode" style="margin-left:auto;cursor:pointer;">Readable: Off</button>
 
@@ -1590,6 +1590,16 @@ function clearScienceHighlight() {
 <!-- ═══ LEFT RAIL — command & selection: Run is always one glance away ═══ -->
 <aside id="ws-rail">
 
+<!-- Speculative Decode Panel — moved to far-left rail (user mandate 2026-07-19) -->
+<div id="spec-decode-panel" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:var(--fib-2);">
+  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px;">
+    <div style="font-size:13px;letter-spacing:1.2px;color:var(--text-muted);">SPECULATIVE DECODE</div>
+    <button id="sd-refresh" onclick="loadSpecDecodePairs()" class="btn-secondary" style="padding:6px 12px;font-size:11px;">Refresh</button>
+    <span id="sd-status" style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);">Idle — waiting for model registry</span>
+  </div>
+  <div id="sd-pairs" style="display:grid;gap:8px;"></div>
+  <div id="sd-result" style="margin-top:12px;padding:10px 14px;background:var(--bg-primary);border:1px solid var(--border);font-family:var(--font-mono);font-size:12px;display:none;"></div>
+</div>
 
 <!-- Action bar -->
 <div id="action-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:var(--fib-2);align-items:center;flex-wrap:wrap;">
@@ -1948,36 +1958,7 @@ function clearScienceHighlight() {
   <div class="log-line"><span class="ts">—</span> <span style="color: var(--text-muted)">Select a model and click Run Selected to begin telemetry</span></div>
 </div>
 
-<!-- Prompt Length Checker — non-live, zero-cost validation -->
-<!-- Nous-necessity experiment: does auxiliary.approval / auxiliary.mcp need a frontier cloud model? -->
-<div class="nous-exp" id="nous-exp-panel">
-  <div class="nous-exp-head" onclick="toggleNousExp()">
-    <span class="protocol-title">🔬 EXPERIMENT — do you actually need Nous Portal for every auxiliary task?</span>
-    <span class="protocol-chevron" id="nous-exp-chevron">▾</span>
-  </div>
-  <div class="nous-exp-body" id="nous-exp-body">
-    <p>Two of Hermes' auxiliary task slots have narrow, verifiable jobs — <code>auxiliary.approval</code> (classify a shell command as APPROVE/DENY/ESCALATE, one word, temp=0) and <code>auxiliary.mcp</code> (relay a plain-text answer for an MCP server's sampling request). Neither needs deep reasoning. This panel runs the exact prompt shapes Hermes actually sends for those two jobs against whatever model you pick, so we can measure — not guess — whether a local model is reliable enough to replace Nous/cloud there.</p>
-    <p><b>Fail-safe by design:</b> real Hermes source shows <code>_smart_approve()</code> defaults to ESCALATE (asks you) on any malformed/unexpected answer — a flaky local model here costs you extra prompts, not silent auto-approval. That changes the risk calculus: "good enough to save Nous credits without becoming dangerous" is a lower bar than "as smart as Claude."</p>
-    <div class="nous-exp-controls">
-      <select id="nous-exp-model"></select>
-      <button class="btn btn-secondary" onclick="runNousExperiment()">▶ Run Auxiliary-Reliability Tests</button>
-      <span id="nous-exp-status" style="font-size:12px;color:var(--text-muted);"></span>
-    </div>
-    <div class="nous-exp-table-wrap" id="nous-exp-table">No auxiliary-axis runs yet. Pick a model above and run the tests, or check the 📊 Runs tab for history.</div>
-  </div>
-</div>
 
-
-<!-- Speculative Decode Panel -->
-<div id="spec-decode-panel" style="background:var(--bg-secondary);border-top:1px solid var(--border);padding:16px 24px;">
-  <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px;">
-    <div style="font-size:13px;letter-spacing:1.2px;color:var(--text-muted);">SPECULATIVE DECODE</div>
-    <button id="sd-refresh" onclick="loadSpecDecodePairs()" class="btn-secondary" style="padding:6px 12px;font-size:11px;">Refresh</button>
-    <span id="sd-status" style="font-size:11px;font-family:var(--font-mono);color:var(--text-muted);">Idle — waiting for model registry</span>
-  </div>
-  <div id="sd-pairs" style="display:grid;gap:8px;"></div>
-  <div id="sd-result" style="margin-top:12px;padding:10px 14px;background:var(--bg-primary);border:1px solid var(--border);font-family:var(--font-mono);font-size:12px;display:none;"></div>
-</div>
 </aside>
 
 </div><!-- /workspace -->
@@ -2281,6 +2262,26 @@ Is this formula satisfiable? Answer SAT or UNSAT.</div>
         <div style="font-weight:700;color:var(--accent-amber);margin-bottom:6px;">🎯 The Genie Test</div>
         <p style="font-size:13px;color:var(--text-secondary);margin:0;">There's an 80s/90s movie where a guy wishes to be rich. Genie snaps — mansion, cars, women. He thinks he won. Then he gets shot because the genie made him a drug lord to pay for it. <b>Be precise about what you want. The genie executes literally.</b></p>
       </div>
+      </div>
+    </div>
+
+    <!-- ═══ Auxiliary-reliability experiment — moved here from the benchmark
+         right rail (user mandate 2026-07-19): this is the "be your own little
+         hacker" page, so the Nous-necessity experiment belongs with the
+         prompt-building tools, not buried in the stream column. -->
+    <div class="pb-section pb-collapsible collapsed" id="pb-nous-exp-section">
+      <div class="pb-section-title pb-collapse-head" onclick="togglePbSection('pb-nous-exp-section')">🔬 Experiment — do you actually need Nous Portal for every auxiliary task? <span class="pb-caret">▾</span></div>
+      <div class="pb-collapse-body">
+        <div class="nous-exp" id="nous-exp-panel" style="border:none;background:transparent;padding:0;">
+          <p>Two of Hermes' auxiliary task slots have narrow, verifiable jobs — <code>auxiliary.approval</code> (classify a shell command as APPROVE/DENY/ESCALATE, one word, temp=0) and <code>auxiliary.mcp</code> (relay a plain-text answer for an MCP server's sampling request). Neither needs deep reasoning. This panel runs the exact prompt shapes Hermes actually sends for those two jobs against whatever model you pick, so we can measure — not guess — whether a local model is reliable enough to replace Nous/cloud there.</p>
+          <p><b>Fail-safe by design:</b> real Hermes source shows <code>_smart_approve()</code> defaults to ESCALATE (asks you) on any malformed/unexpected answer — a flaky local model here costs you extra prompts, not silent auto-approval. That changes the risk calculus: "good enough to save Nous credits without becoming dangerous" is a lower bar than "as smart as Claude."</p>
+          <div class="nous-exp-controls">
+            <select id="nous-exp-model"></select>
+            <button class="btn btn-secondary" onclick="runNousExperiment()">▶ Run Auxiliary-Reliability Tests</button>
+            <span id="nous-exp-status" style="font-size:12px;color:var(--text-muted);"></span>
+          </div>
+          <div class="nous-exp-table-wrap" id="nous-exp-table">No auxiliary-axis runs yet. Pick a model above and run the tests, or check the 📊 Runs tab for history.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -3185,10 +3186,19 @@ function showRunActiveBanner(d) {
     text.textContent = `Run ${d.run_id} (${escHtml(d.model_key || '?')} · ${escHtml((d.axis||'').toUpperCase())}) is in progress on ${escHtml(where)} — streaming to all open dashboards. Another run queues behind it (no conflict).`;
   }
   banner.style.display = 'flex';
+  // REPLACE the top branding strip with the run banner while a run is live
+  // (user mandate 2026-07-19): don't partially overlap the owl logo + nav —
+  // own the entire top area, then restore branding on run_complete.
+  const nav = document.getElementById('top-nav');
+  if (nav) nav.style.display = 'none';
+  document.body.classList.add('run-active');
 }
 function hideRunActiveBanner() {
   const banner = document.getElementById('run-active-banner');
   if (banner) banner.style.display = 'none';
+  const nav = document.getElementById('top-nav');
+  if (nav) nav.style.display = '';
+  document.body.classList.remove('run-active');
 }
 function refreshAbortBar() {
   const bar = document.getElementById('abort-bar');
@@ -4283,16 +4293,109 @@ async function loadTestsPage() {
     el.innerHTML = '<div style="color:var(--text-muted)">No active tests. Click + New Test to create one.</div>';
     return;
   }
+  // MODULAR RUNS (user mandate 2026-07-19): let the user pick a slice of the
+  // registry and run JUST those tests — e.g. all reasoning, or only the ones
+  // that failed last time — instead of the whole battery. Each row gets a
+  // checkbox; the run bar posts test_ids to /api/runs.
   el.innerHTML = d.tests.map(t => {
     const meta = AXIS_META[t.axis] || { icon: '❔', color: 'var(--text-muted)' };
     return `<div class="list-row" style="cursor:pointer" onclick="toggleTestDetail(${t.id}, this)">
+      <input type="checkbox" class="test-pick" data-id="${t.id}" data-axis="${t.axis}" onclick="event.stopPropagation()" style="margin-right:10px;accent-color:var(--accent-gold);">
       <span class="lr-axis" style="color:${meta.color}">${meta.icon} ${t.axis}</span>
       <span class="lr-name">${t.name}</span>
       <span class="lr-meta">${t.scoring_method} · N=${t.trials_per_run}${t.has_attachment ? ' · 📎' : ''} · #${t.id}</span>
     </div>
     <div class="test-detail" id="test-detail-${t.id}" style="display:none;padding:10px 14px;margin:0 0 8px;background:var(--bg-secondary);border-left:2px solid ${meta.color};font-size:12px;font-family:var(--font-mono);"></div>`;
   }).join('')
-  + `<div style="margin-top:14px;font-size:12px;color:var(--text-muted)">${d.count} active tests. Click a row to audit its prompt and ground truth (fetched on demand — the grid stays blind).</div>`;
+  + `<div style="margin-top:14px;font-size:12px;color:var(--text-muted)">${d.count} active tests. Click a row to audit its prompt and ground truth (fetched on demand — the grid stays blind).</div>`
+  + `<div id="modular-run-bar" style="position:sticky;bottom:0;margin-top:16px;padding:14px 16px;background:var(--bg-secondary);border:1px solid var(--accent-gold);border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+       <span id="modular-sel-count" style="font-size:13px;font-weight:700;color:var(--accent-gold);">0 selected</span>
+       <button class="btn btn-secondary" onclick="selectByAxis()" style="font-size:12px;">Select by axis…</button>
+       <button class="btn btn-secondary" onclick="selectFailedLastRun()" style="font-size:12px;">Only last-run failures</button>
+       <button class="btn btn-secondary" onclick="clearTestPicks()" style="font-size:12px;">Clear</button>
+       <span style="flex:1"></span>
+       <select id="modular-model" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;"></select>
+       <button class="btn btn-primary" id="modular-run-btn" onclick="runSelectedTests()">▶ Run Selected Tests</button>
+     </div>`;
+  populateModularModels();
+  // live selection count
+  el.querySelectorAll('.test-pick').forEach(cb => cb.addEventListener('change', updateModularCount));
+  updateModularCount();
+}
+
+function populateModularModels() {
+  const sel = document.getElementById('modular-model');
+  if (!sel) return;
+  if (!models.length) { sel.innerHTML = '<option>loading models…</option>'; return; }
+  const prev = sel.value;
+  sel.innerHTML = models.map(m => `<option value="${m.key}">${m.display_name}${m.provider ? ' ('+m.provider+')' : ''}</option>`).join('');
+  if (prev && models.some(m => m.key === prev)) sel.value = prev;
+}
+
+function updateModularCount() {
+  const n = document.querySelectorAll('.test-pick:checked').length;
+  const el = document.getElementById('modular-sel-count');
+  if (el) el.textContent = `${n} selected`;
+}
+
+function getPickedIds() {
+  return [...document.querySelectorAll('.test-pick:checked')].map(cb => parseInt(cb.dataset.id, 10));
+}
+
+function clearTestPicks() {
+  document.querySelectorAll('.test-pick').forEach(cb => cb.checked = false);
+  updateModularCount();
+}
+
+function selectByAxis() {
+  const a = prompt('Select all tests for axis (vision/tools/reasoning/security/literary/auxiliary):', 'reasoning');
+  if (!a) return;
+  document.querySelectorAll('.test-pick').forEach(cb => { cb.checked = (cb.dataset.axis === a.trim()); });
+  updateModularCount();
+}
+
+async function selectFailedLastRun() {
+  // Pull the most recent completed run and select only the tests it failed.
+  const r = await apiFetch('/api/runs?limit=1');
+  if (!r.ok || !r.data.runs || !r.data.runs.length) { alert('No run history found.'); return; }
+  const last = r.data.runs[0];
+  const det = await apiFetch('/api/runs/' + last.id);
+  if (!det.ok) { alert('Could not load run ' + last.id); return; }
+  // Run trials carry test_name (not test_id), so map name→id via /api/tests.
+  const tr = await apiFetch('/api/tests');
+  const nameToId = {};
+  if (tr.ok) (tr.data.tests || []).forEach(t => { nameToId[t.name] = t.id; });
+  const failed = new Set((det.data.trials || [])
+    .filter(t => t.passed === false)
+    .map(t => nameToId[t.test_name])
+    .filter(Boolean));
+  if (!failed.size) { alert('Run ' + last.id + ' had no failures — nothing to re-run.'); return; }
+  document.querySelectorAll('.test-pick').forEach(cb => { cb.checked = failed.has(parseInt(cb.dataset.id, 10)); });
+  updateModularCount();
+}
+
+async function runSelectedTests() {
+  const ids = getPickedIds();
+  if (!ids.length) { alert('Select at least one test first (checkbox on the left of a row).'); return; }
+  const sel = document.getElementById('modular-model');
+  const modelKey = sel ? sel.value : null;
+  if (!modelKey) { alert('No model available to run.'); return; }
+  const prov = (models.find(m => m.key === modelKey) || {}).provider;
+  const body = { model_key: modelKey, test_ids: ids };
+  if (prov) body.provider = prov;
+  const btn = document.getElementById('modular-run-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await apiFetch('/api/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (r.ok) {
+      alert(`Queued modular run #${r.data.run_ids[0]} with ${ids.length} test(s). Watch the Benchmark tab for live progress.`);
+      showPage('benchmark');
+    } else {
+      alert('Run failed: ' + (r.error || 'unknown error'));
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // On-demand audit view: ground truth is only fetched when explicitly opened.
