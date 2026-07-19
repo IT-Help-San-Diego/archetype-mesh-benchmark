@@ -6,4 +6,5 @@ pub mod gpu_telemetry;
 pub mod lm_guard;
 pub mod models;
 pub mod routes;
+pub mod security;
 pub mod state;

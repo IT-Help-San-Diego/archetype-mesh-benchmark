@@ -1188,6 +1188,13 @@
     #ws-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
     #center-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
+    /* Screen-reader-only: visually hidden but announced to assistive tech.
+       Used to give form controls an accessible name without cluttering the UI. */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
     /* rail: action bar first, always visible. CONTROL ZONE — gold left-rail
        marks it as interactive (affordance mandate). */
     #action-bar { justify-content: flex-start !important; padding: 9px 12px; margin-bottom: 0 !important; border-bottom: 1px solid var(--border); border-left: 3px solid var(--accent-gold); background: var(--bg-card); }
@@ -1604,6 +1611,7 @@ function clearScienceHighlight() {
 <!-- Action bar -->
 <div id="action-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:var(--fib-2);align-items:center;flex-wrap:wrap;">
   <span id="conn-status" style="display:none;font-size:12px;font-weight:600;color:var(--flaky);background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:6px;border:1px solid var(--flaky);"></span>
+  <label class="sr-only" for="scaffold-supplement">Scaffold supplement (optional warnings or reminders)</label>
   <input id="scaffold-supplement" type="text" placeholder="Scaffold supplement: warnings or reminders to watch for (optional)" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:320px;" />
   <button class="view-toggle-btn" id="view-toggle" title="Select models to test">🧪 Select Models…</button>
           <span id="selected-count-badge" style="margin-left:10px;font-size:11px;color:var(--text-muted);">0 selected</span>
@@ -1659,15 +1667,15 @@ function clearScienceHighlight() {
 <!-- Filters -->
 <div class="filters">
   <span class="filter-label">⚙ Filter &amp; sort the roster</span>
-  <select id="filter-location" onchange="onLocationFilterChanged()">
+  <select id="filter-location" aria-label="Filter by location (Local or Cloud)" onchange="onLocationFilterChanged()">
     <option value="all">All Locations</option>
     <option value="local">Local Only</option>
     <option value="cloud">Cloud Only</option>
   </select>
-  <select id="filter-provider" onchange="applyFilters()">
+  <select id="filter-provider" aria-label="Filter by provider" onchange="applyFilters()">
     <option value="all">All Providers</option>
   </select>
-  <select id="filter-axis" onchange="applyFilters()">
+  <select id="filter-axis" aria-label="Filter by test axis" onchange="applyFilters()">
     <option value="all">All Axes</option>
     <option value="vision">Vision</option>
     <option value="tools">Tools</option>
@@ -1675,14 +1683,14 @@ function clearScienceHighlight() {
     <option value="security">Security</option>
     <option value="literary">Literary</option>
   </select>
-  <select id="filter-verdict" onchange="applyFilters()">
+  <select id="filter-verdict" aria-label="Filter by verdict" onchange="applyFilters()">
     <option value="all">All Verdicts</option>
     <option value="good">PASS / SAFE</option>
     <option value="bad">FAIL / UNSAFE</option>
     <option value="INTERMITTENT">INTERMITTENT</option>
     <option value="untested">Untested</option>
   </select>
-  <select id="filter-cost" onchange="applyFilters()" title="Catalog price tier — FREE* is the provider's claim; probe it to verify">
+  <select id="filter-cost" aria-label="Filter by cost tier" onchange="applyFilters()" title="Catalog price tier — FREE* is the provider's claim; probe it to verify">
     <option value="all">All Costs</option>
     <option value="FREE*">FREE* (claimed)</option>
     <option value="TRICKLE">TRICKLE (≤$0.50/M)</option>
@@ -1690,16 +1698,16 @@ function clearScienceHighlight() {
     <option value="PREMIUM">PREMIUM</option>
     <option value="local">Local (your watts)</option>
   </select>
-  <select id="filter-vision" onchange="applyFilters()" title="Vision capability — can the model actually see images? (provider modality metadata, verified against the live catalog)">
+  <select id="filter-vision" aria-label="Filter by vision capability" onchange="applyFilters()" title="Vision capability — can the model actually see images? (provider modality metadata, verified against the live catalog)">
     <option value="all">All Capabilities</option>
     <option value="vision">👁 Can see (vision)</option>
     <option value="novision">Text-only</option>
   </select>
-  <select id="filter-runnable" onchange="applyFilters()" title="Runnable = the executor has a working credential path for this model right now (verified against the same check the Run button triggers). Off by default: broken/misconfigured entries are the #1 source of confusing failed runs.">
+  <select id="filter-runnable" aria-label="Filter by runnable status" onchange="applyFilters()" title="Runnable = the executor has a working credential path for this model right now (verified against the same check the Run button triggers). Off by default: broken/misconfigured entries are the #1 source of confusing failed runs.">
     <option value="runnable">✅ Runnable only (default)</option>
     <option value="all">Show all (incl. broken)</option>
   </select>
-  <select id="sort-by" onchange="applyFilters()" title="Order the grid">
+  <select id="sort-by" aria-label="Sort the model roster" onchange="applyFilters()" title="Order the grid">
     <option value="name">Sort: Name</option>
     <option value="cost-asc">Sort: Cheapest first</option>
     <option value="cost-desc">Sort: Priciest first</option>
@@ -1707,7 +1715,7 @@ function clearScienceHighlight() {
     <option value="ctx-desc">Sort: Biggest context</option>
     <option value="ctx-asc">Sort: Smallest context</option>
   </select>
-  <input type="text" id="filter-search" placeholder="Search model…" oninput="applyFilters()"
+  <input type="text" id="filter-search" aria-label="Search the model roster" placeholder="Search model…" oninput="applyFilters()"
          style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 12px;font-size:13px;font-family:var(--font-sans);width:180px;">
 </div>
 <!-- Model Grid -->
@@ -2133,7 +2141,7 @@ function clearScienceHighlight() {
       <div class="pb-col">
         <div class="pb-field">
           <label class="pb-label" for="pb-model">Model</label>
-          <select class="pb-textarea" id="pb-model" style="min-height:auto;padding:10px 12px;"></select>
+          <select class="pb-textarea" id="pb-model" aria-label="Prompt Builder: select model" style="min-height:auto;padding:10px 12px;"></select>
         </div>
         <div class="pb-field" style="margin-top:12px;">
           <label class="pb-label" for="pb-prompt">Prompt Text</label>
@@ -2170,7 +2178,8 @@ function clearScienceHighlight() {
   </div>
   <div class="length-check-body" id="lc-body">
     <div class="lc-row">
-      <select id="lc-model"></select>
+      <select id="lc-model" aria-label="Length-check: select model"></select>
+      <label class="sr-only" for="lc-prompt">Prompt to estimate token count for</label>
       <textarea id="lc-prompt" placeholder="Paste the prompt you're about to send… (checked instantly, nothing is sent to the model)" oninput="onPromptInput()"></textarea>
     </div>
     <div class="lc-result" id="lc-result">
@@ -2276,7 +2285,7 @@ Is this formula satisfiable? Answer SAT or UNSAT.</div>
           <p>Two of Hermes' auxiliary task slots have narrow, verifiable jobs — <code>auxiliary.approval</code> (classify a shell command as APPROVE/DENY/ESCALATE, one word, temp=0) and <code>auxiliary.mcp</code> (relay a plain-text answer for an MCP server's sampling request). Neither needs deep reasoning. This panel runs the exact prompt shapes Hermes actually sends for those two jobs against whatever model you pick, so we can measure — not guess — whether a local model is reliable enough to replace Nous/cloud there.</p>
           <p><b>Fail-safe by design:</b> real Hermes source shows <code>_smart_approve()</code> defaults to ESCALATE (asks you) on any malformed/unexpected answer — a flaky local model here costs you extra prompts, not silent auto-approval. That changes the risk calculus: "good enough to save Nous credits without becoming dangerous" is a lower bar than "as smart as Claude."</p>
           <div class="nous-exp-controls">
-            <select id="nous-exp-model"></select>
+            <select id="nous-exp-model" aria-label="Auxiliary-reliability: select model"></select>
             <button class="btn btn-secondary" onclick="runNousExperiment()">▶ Run Auxiliary-Reliability Tests</button>
             <span id="nous-exp-status" style="font-size:12px;color:var(--text-muted);"></span>
           </div>
@@ -4314,7 +4323,7 @@ async function loadTestsPage() {
        <button class="btn btn-secondary" onclick="selectFailedLastRun()" style="font-size:12px;">Only last-run failures</button>
        <button class="btn btn-secondary" onclick="clearTestPicks()" style="font-size:12px;">Clear</button>
        <span style="flex:1"></span>
-       <select id="modular-model" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;"></select>
+       <select id="modular-model" aria-label="Modular run: select model" style="background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;"></select>
        <button class="btn btn-primary" id="modular-run-btn" onclick="runSelectedTests()">▶ Run Selected Tests</button>
      </div>`;
   populateModularModels();
@@ -5773,7 +5782,7 @@ function confirmRunExecute() {
       <button class="native-selector-close" onclick="closeNativeSelector()">✕</button>
     </div>
     <div class="native-selector-body">
-      <select id="native-model-pick" multiple></select>
+      <select id="native-model-pick" aria-label="Pick native (local LM Studio) models" multiple></select>
     </div>
     <div class="native-selector-footer">
       <div class="native-selector-count" id="native-selector-count">0 selected</div>
@@ -5792,7 +5801,7 @@ function confirmRunExecute() {
       <button class="native-selector-close" onclick="closeNativeSelector()">✕</button>
     </div>
     <div class="native-selector-body">
-      <select id="native-model-pick" multiple></select>
+      <select id="native-model-pick-overlay" aria-label="Pick native (local LM Studio) models" multiple></select>
     </div>
     <div class="native-selector-footer">
       <div class="native-selector-count" id="native-selector-count">0 selected</div>

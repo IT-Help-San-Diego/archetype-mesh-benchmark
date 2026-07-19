@@ -144,6 +144,9 @@ pub async fn test_app() -> Router {
             axum::routing::post(calibration_scope_dashboard::routes::quarantine::append_notes),
         )
         .nest_service("/assets", static_files)
+        .layer(axum::middleware::from_fn(
+            calibration_scope_dashboard::security::security_headers,
+        ))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

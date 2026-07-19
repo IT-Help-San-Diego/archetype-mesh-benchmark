@@ -6,6 +6,7 @@ mod gpu_telemetry;
 mod lm_guard;
 mod models;
 mod routes;
+mod security;
 mod state;
 
 use axum::routing::{get, post};
@@ -182,6 +183,7 @@ async fn main() {
         .nest_service("/assets", static_files)
         // 16MB body cap: a 10MB image (Prompt Builder max) is ~13.7MB as base64.
         .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024))
+        .layer(axum::middleware::from_fn(security::security_headers))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
