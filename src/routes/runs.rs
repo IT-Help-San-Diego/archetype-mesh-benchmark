@@ -20,6 +20,9 @@ const VALID_AXES: [&str; 6] = ["vision", "tools", "reasoning", "security", "lite
 #[derive(Debug, Deserialize)]
 pub struct StartRunRequest {
     pub model_key: String,
+    /// Whole-axis batteries to run. Optional when `test_ids` is provided
+    /// (modular segment run) — at least one of `axes`/`test_ids` is required.
+    #[serde(default)]
     pub axes: Vec<String>,
     #[serde(default)]
     pub load_mode: Option<LoadMode>,
@@ -34,6 +37,11 @@ pub struct StartRunRequest {
     /// The frontend now sends the exact provider of the card the user clicked.
     #[serde(default)]
     pub provider: Option<String>,
+    /// Optional explicit test set. When provided, the run executes ONLY these
+    /// test IDs (across any axes) instead of a whole axis — modular segments.
+    /// Validated server-side: every ID must exist and be active.
+    #[serde(default)]
+    pub test_ids: Option<Vec<i32>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -57,8 +65,13 @@ pub async fn start_runs(
     State(state): State<AppState>,
     Json(req): Json<StartRunRequest>,
 ) -> AppResult<Json<serde_json::Value>> {
-    if req.axes.is_empty() {
-        return Err(AppError::Executor("axes must be non-empty".into()));
+    // A run needs SOMETHING to execute: either whole axes, or an explicit
+    // modular test_ids set. Reject empty requests so we never spawn a
+    // no-op run that would confuse the run history.
+    if req.axes.is_empty() && req.test_ids.as_ref().map(|v| v.is_empty()).unwrap_or(true) {
+        return Err(AppError::Executor(
+            "provide at least one axis or a non-empty test_ids set".into(),
+        ));
     }
     // Validate, then dedup preserving order: ["reasoning","reasoning"] must
     // cost ONE battery, not two. Duplicate axes double real GPU time on a
@@ -106,7 +119,12 @@ pub async fn start_runs(
     // The executor also carries this same check (defense in depth against
     // any other caller of execute_run), but skipping it HERE means we never
     // even create a queued row, let alone spend a clean-room load cycle.
+    // Vision-skip contract: a whole-axis run that ONLY requested vision on a
+    // model with no vision support is rejected (not silently emptied). For a
+    // modular test_ids run, `axes` is empty by design — skip this axis
+    // validation entirely (the executor's per-test vision gate still applies).
     let mut skipped_axes: Vec<(&str, String)> = Vec::new();
+    if req.test_ids.is_none() {
     axes.retain(|axis| {
         if *axis == "vision" && !model.supports_vision {
             skipped_axes.push((
@@ -124,6 +142,7 @@ pub async fn start_runs(
             model.key,
             skipped_axes.iter().map(|(_, r)| r.as_str()).collect::<Vec<_>>().join("; ")
         )));
+    }
     }
 
     // Refuse to stack a duplicate battery behind an identical one already
@@ -162,6 +181,64 @@ pub async fn start_runs(
     }
 
     let mut run_ids = Vec::new();
+    // MODULAR SEGMENTS: an explicit test_ids set runs ONLY those tests
+    // (across any axes) as one 'custom' run — instead of a whole axis.
+    if let Some(ids) = &req.test_ids {
+        if ids.is_empty() {
+            return Err(AppError::Executor("test_ids was provided but empty — pass at least one test ID or omit the field to run a whole axis".into()));
+        }
+        // Validate every ID exists and is active; reject the whole request
+        // (no partial run) if any ID is missing/inactive. This is the same
+        // "objective verdict, no silent failure" discipline as the axis path.
+        let mut valid: Vec<i32> = Vec::new();
+        for &id in ids {
+            let active: Option<bool> = sqlx::query_scalar(
+                "SELECT active FROM tests WHERE id = $1",
+            )
+            .bind(id)
+            .fetch_optional(&state.db)
+            .await?;
+            match active {
+                Some(true) => valid.push(id),
+                _ => return Err(AppError::Executor(format!(
+                    "Test id {} is not an active test — refusing the modular run (no partial execution)",
+                    id
+                ))),
+            }
+        }
+
+        // One run row, axis='custom'. test_ids are persisted on the run row
+        // so the executor (and any replay/audit) knows the exact set.
+        let ids_json = serde_json::to_string(&valid).unwrap_or_else(|_| "[]".to_string());
+        let (run_id,): (i32,) = sqlx::query_as(
+            r#"INSERT INTO test_runs (model_id, test_id, axis, status, load_mode, draft_model_key, scaffold_supplement, test_ids)
+               VALUES ($1, NULL, 'custom', 'queued', $2, $3, $4, $5::jsonb) RETURNING id"#,
+        )
+        .bind(model.id)
+        .bind(match load_mode {
+            LoadMode::CleanRoom => "clean-room",
+            LoadMode::SpeculativePair => "speculative-pair",
+            LoadMode::Scaffolded => "scaffolded",
+        })
+        .bind(req.draft_model_key.clone())
+        .bind(req.scaffold_supplement.clone())
+        .bind(ids_json)
+        .fetch_one(&state.db)
+        .await?;
+
+        spawn_run_task(
+            &state,
+            run_id,
+            &model,
+            "custom".to_string(),
+            load_mode.clone(),
+            req.draft_model_key.clone(),
+            req.scaffold_supplement.clone(),
+            req.test_ids.clone(),
+        );
+        run_ids.push(run_id);
+    }
+
     // ONE run per (model, axis). The executor runs every active test on the
     // axis inside that single run — pass_count/total_count aggregate the whole
     // battery. (Previously this inserted one run per test while the executor
@@ -208,6 +285,7 @@ pub async fn start_runs(
             load_mode.clone(),
             req.draft_model_key.clone(),
             req.scaffold_supplement.clone(),
+            req.test_ids.clone(),
         );
     }
 
@@ -231,6 +309,7 @@ fn spawn_run_task(
     load_mode: LoadMode,
     draft_model_key: Option<String>,
     scaffold_supplement: Option<String>,
+    test_ids: Option<Vec<i32>>,
 ) {
     let db = state.db.clone();
     let config = state.config.clone();
@@ -261,7 +340,7 @@ fn spawn_run_task(
         let _telemetry = active_runs.guard();
         crate::executor::execute_run(
             db, config, tx, cancellations, run_id, model_id, model_key, location, provider,
-            axis, load_mode, draft_model_key, scaffold_supplement,
+            axis, load_mode, draft_model_key, scaffold_supplement, test_ids,
         )
         .await;
     });
@@ -413,7 +492,7 @@ pub async fn start_baseline_scaffold(
         // Queue both halves. The lm_guard gate inside spawn_run_task
         // serializes local execution, so baseline runs to completion before
         // the scaffold half loads — adjacent, ordered, comparable.
-        spawn_run_task(&state, baseline_id, &model, axis.to_string(), LoadMode::CleanRoom, None, None);
+        spawn_run_task(&state, baseline_id, &model, axis.to_string(), LoadMode::CleanRoom, None, None, None);
         spawn_run_task(
             &state,
             scaffold_id,
@@ -422,6 +501,7 @@ pub async fn start_baseline_scaffold(
             LoadMode::Scaffolded,
             None,
             Some(supplement.clone()),
+            None,
         );
     }
 

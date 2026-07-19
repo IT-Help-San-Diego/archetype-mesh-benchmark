@@ -79,6 +79,36 @@ pub async fn tests_for_axis(db: &PgPool, axis: &str) -> AppResult<Vec<TestDef>> 
     Ok(rows)
 }
 
+/// Load an explicit set of tests by ID (modular segments). We avoid a
+/// runtime-built IN(...) query (sqlx 0.9 rejects non-literal query strings)
+/// by loading all active tests with a static query and filtering in Rust.
+/// The ID set is small (a modular slice) and already validated upstream, so
+/// the extra in-memory filter is negligible and keeps the SQL path auditable.
+pub async fn tests_for_ids(db: &PgPool, ids: &[i32]) -> AppResult<Vec<TestDef>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let all: Vec<TestDef> = sqlx::query_as::<_, TestDef>(
+        r#"SELECT id, name, axis, prompt_text, attachment_path, attachment_sha3,
+                  expected_result, scoring_method, trials_per_run, formal_spec, fallacy_tag, owl_type
+           FROM tests WHERE active = true ORDER BY id"#,
+    )
+    .fetch_all(db)
+    .await?;
+    let want: std::collections::HashSet<i32> = ids.iter().copied().collect();
+    // Preserve the caller's selection order (top-to-bottom as chosen).
+    let mut ordered: Vec<TestDef> = Vec::new();
+    let mut seen: std::collections::HashSet<i32> = std::collections::HashSet::new();
+    for id in ids {
+        if let Some(t) = all.iter().find(|t| t.id == *id) {
+            if seen.insert(t.id) {
+                ordered.push(t.clone());
+            }
+        }
+    }
+    Ok(ordered)
+}
+
 /// Build the OpenAI-shaped user message for a test.
 /// Anti-cheat invariants enforced here:
 ///   1. expected_result is NEVER part of the payload.
@@ -214,6 +244,7 @@ pub async fn execute_run(
     load_mode: crate::routes::runs::LoadMode,
     draft_model_key: Option<String>,
     scaffold_supplement: Option<String>,
+    test_ids: Option<Vec<i32>>,
 ) {
     let cancel_token = cancellations.register(run_id).await;
 
@@ -221,7 +252,7 @@ pub async fn execute_run(
         std::time::Duration::from_secs(RUN_BUDGET_SECS),
         execute_run_inner(
             &db, &config, &tx, &cancel_token, run_id, model_id, &model_key, &location, &provider,
-            &axis, load_mode, draft_model_key, scaffold_supplement,
+            &axis, load_mode, draft_model_key, scaffold_supplement, test_ids,
         ),
     )
     .await
@@ -321,6 +352,7 @@ async fn execute_run_inner(
     load_mode: crate::routes::runs::LoadMode,
     draft_model_key: Option<String>,
     scaffold_supplement: Option<String>,
+    test_ids: Option<Vec<i32>>,
 ) -> AppResult<()> {
     let client = reqwest::Client::new();
 
@@ -333,37 +365,7 @@ async fn execute_run_inner(
         "axis": axis, "location": location, "at": now_iso()
     }));
 
-    // Pre-flight capability gate: refuse a vision-axis run against a model
-    // LM Studio's own metadata already says has no vision support, BEFORE
-    // spending a clean-room eject+load cycle and a real GPU inference
-    // attempt on a request that's guaranteed to be rejected. Found live
-    // 2026-07-08 by auditing historical data: EVERY vision-axis run against
-    // a supports_vision=false model (10 of 10 checked — every harmonic-
-    // hermes-9b quant, granite-3.2-8b, granite-4-h-tiny, llama-3.2-3b,
-    // qwen2.5-coder-7b-instruct-mlx, hermes-4-14b) came back 100%
-    // infra-contaminated (HTTP 400, the model never got to answer). This is
-    // the simplest, most certain form of "never hand a model a job it
-    // can't do": we already HAVE the ground truth (LM Studio told us this
-    // model has no vision), so there's no need to spend a real load+
-    // inference cycle to discover the same fact again every single run.
-    if axis == "vision" {
-        let supports_vision: Option<bool> =
-            sqlx::query_scalar("SELECT supports_vision FROM models WHERE id = $1")
-                .bind(model_id)
-                .fetch_optional(db)
-                .await?;
-        if supports_vision == Some(false) {
-            return Err(AppError::Executor(format!(
-                "{} has no vision support (LM Studio capabilities metadata) — refusing to spend a \
-                 clean-room load + inference attempt on a request guaranteed to fail. This is not a \
-                 capability FAIL; the model was correctly never asked. If this model has gained vision \
-                 support since the last LM Studio sync, run a sync and try again.",
-                model_key
-            )));
-        }
-    }
-
-    // Every await point below that can take real wall-clock time (clean-room
+    // ── Trials ─────────────────────────────────────────────────────────────
     // ejection, model load, each chat call) races against cancel_token so an
     // operator-triggered abort takes effect within that single step instead
     // of only at trial boundaries. select! biases neither branch — whichever
@@ -588,9 +590,47 @@ async fn check_memory_safety(
     }
 
     // ── Trials ─────────────────────────────────────────────────────────────
-    let tests = tests_for_axis(db, axis).await?;
+    // Modular segments: a 'custom' run loads exactly the requested test IDs;
+    // a whole-axis run loads by axis. Same trial loop either way — the only
+    // difference is which tests are in the set.
+    let tests = match &test_ids {
+        Some(ids) => tests_for_ids(db, ids).await?,
+        None => tests_for_axis(db, axis).await?,
+    };
     if tests.is_empty() {
-        return Err(AppError::Executor(format!("No active tests for axis '{}'", axis)));
+        return Err(AppError::Executor(format!(
+            "No active tests for {}",
+            if test_ids.is_some() {
+                "the requested test_ids set".to_string()
+            } else {
+                format!("axis '{}'", axis)
+            }
+        )));
+    }
+
+    // Pre-flight capability gate: refuse a vision test against a model LM
+    // Studio's own metadata says has no vision support, BEFORE spending a
+    // clean-room eject+load cycle and a real GPU inference attempt. For a
+    // whole-axis 'vision' run this is axis==vision; for a modular 'custom'
+    // run it fires if ANY requested test is a vision test. We determine
+    // vision membership from the already-loaded test set (covers both the
+    // axis and custom paths uniformly).
+    let run_has_vision = tests.iter().any(|t| t.axis == "vision");
+    if run_has_vision {
+        let supports_vision: Option<bool> =
+            sqlx::query_scalar("SELECT supports_vision FROM models WHERE id = $1")
+                .bind(model_id)
+                .fetch_optional(db)
+                .await?;
+        if supports_vision == Some(false) {
+            return Err(AppError::Executor(format!(
+                "{} has no vision support (LM Studio capabilities metadata) — refusing to spend a \
+                 clean-room load + inference attempt on a request guaranteed to fail. This is not a \
+                 capability FAIL; the model was correctly never asked. If this model has gained vision \
+                 support since the last LM Studio sync, run a sync and try again.",
+                model_key
+            )));
+        }
     }
 
     // Emit a run_plan with the total trial count for THIS axis-execution so
