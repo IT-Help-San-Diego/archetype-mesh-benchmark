@@ -22,8 +22,10 @@ pub struct LsModelInfo {
     pub publisher: String,
     #[serde(default)]
     pub arch: String,
-    #[serde(rename = "state")]
+    #[serde(rename = "state", default)]
     pub load_state: String,
+    #[serde(rename = "loaded_instances", default)]
+    pub loaded_instances: Vec<serde_json::Value>,
     #[serde(rename = "max_context_length", default)]
     pub context_length: i64,
 }
@@ -79,7 +81,48 @@ pub async fn eject_all(client: &Client, base_url: &str) -> AppResult<Vec<String>
     Ok(ejected)
 }
 
-/// Inspect current loaded instances and return (model_key, instance_id)
+/// Eject every loaded instance EXCEPT `keep_key`. Used by clean-room mode
+/// when the target model is already resident: we keep the target in place
+/// (patience principle — don't tear down a working large model just to
+/// re-load it) and only clear other models for isolation.
+pub async fn eject_others(
+    client: &Client,
+    base_url: &str,
+    keep_key: &str,
+) -> AppResult<Vec<String>> {
+    let resp = client
+        .get(format!("{}/api/v1/models", base_url))
+        .send()
+        .await?
+        .error_for_status()?;
+    let v: serde_json::Value = resp.json().await?;
+
+    let mut ejected = Vec::new();
+    if let Some(models) = v.get("models").and_then(|m| m.as_array()) {
+        for m in models {
+            let key = m.get("key").and_then(|k| k.as_str()).unwrap_or("");
+            if key == keep_key {
+                continue; // keep the target resident
+            }
+            if let Some(instances) = m.get("loaded_instances").and_then(|i| i.as_array()) {
+                for inst in instances {
+                    if let Some(id) = inst.get("id").and_then(|i| i.as_str()) {
+                        let r = client
+                            .post(format!("{}/api/v1/models/unload", base_url))
+                            .json(&serde_json::json!({ "instance_id": id }))
+                            .send()
+                            .await?;
+                        if r.status().is_success() {
+                            ejected.push(id.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(ejected)
+}
+
 /// pairs for every resident instance. Used by speculative-pair mode to
 /// verify both primary and draft models are loaded simultaneously.
 pub async fn list_loaded_instances(
@@ -336,6 +379,76 @@ pub async fn ensure_pair_loaded(
 /// 2026-07-08: three step-3.7-flash quants with a sibling .gguf.part download
 /// in progress each returned this exact rejection; without this fix every
 /// queued run against them burned a full 300s timeout before erroring.
+/// Read LM Studio's stored per-model default load config for `model_key`.
+///
+/// LM Studio persists the user's GUI-tuned load settings to
+/// `~/.lmstudio/.internal/user-concrete-model-default-config/<path>.json`
+/// as `{ preset, operation, load: { fields: [{key,value}] } }` where keys
+/// are *dotted* engine paths (e.g. `llm.load.contextLength`,
+/// `llm.load.numExperts`). We translate the ones our load endpoint
+/// understands into flat API keys (`context_length`, `num_experts`, ...)
+/// and return them so a known-good, model-specific config is never
+/// overridden by our generic preset profile. Stored values win on conflict.
+///
+/// Returns `None` if the file is absent/unreadable or has no useful params.
+pub fn read_stored_model_default(model_key: &str) -> Option<serde_json::Value> {
+    let home = std::env::var("HOME").ok()?;
+    let candidates = [
+        format!(
+            "{}/.lmstudio/.internal/user-concrete-model-default-config/{}.json",
+            home, model_key
+        ),
+        format!(
+            "{}/.lmstudio/.internal/user-concrete-model-default-config/{}.json",
+            home,
+            model_key.replace('/', "-")
+        ),
+    ];
+    // dotted LM Studio engine key -> flat load-API key.
+    // NOTE: only map keys the /api/v1/models/load endpoint accepts.
+    // `cpu_thread_pool_size` (llm.load.llama.cpuThreadPoolSize) is a valid
+    // engine field but the LOAD endpoint rejects it as an "unrecognized
+    // key" — so we deliberately do NOT map it, letting LM Studio use its
+    // default. Mapping it caused HTTP 400 on every large-model load.
+    let translate = |k: &str| -> Option<&'static str> {
+        match k {
+            "llm.load.contextLength" => Some("context_length"),
+            "llm.load.numExperts" | "llm.load.llama.num_experts" => Some("num_experts"),
+            "llm.load.evalBatchSize" => Some("eval_batch_size"),
+            "llm.load.physicalBatchSize" => Some("physical_batch_size"),
+            "llm.load.parallel" => Some("parallel"),
+            "llm.load.flashAttention" => Some("flash_attention"),
+            "llm.load.offloadKvCacheToGpu" => Some("offload_kv_cache_to_gpu"),
+            _ => None,
+        }
+    };
+    for path in candidates {
+        if let Ok(s) = std::fs::read_to_string(&path) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
+                if let Some(load) = v.get("load").and_then(|l| l.get("fields")) {
+                    if let Some(arr) = load.as_array() {
+                        let mut merged = serde_json::Map::new();
+                        for f in arr {
+                            if let (Some(k), Some(val)) = (
+                                f.get("key").and_then(|x| x.as_str()),
+                                f.get("value"),
+                            ) {
+                                if let Some(api_key) = translate(k) {
+                                    merged.insert(api_key.to_string(), val.clone());
+                                }
+                            }
+                        }
+                        if !merged.is_empty() {
+                            return Some(serde_json::Value::Object(merged));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 pub async fn ensure_loaded(
     client: &Client,
     base_url: &str,
@@ -344,8 +457,48 @@ pub async fn ensure_loaded(
     draft_model: Option<&str>,
     max_wait_secs: u64,
 ) -> AppResult<bool> {
-    // Preferred: explicit load endpoint with the requested preset.
-    let load_body = preset.to_load_json(model_key, draft_model);
+    // PATIENCE PRINCIPLE: if the model is already resident (loaded by the
+    // user's GUI, a prior run, or anything else), USE IT. Never re-POST a
+    // load — re-loading a large model thrashes RAM and can abort the engine
+    // on slow / memory-constrained hardware. Verify residency first.
+    //
+    // Residency signal: LM Studio reports a loaded model either via
+    // `state: "loaded"` (v0 /models) or a non-empty `loaded_instances`
+    // list (v1 /models). Check both so neither endpoint's shape hides a
+    // resident model from us.
+    {
+        let models = list_ls_models(client, base_url).await?;
+        let resident = models.iter().any(|m| {
+            m.id == model_key
+                && (m.load_state == "loaded" || !m.loaded_instances.is_empty())
+        });
+        if resident {
+            tracing::info!("ensure_loaded: {} already resident — using it", model_key);
+            return Ok(true);
+        }
+    }
+
+    // Build the load body from the requested preset, then MERGE the model's
+    // stored LM Studio per-model defaults (the user-maintained
+    // user-concrete-model-default-config/*.json). This preserves
+    // model-specific fields our preset template omits — critically
+    // `num_experts` for MoE models (e.g. gpt-oss-120b), which LM Studio
+    // needs or the engine startup aborts. Stored values win on conflict so
+    // a known-good config is never overridden by our generic profile.
+    let mut load_body = preset.to_load_json(model_key, draft_model);
+    if let Some(stored) = read_stored_model_default(model_key) {
+        if let Some(obj) = stored.as_object() {
+            for (k, v) in obj {
+                // Only merge engine fields we don't already control
+                // explicitly; never clobber model/draft identity.
+                if k != "model" && k != "speculative_draft_model" {
+                    load_body[k.clone()] = v.clone();
+                }
+            }
+        }
+        tracing::debug!("ensure_loaded: merged stored defaults for {}", model_key);
+    }
+
     let load_resp = client
         .post(format!("{}/api/v1/models/load", base_url))
         .json(&load_body)
@@ -356,26 +509,17 @@ pub async fn ensure_loaded(
     match &load_resp {
         Ok(r) if r.status().is_success() => {}
         Ok(r) => {
-            // LM Studio answered — but rejected the model. This is a real
-            // verdict, not "endpoint doesn't exist"; don't paper over it
-            // with a JIT-probe retry, and don't poll for it to change.
             let status = r.status();
-            // Consume the body (can't re-read `r` after this without cloning
-            // the response, so we do it once here and decide based on status).
             return Err(AppError::Executor(format!(
                 "LM Studio explicitly rejected loading {} (HTTP {}). The model is registered but not currently loadable — check for an in-progress download of a sibling quant blocking the model directory, or a corrupt/incomplete file.",
                 model_key, status
             )));
         }
-        Err(_) => {
-            // Transport-level failure (endpoint missing on older LM Studio,
-            // connection issue) — fall through to the JIT probe below.
-        }
+        Err(_) => {}
     }
 
     let explicit_load_ok = matches!(&load_resp, Ok(r) if r.status().is_success());
     if !explicit_load_ok {
-        // Fallback: a 1-token chat probe triggers LM Studio's JIT loader.
         tracing::warn!(
             "Explicit load failed for {}; falling back to JIT probe",
             model_key

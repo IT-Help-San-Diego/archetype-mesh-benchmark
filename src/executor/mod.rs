@@ -421,7 +421,31 @@ async fn execute_run_inner(
         run_id: i32,
         model_id: i32,
         model_key: &str,
+        client: &reqwest::Client,
+        base_url: &str,
     ) -> AppResult<()> {
+        // PATIENCE PRINCIPLE: if the model is already resident, the RAM is
+        // already committed — re-loading won't consume more, so skip the
+        // guard entirely. This lets a user who pre-loaded a large model
+        // (e.g. a 120B on a slow machine) benchmark it without the guard
+        // refusing based on "available" memory that's already spoken for.
+        if let Ok(models) = lmstudio::list_ls_models(client, base_url).await {
+            if models
+                .iter()
+                .any(|m| m.id == model_key && m.load_state == "loaded")
+            {
+                emit(
+                    tx,
+                    serde_json::json!({
+                        "type": "phase", "run_id": run_id, "phase": "memory_check",
+                        "message": format!("Memory check: {} already resident — guard skipped", model_key),
+                        "at": now_iso()
+                    }),
+                );
+                return Ok(());
+            }
+        }
+
         // Get the model's size from the DB (size_gb, optional — some models lack it).
         // size_gb is NULL for models we synced from LM Studio (which does not
         // report size) or synced before a download captured it. sqlx decodes a
@@ -528,8 +552,34 @@ async fn execute_run_inner(
                         "message": "Clean room: ejecting all loaded models from LM Studio", "at": now_iso()
                     }),
                 );
-                let ejected =
-                    cancellable!(lmstudio::eject_all(&client, &config.lmstudio_base_url))?;
+                // PATIENCE PRINCIPLE: if the target model is already resident,
+                // do NOT eject it — tearing down a working 120B just to
+                // immediately re-load it thrashes RAM and can abort the engine
+                // on slow / memory-constrained hardware. Eject only the
+                // *other* instances, keeping the target in place.
+                let target_resident = {
+                    if let Ok(models) = lmstudio::list_ls_models(&client, &config.lmstudio_base_url).await {
+                        models.iter().any(|m| {
+                            m.id == model_key
+                                && (m.load_state == "loaded" || !m.loaded_instances.is_empty())
+                        })
+                    } else {
+                        false
+                    }
+                };
+                let ejected = if target_resident {
+                    emit(
+                        tx,
+                        serde_json::json!({
+                            "type": "phase", "run_id": run_id, "phase": "ejected",
+                            "model_key": model_key,
+                            "message": format!("{} already resident — skipping eject (patience principle)", model_key), "at": now_iso()
+                        }),
+                    );
+                    lmstudio::eject_others(&client, &config.lmstudio_base_url, model_key).await?
+                } else {
+                    lmstudio::eject_all(&client, &config.lmstudio_base_url).await?
+                };
                 emit(
                     tx,
                     serde_json::json!({
@@ -539,7 +589,7 @@ async fn execute_run_inner(
                     }),
                 );
 
-                check_memory_safety(db, tx, run_id, model_id, model_key).await?;
+                check_memory_safety(db, tx, run_id, model_id, model_key, &client, &config.lmstudio_base_url).await?;
 
                 emit(
                     tx,
@@ -616,9 +666,9 @@ async fn execute_run_inner(
                     AppError::Executor(format!("Unknown draft model key: {}", draft_key))
                 })?;
 
-                check_memory_safety(db, tx, run_id, model_id, model_key).await?;
+                check_memory_safety(db, tx, run_id, model_id, model_key, &client, &config.lmstudio_base_url).await?;
                 if let Some(draft_id) = draft_model_id {
-                    check_memory_safety(db, tx, run_id, draft_id, draft_key).await?;
+                    check_memory_safety(db, tx, run_id, draft_id, draft_key, &client, &config.lmstudio_base_url).await?;
                 }
 
                 let pair_load_start = std::time::Instant::now();
