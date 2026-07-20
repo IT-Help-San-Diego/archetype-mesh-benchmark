@@ -587,10 +587,15 @@ pub async fn chat(
     });
 
     let start = Instant::now();
+    // PER-TRIAL TIMEOUT: a single chat call must answer within 90s on this
+    // hardware. A model that cannot return within that window is broken or
+    // pathologically slow — fail fast rather than hang the whole run (and
+    // every queued run behind it). 300s was too long: a silent/empty model
+    // could block 102 trials x 300s = hours of frozen executor.
     let resp = client
         .post(format!("{}/api/v0/chat/completions", base_url))
         .json(&body)
-        .timeout(std::time::Duration::from_secs(300))
+        .timeout(std::time::Duration::from_secs(90))
         .send()
         .await?
         .error_for_status()?;
@@ -606,14 +611,21 @@ pub async fn chat(
     let content = message
         .and_then(|m| m.get("content"))
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| {
-            AppError::Executor(format!(
-                "LM Studio returned no content for {} (raw: {})",
+        .map(|s| s.to_string());
+
+    // EMPTY CONTENT = non-functional model. A model returning "" (not
+    // missing, but blank) is broken — treat it as an infrastructure failure
+    // so the run aborts instead of scoring 102 silent zeros across hours.
+    let content = match content {
+        Some(c) if !c.trim().is_empty() => c,
+        _ => {
+            return Err(AppError::Executor(format!(
+                "LM Studio returned empty content for {} (model is non-functional / not answering) — aborting trial. Raw: {}",
                 model_key,
                 &json.to_string().chars().take(300).collect::<String>()
-            ))
-        })?;
+            )));
+        }
+    };
 
     // Extended-thinking / chain-of-thought trace — captured separately so a
     // model's reasoning can be audited against its final answer, not just

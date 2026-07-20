@@ -991,6 +991,20 @@ async fn execute_run_inner(
                 ),
             });
 
+            // CIRCUIT BREAKER: if the model has produced >=3 consecutive
+            // infrastructure failures (empty content / timeout / load
+            // reject), it is non-functional — abort the run NOW instead of
+            // burning the remaining trials (and blocking every queued run
+            // behind it). A broken model won't suddenly start answering.
+            // This is what stops a silent/empty model from hanging the
+            // executor for hours (e.g. harmonic-hermes family returning "").
+            if infra_error_count >= 3 && completed_trials >= 3 {
+                return Err(AppError::Executor(format!(
+                    "Run aborted after {} consecutive infrastructure failures ({} total trials) for {} — model is non-functional (empty/timeout responses). Not a capability result.",
+                    infra_error_count, completed_trials, model_key
+                )));
+            }
+
             completed_trials += 1;
             emit(
                 tx,
