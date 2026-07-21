@@ -107,7 +107,11 @@ pub async fn list_keys() -> AppResult<Json<KeyListResponse>> {
             KeyStatus {
                 provider: p.to_string(),
                 configured,
-                key_masked: if configured { "••••••••" } else { "" },
+                key_masked: if configured {
+                    "••••••••"
+                } else {
+                    ""
+                },
             }
         })
         .collect();

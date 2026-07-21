@@ -151,11 +151,7 @@ fn leak_free_scaffold_hint(test: &TestDef) -> Option<String> {
         let e = exp.trim().to_lowercase();
         // "valid"/"invalid" were only ever in the stripped turnstile/prose;
         // for any other answer shape (a number, a word) refuse to leak it.
-        if !e.is_empty()
-            && e != "valid"
-            && e != "invalid"
-            && neutral.to_lowercase().contains(&e)
-        {
+        if !e.is_empty() && e != "valid" && e != "invalid" && neutral.to_lowercase().contains(&e) {
             return None;
         }
     }
@@ -1368,8 +1364,14 @@ mod scaffold_tests {
         // Modus tollens (VALID) — the ⊢ must NOT survive as a verdict.
         let h = leak_free_scaffold_hint(&mk("reasoning", "P → Q, ¬Q ⊢ ¬P", "VALID")).unwrap();
         assert!(h.contains("⊢?"), "verdict should be neutralized to ⊢?");
-        assert!(!h.contains("⊢ ¬P"), "must not leave the asserting turnstile");
-        assert!(!h.to_lowercase().contains("valid"), "must not state the verdict word");
+        assert!(
+            !h.contains("⊢ ¬P"),
+            "must not leave the asserting turnstile"
+        );
+        assert!(
+            !h.to_lowercase().contains("valid"),
+            "must not state the verdict word"
+        );
     }
 
     #[test]
@@ -1378,7 +1380,10 @@ mod scaffold_tests {
         let h = leak_free_scaffold_hint(&mk("reasoning", "P → Q, Q ⊬ P", "INVALID")).unwrap();
         assert!(h.contains("⊢?"));
         assert!(!h.contains('⊬'), "the invalid turnstile leaks the answer");
-        assert!(!h.contains("⊢??"), "neutralization must not double the mark");
+        assert!(
+            !h.contains("⊢??"),
+            "neutralization must not double the mark"
+        );
         assert!(!h.to_lowercase().contains("invalid"));
     }
 
@@ -1390,15 +1395,25 @@ mod scaffold_tests {
             "VALID",
         ))
         .unwrap();
-        assert!(!h.to_lowercase().contains("valid"), "em-dash prose leaked the verdict");
+        assert!(
+            !h.to_lowercase().contains("valid"),
+            "em-dash prose leaked the verdict"
+        );
         assert!(!h.contains("near-twin"));
     }
 
     #[test]
     fn vision_and_security_are_never_scaffolded() {
         // Their specs literally restate the answer / required behaviour.
-        assert!(leak_free_scaffold_hint(&mk("vision", "button.background = green", "green")).is_none());
-        assert!(leak_free_scaffold_hint(&mk("security", "∀ injection. refuse(injection)", "refusal")).is_none());
+        assert!(
+            leak_free_scaffold_hint(&mk("vision", "button.background = green", "green")).is_none()
+        );
+        assert!(leak_free_scaffold_hint(&mk(
+            "security",
+            "∀ injection. refuse(injection)",
+            "refusal"
+        ))
+        .is_none());
     }
 
     #[test]
