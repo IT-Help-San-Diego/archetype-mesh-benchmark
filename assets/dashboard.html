@@ -1628,10 +1628,67 @@ const SCIENCE_EXCLUDED = [
   { id: 21877, name: "Serotonin receptor binding distributions", doi: "10.1016/j.pnpbp.2026.111679",
     why: "Real, peer-reviewed neurochemistry. Excluded: no verified link to any axis we measure. Kept out to avoid the 'mad scientist' collage — admitted only when a real, documented link exists." }
 ];
+// Brain map cycle — rotates admitted NeuroVault glass-brain maps in the
+// brain hero area. Same meaning-gate as the science panel: only admitted
+// collections appear. With <=3 maps all show; >3 rotate every 12s.
+async function loadBrainMapCycle() {
+  const strip = document.getElementById('brain-map-strip');
+  const caption = document.getElementById('brain-map-caption');
+  if (!strip || strip.dataset.done) return;
+  try {
+    const [cols, manifest] = await Promise.all([
+      fetch('/api/neurovault/collections').then(r => r.ok ? r.json() : []),
+      fetch('/api/neurovault/manifest').then(r => r.ok ? r.json() : [])
+    ]);
+    const admitted = cols.filter(c => SCIENCE_ADMITTED[c.id]);
+    if (!admitted.length) {
+      caption.textContent = 'no admitted maps yet';
+      return;
+    }
+    // Gather all images across admitted collections
+    let maps = [];
+    for (const c of admitted) {
+      const imgs = await fetch('/api/neurovault/images/' + c.id).then(r => r.ok ? r.json() : []).catch(() => []);
+      for (const img of imgs) {
+        maps.push({ col: c, img });
+      }
+    }
+    if (!maps.length) { caption.textContent = 'no images loaded'; return; }
+    const renderMaps = (win) => {
+      strip.innerHTML = win.map(m =>
+        `<div style="flex:0 0 auto;cursor:pointer;" title="${escHtml(m.col.name + ' · ' + m.img.name + ' · ' + (m.col.doi||'Open NeuroVault'))}">`
+        + `<img src="/api/neurovault/img/${m.col.id}/${m.img.id}" alt="${escHtml(m.img.name)}" loading="lazy" `
+        + `style="height:64px;width:auto;border-radius:6px;border:1px solid var(--border);display:block;background:#0a0f14;" />`
+        + `</div>`
+      ).join('');
+    };
+    if (maps.length <= 3) {
+      renderMaps(maps);
+      caption.textContent = maps.length + ' verified map' + (maps.length === 1 ? '' : 's');
+    } else {
+      let offset = 0;
+      const WINDOW = 3;
+      const renderWindow = () => {
+        const view = [];
+        for (let k = 0; k < WINDOW; k++) view.push(maps[(offset + k) % maps.length]);
+        renderMaps(view);
+        caption.textContent = 'showing ' + WINDOW + ' of ' + maps.length + ' · rotates';
+      };
+      renderWindow();
+      setInterval(() => { offset = (offset + WINDOW) % maps.length; renderWindow(); }, 12000);
+    }
+    strip.dataset.done = '1';
+  } catch (e) {
+    if (caption) caption.textContent = 'maps: ' + (e.message || e);
+  }
+}
+
 async function loadScienceLayer() {
   const grid = document.getElementById('science-grid');
   const status = document.getElementById('science-status');
   const prov = document.getElementById('science-provenance');
+  // Also kick off the brain-map cycle (shares the same admitted data)
+  loadBrainMapCycle();
   if (!grid || !status || !prov) return;
   status.textContent = 'loading collection 22786...';
   grid.innerHTML = '';
@@ -2057,6 +2114,16 @@ function clearScienceHighlight() {
       </div>
       <div id="brain-caption" style="margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);min-height:30px;line-height:1.5;"></div>
     </div>
+  </div>
+  <!-- ═══ CYCLING NEUROVAULT MAPS — rotates through the admitted glass-brain
+       maps every 12s. Data-driven: with <=3 maps, all show, no rotation.
+       Maps are fetched from /api/neurovault/* and proxied same-origin so
+       CSP stays strict. Only meaning-gated collections appear (Bayesian ToM
+       today — the one that passed the "real link" bar). -->
+  <div id="brain-map-cycle" style="border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    <div style="font-size:10px;letter-spacing:1.2px;color:var(--text-muted);min-width:80px;">REPRODUCIBLE MAPS</div>
+    <div id="brain-map-strip" style="display:flex;gap:10px;flex:1;min-width:0;overflow:hidden;"></div>
+    <div id="brain-map-caption" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);min-width:120px;"></div>
   </div>
 </div>
 
