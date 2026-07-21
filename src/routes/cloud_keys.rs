@@ -85,13 +85,17 @@ pub struct SetKeyRequest {
 pub struct KeyStatus {
     pub provider: String,
     pub configured: bool,
-    pub key_preview: String, // first 8 chars + "…" — never the full key
+    // Presence only — NEVER key material. This endpoint is unauthenticated;
+    // exposing even the first 8 chars of an API key (which for most providers
+    // includes an identifiable prefix) is a real secret leak.
+    pub key_masked: &'static str,
 }
 
 #[derive(Serialize)]
 pub struct KeyListResponse {
     pub providers: Vec<KeyStatus>,
-    pub secrets_path: String,
+    // Intentionally NO secrets_path: the absolute path leaked the OS username
+    // over an unauthenticated GET.
 }
 
 pub async fn list_keys() -> AppResult<Json<KeyListResponse>> {
@@ -99,28 +103,16 @@ pub async fn list_keys() -> AppResult<Json<KeyListResponse>> {
     let providers: Vec<KeyStatus> = SUPPORTED_PROVIDERS
         .iter()
         .map(|p| {
-            let key = store.keys.get(*p);
-            let preview = key
-                .map(|k| {
-                    if k.len() > 8 {
-                        format!("{}…", &k[..8])
-                    } else {
-                        "…".to_string()
-                    }
-                })
-                .unwrap_or_default();
+            let configured = store.keys.contains_key(*p);
             KeyStatus {
                 provider: p.to_string(),
-                configured: key.is_some(),
-                key_preview: preview,
+                configured,
+                key_masked: if configured { "••••••••" } else { "" },
             }
         })
         .collect();
 
-    Ok(Json(KeyListResponse {
-        providers,
-        secrets_path: secrets_path().to_string_lossy().to_string(),
-    }))
+    Ok(Json(KeyListResponse { providers }))
 }
 
 pub async fn set_key(
@@ -154,16 +146,10 @@ pub async fn set_key(
     };
     std::env::set_var(env_var, &req.key);
 
-    let preview = if req.key.len() > 8 {
-        format!("{}…", &req.key[..8])
-    } else {
-        "…".to_string()
-    };
-
     Ok(Json(serde_json::json!({
         "provider": provider,
         "configured": true,
-        "key_preview": preview,
+        "key_masked": "••••••••",
         "message": format!("{} key stored — cloud runs are now available", provider),
     })))
 }

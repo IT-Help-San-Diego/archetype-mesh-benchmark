@@ -5725,14 +5725,14 @@ async function loadCloudKeys() {
     const data = r.data;
     let html = '<div class="key-setup-card">';
     for (const p of data.providers) {
-      const status = p.configured ? '<span class="key-status configured">configured (' + p.key_preview + ')</span>' : '<span class="key-status">not set</span>';
+      const status = p.configured ? '<span class="key-status configured">configured ' + (p.key_masked || '••••••••') + '</span>' : '<span class="key-status">not set</span>';
       html += '<div class="key-row"><span class="key-provider">' + p.provider + '</span>' + status +
         '<input type="password" class="key-input" id="key-input-' + p.provider + '" placeholder="paste ' + p.provider + ' API key..." autocomplete="off">' +
         '<button class="key-btn" onclick="saveCloudKey(\'' + p.provider + '\')">Save</button>' +
         (p.configured ? '<button class="key-btn danger" onclick="deleteCloudKey(\'' + p.provider + '\')">Remove</button>' : '') +
         '</div>';
     }
-    html += '</div><div style="font-size:10px;color:var(--text-muted);margin-top:8px">Keys stored at: ' + data.secrets_path + '</div>';
+    html += '</div><div style="font-size:10px;color:var(--text-muted);margin-top:8px">Keys are stored locally in an operator-only secrets file (path not exposed over the API).</div>';
     panel.innerHTML = html;
   } catch(e) { panel.innerHTML = 'Error: ' + e.message; }
 }

@@ -121,27 +121,24 @@ fn build_messages(
 ) -> AppResult<Vec<serde_json::Value>> {
     let mut messages: Vec<serde_json::Value> = Vec::new();
 
-    // Scaffold system prompt: gives the model the formal structure (Lean formula)
-    // without revealing the answer. This is guidance, not a hint — the model
-    // still has to reason through the argument and determine VALID/INVALID.
+    // Scaffold system prompt: the operator's general reasoning-guidance prompt.
+    //
+    // ANTI-CHEAT (I1): we DELIBERATELY do NOT append test.formal_spec here. The
+    // formal spec IS the ground-truth answer for these tests — a reasoning
+    // spec's ⊢/⊬ turnstile literally states VALID/INVALID, a vision spec names
+    // the exact expected string ("menubar.app = Obsidian"), and a security spec
+    // states the required refusal policy. Appending it handed the model an
+    // answer key and confounded the entire scaffold-vs-cleanroom experiment
+    // (baseline answered "OmniFocus"; scaffolded, with the spec, answered
+    // "Obsidian"). Scaffolded mode now measures ONLY the effect of the
+    // operator's general system prompt — never a per-test answer leak. If a
+    // leak-free structural hint is ever wanted, it must be a separately stored,
+    // answer-stripped field that passes the create_test leakage guard.
     if let Some(scaffold) = scaffold_supplement {
         if !scaffold.is_empty() {
-            // Build a scaffold that includes the formal spec if available
-            let mut system_content = scaffold.to_string();
-            if let Some(ref spec) = test.formal_spec {
-                if !spec.is_empty() {
-                    system_content.push_str(&format!(
-                        "\n\nFormal specification of this argument type:\n{}\n\
-                         Use this formal structure to guide your analysis. \
-                         Pay careful attention to the direction of implication \
-                         and the difference between universal and existential quantifiers.",
-                        spec
-                    ));
-                }
-            }
             messages.push(serde_json::json!({
                 "role": "system",
-                "content": system_content
+                "content": scaffold,
             }));
         }
     }
@@ -1139,19 +1136,27 @@ async fn execute_run_inner(
     );
     let sha3 = provenance::sha3_hex(&evidence_record);
 
-    // Auto-quarantine bad runs so they never pollute the leaderboard, but
-    // preserve them in trial_results for post-mortem learning.
-    // Reasons:
-    //   infrastructure_error — LM Studio/provider rejected requests before the
-    //     model could answer; the model was never actually tested.
-    //   blank_responses — model returned empty content on every trial.
-    //   all_failed — model answered every trial but got zero passes.
-    let quarantine_reason = if infra_error_count > 0 {
+    // Auto-quarantine ONLY runs whose evidence is untrustworthy — i.e.
+    // infrastructure noise DOMINATED the run (more trials died before the model
+    // could answer than actually survived to be scored). Infra trials are
+    // already excluded from the denominator above, so a run with substantial
+    // clean evidence plus a few infra blips is a VALID measurement and MUST stay
+    // on the leaderboard. (Previously ANY single infra trial quarantined the
+    // whole run: a perfect 78/78 reasoning run vanished from every aggregate for
+    // one rejected request — the fleet's best evidence made invisible.)
+    //
+    // A run that genuinely answered its trials and passed none is an HONEST
+    // failure verdict (INTERMITTENT/FAIL/UNSAFE) — it is NEVER quarantined;
+    // hiding a real bad result is dishonesty in the opposite direction. The old
+    // `blank_responses` branch was dead (blank trials are reclassified as infra
+    // upstream) and the `all_failed` branch suppressed exactly those honest
+    // failures. Trial-granular contamination is the deeper fix (see the
+    // quarantine-redesign refactor); this run-granular rule stops the bleeding.
+    //
+    // `total_count` here is the infra-excluded real count (shadowed above), so
+    // `infra_error_count > total_count` means "more attempts died than survived".
+    let quarantine_reason = if infra_error_count > total_count {
         Some("infrastructure_error")
-    } else if pass_count == 0 && total_count > 0 {
-        Some("blank_responses")
-    } else if pass_count == 0 {
-        Some("all_failed")
     } else {
         None
     };

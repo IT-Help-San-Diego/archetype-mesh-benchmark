@@ -10,11 +10,69 @@
 
 use axum::{
     body::Body,
-    http::{header, HeaderName, HeaderValue, Request, Response},
+    http::{header, HeaderName, HeaderValue, Request, Response, StatusCode},
     middleware::Next,
     response::IntoResponse,
 };
 use rand::Rng;
+use std::collections::HashSet;
+use std::sync::OnceLock;
+
+/// Hostnames this server will answer for. Anything else is rejected — this is
+/// the DNS-rebinding guard: `local.calibrationscope.com` resolves to 127.0.0.1
+/// publicly, so without a Host check a malicious page could rebind a hostname
+/// IT controls to 127.0.0.1 and drive this (unauthenticated) API from the
+/// victim's browser. Extend for a real public deployment via ALLOWED_HOSTS
+/// (comma-separated), evaluated once.
+fn allowed_hosts() -> &'static HashSet<String> {
+    static HOSTS: OnceLock<HashSet<String>> = OnceLock::new();
+    HOSTS.get_or_init(|| {
+        let mut s: HashSet<String> = [
+            "127.0.0.1",
+            "localhost",
+            "::1",
+            "local.calibrationscope.com",
+            "calibrationscope.com",
+            "www.calibrationscope.com",
+        ]
+        .iter()
+        .map(|h| h.to_string())
+        .collect();
+        if let Ok(extra) = std::env::var("ALLOWED_HOSTS") {
+            for h in extra.split(',') {
+                let h = h.trim().to_lowercase();
+                if !h.is_empty() {
+                    s.insert(h);
+                }
+            }
+        }
+        s
+    })
+}
+
+/// True when the request's Host header names a host we serve — OR is absent.
+///
+/// The guard's job is to defeat browser DNS-rebinding, which REQUIRES the
+/// browser to send the attacker's origin as Host (that's what smuggles the
+/// request past same-origin policy). A present-but-wrong Host is exactly that
+/// attack and is rejected. A MISSING Host is not a rebinding vector — browsers
+/// always send one; only non-browser clients (curl --http1.0, the test
+/// harness's oneshot requests) omit it — so it is allowed. The port is
+/// stripped; IPv6 literals (`[::1]:8768`) are handled.
+fn host_is_allowed(host_header: Option<&HeaderValue>) -> bool {
+    let Some(hv) = host_header else {
+        return true; // no Host → not a browser rebinding request
+    };
+    let Ok(h) = hv.to_str() else {
+        return false;
+    };
+    let host = if let Some(rest) = h.strip_prefix('[') {
+        rest.split(']').next().unwrap_or("") // [ipv6]:port -> ipv6
+    } else {
+        h.rsplit_once(':').map(|(a, _)| a).unwrap_or(h) // host:port -> host
+    };
+    allowed_hosts().contains(&host.to_lowercase())
+}
 
 /// Per-request CSP nonce, carried through the middleware → handler chain
 /// via request extensions so `index_handler` can stamp it onto inline scripts.
@@ -57,6 +115,16 @@ fn csp(nonce: &str) -> String {
 /// it into the handler via `Extension<Nonce>`, then stamps the response with
 /// all security headers once the handler has produced it.
 pub async fn security_headers(req: Request<Body>, next: Next) -> Response<Body> {
+    // DNS-rebinding guard: reject any Host we don't serve, before the request
+    // reaches a handler. 421 Misdirected Request is the precise status.
+    if !host_is_allowed(req.headers().get(header::HOST)) {
+        return (
+            StatusCode::MISDIRECTED_REQUEST,
+            "Host not allowed for this instrument.",
+        )
+            .into_response();
+    }
+
     // Fresh nonce for THIS request.
     let nonce = gen_nonce();
     let (mut parts, body) = req.into_parts();

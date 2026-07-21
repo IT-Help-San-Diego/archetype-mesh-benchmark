@@ -164,6 +164,7 @@ pub async fn model_dossier(
         JOIN test_runs r ON r.id = tr.run_id
         LEFT JOIN tests t ON t.id = tr.test_id
         WHERE r.model_id = $1 AND r.status = 'done' AND (quarantined IS NULL OR quarantined = FALSE)
+          AND tr.is_infra_error = false
         GROUP BY tr.test_id, t.name, r.axis
         ORDER BY r.axis, t.name NULLS LAST
         "#,
