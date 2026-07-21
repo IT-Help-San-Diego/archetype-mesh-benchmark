@@ -3830,12 +3830,14 @@ function brainFire(axis, passed) {
 function brainTrialStart(d) {
   const axis = d.axis;
   if (!axis) return;
-  const el = document.getElementById('br-' + axis);
-  if (!el) return;
+  // Fire on ALL matching brain regions (deep workspace + focused shell clone)
+  const els = document.querySelectorAll('.brain-region[data-axis="' + axis + '"]');
+  if (!els.length) return;
   const rgb = BRAIN_AXIS_COLORS[axis] || '212,168,83';
-  // Start sustained glow — region stays lit for entire trial duration
-  el.style.setProperty('--region-color', `rgba(${rgb},0.5)`);
-  el.classList.add('firing');
+  els.forEach(el => {
+    el.style.setProperty('--region-color', `rgba(${rgb},0.5)`);
+    el.classList.add('firing');
+  });
   // Push spec into the stream — labeled by notation so we never falsely
   // claim "Lean" for non-logic axes. Reasoning specs are pure Lean (no
   // prefix); vision/tools/security carry a spatial:/schema:/policy: prefix.
@@ -3869,16 +3871,18 @@ function brainTrialStart(d) {
 function brainTrialResult(d) {
   const axis = d.axis;
   if (!axis) return;
-  const el = document.getElementById('br-' + axis);
-  if (!el) return;
+  const els = document.querySelectorAll('.brain-region[data-axis="' + axis + '"]');
+  if (!els.length) return;
   const rgb = BRAIN_AXIS_COLORS[axis] || '212,168,83';
   // Verdict color: pass = axis color, fail = red
   const verdictColor = d.passed === false ? '248,81,73' : rgb;
-  el.style.setProperty('--region-color', `rgba(${verdictColor},${d.passed === false ? 0.7 : 0.55})`);
-  // Retrigger the firing animation with the verdict color
-  el.classList.remove('firing');
-  void el.getBoundingClientRect();
-  el.classList.add('firing');
+  els.forEach(el => {
+    el.style.setProperty('--region-color', `rgba(${verdictColor},${d.passed === false ? 0.7 : 0.55})`);
+    // Retrigger the firing animation with the verdict color
+    el.classList.remove('firing');
+    void el.getBoundingClientRect();
+    el.classList.add('firing');
+  });
   // Caption update with result
   const verdict = d.passed ? 'PASS ✓' : 'FAIL ✗';
   const spec = d.formal_spec ? ` — ${d.formal_spec}` : '';
@@ -6032,23 +6036,25 @@ async function focusedRun(mode) {
   const provider = sel.selectedOptions[0]?.dataset.provider || 'lmstudio';
   const axes = focusedAxes();
   log.textContent = '…';
+  const JSON_HEADERS = { 'Content-Type': 'application/json' };
   try {
     let res;
     const unwrap = (r) => (r && r.data !== undefined ? r.data : r);
     if (mode === 'missing') {
-      res = unwrap(await apiFetch('/api/runs/complete', { method: 'POST', body: JSON.stringify({ model_key: key, provider }) }));
+      res = unwrap(await apiFetch('/api/runs/complete', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider }) }));
       log.textContent = `completion run ${res.run_id ?? '?'} · gap ${res.gap_count ?? 0}`;
     } else if (mode === 'just') {
       const ids = prompt('Test IDs to run (comma-separated):', '');
       if (!ids) { log.textContent = ''; return; }
       const test_ids = ids.split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n));
       if (!test_ids.length) { log.textContent = 'no valid ids'; return; }
-      res = unwrap(await apiFetch('/api/runs', { method: 'POST', body: JSON.stringify({ model_key: key, provider, test_ids }) }));
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, test_ids }) }));
       log.textContent = `run ${res.run_id ?? (res.run_ids||[])[0] ?? '?'} · ${test_ids.length} test(s)`;
     } else {
-      res = unwrap(await apiFetch('/api/runs', { method: 'POST', body: JSON.stringify({ model_key: key, provider, axes }) }));
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, axes }) }));
       log.textContent = `run(s) ${JSON.stringify(res.run_ids || [])} · ${axes.length} axis battery`;
     }
+    if (res && res.ok === false) { log.textContent = 'API error: ' + (res.error || res.status); return; }
   } catch (e) {
     log.textContent = 'error: ' + (e.message || e);
   }
@@ -6074,9 +6080,14 @@ function toggleMode() {
 (function restoreMode() {
   try {
     const saved = localStorage.getItem('calibration-mode');
-    // Default: Deep (today's full flow). Focused is opt-in until it proves
-    // itself daily-driven — same caution as the Readable default in reverse.
-    if (saved === 'focused') {
+    // Focused is the DEFAULT (product decision): single-viewport workspace,
+    // brain centerpiece, action never leaves the screen. Deep is the opt-in
+    // full-density cockpit for scientists who want everything visible.
+    if (saved === 'deep') {
+      document.documentElement.setAttribute('data-mode', 'deep');
+      const btn = document.getElementById('mode-toggle');
+      if (btn) btn.textContent = 'Mode: Deep';
+    } else {
       document.documentElement.setAttribute('data-mode', 'focused');
       const btn = document.getElementById('mode-toggle');
       if (btn) btn.textContent = 'Mode: Focused';
