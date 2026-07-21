@@ -991,23 +991,18 @@ async fn execute_run_inner(
                 ),
             });
 
-            // CIRCUIT BREAKER — dead-model detection ONLY. Abort when the
-            // model has answered NOTHING and infra failures have piled up:
-            // that is the harmonic-hermes signature (empty content on every
-            // trial, hours of hang without this guard). A model with ANY
-            // scored trial is alive — individual tests that deterministically
-            // return null (e.g. Fable 5 emitting content=null on one
-            // safety-classification prompt, found live run 910) are already
-            // excluded from the capability denominator as infra errors, and
-            // must NOT kill the rest of the battery. Wall-clock budget still
-            // bounds the worst case.
-            let scored_trials = (completed_trials + 1) - infra_error_count;
-            if infra_error_count >= 5 && scored_trials == 0 {
-                return Err(AppError::Executor(format!(
-                    "Run aborted: {} infrastructure failures and zero scored trials for {} — model never answered (dead/empty). Not a capability result.",
-                    infra_error_count, model_key
-                )));
-            }
+            // NO mid-run circuit breaker — by design, after three live
+            // miscalibrations (runs 904, 910, 911). Every heuristic tried
+            // ("N consecutive infra", "majority infra", "infra with zero
+            // scored") false-aborted a healthy run, because a gap/completion
+            // run can legitimately OPEN with tests a model deterministically
+            // nulls on (Fable 5: content=null on safety-classifier prompts)
+            // — indistinguishable mid-run from a dead model. The bounds that
+            // actually protect the machine are structural: the 90s per-trial
+            // timeout (a dead model fails fast per trial, no more 300s
+            // hangs) and the wall-clock run budget. A truly dead model now
+            // produces an honest all-infra 0-scored verdict within budget
+            // instead of a guessed abort.
 
             completed_trials += 1;
             emit(
