@@ -5926,19 +5926,31 @@ async function focusedPopulateSubjects() {
   }
 }
 function focusedSyncShell() {
-  // Mirror the deep workspace's brain + stream into the focused shell —
+  // Mirror the deep workspace's brain + Owl cards into the left well —
   // the SAME DOM nodes stay the source of truth (SSE keeps working).
   const brain = document.querySelector('#page-benchmark #brain-viz');
+  const owl = document.querySelector('#page-benchmark #owl-semaphore');
   const stream = document.querySelector('#page-benchmark #formula-stream-container');
   const brainCopy = document.getElementById('center-scroll-copy');
   const streamWrap = document.getElementById('focused-stream-wrap');
   if (brain && brainCopy && !brainCopy.dataset.done) {
     brainCopy.appendChild(brain.cloneNode(true));
+    if (owl) brainCopy.appendChild(owl.cloneNode(true));
     brainCopy.dataset.done = '1';
   }
   if (stream && streamWrap && !streamWrap.dataset.done) {
     streamWrap.appendChild(stream.cloneNode(true));
     streamWrap.dataset.done = '1';
+  }
+  // The LIVE rolling log (SSE trial/verdict lines) lives in #ws-stream
+  // .live-log — clone it into the focused stream panel so Focused actually
+  // shows trials rolling, not a static spec container.
+  const liveLog = document.querySelector('#page-benchmark #ws-stream .live-log');
+  if (liveLog && streamWrap && !streamWrap.dataset.livelog) {
+    const clone = liveLog.cloneNode(true);
+    clone.id = 'focused-live-log';
+    streamWrap.appendChild(clone);
+    streamWrap.dataset.livelog = '1';
   }
 }
 // Run modes against the existing API — no dumbing down.
