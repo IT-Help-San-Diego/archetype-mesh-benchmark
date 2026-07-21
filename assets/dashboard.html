@@ -1562,10 +1562,34 @@ async function loadScienceLayer() {
       + '<span style="font-size:11px;letter-spacing:1px;color:var(--accent-gold,#d4a853);">REPRODUCIBLE FUNCTIONAL ANATOMY - ONE VERIFIED LINK</span>'
       + '<span id="science-cycle" style="font-size:10px;color:var(--text-muted);"></span>'
       + '</div>'
-      + '<div id="science-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">' + cards.join('') + '</div>'
+      + '<div id="science-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;"></div>'
       + '<div id="science-why" style="display:none;margin-top:10px;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text-secondary);"></div>'
       + excludedHtml
       + '</div>';
+    // CYCLE-OF-THREE: show at most 3 admitted maps at once. When more
+    // than 3 maps have EARNED admission (meaning-gate), rotate the window
+    // every 12s so the panel stays compact instead of becoming a collage.
+    // Data-driven: with <=3 admitted maps nothing rotates and the label
+    // says exactly what is shown — no fake motion, no filler.
+    window.__scienceCards = cards;
+    if (window.__scienceCycleTimer) { clearInterval(window.__scienceCycleTimer); window.__scienceCycleTimer = null; }
+    const cardsEl = document.getElementById('science-cards');
+    const cycleEl = document.getElementById('science-cycle');
+    const WINDOW = 3;
+    if (cards.length <= WINDOW) {
+      cardsEl.innerHTML = cards.join('');
+      cycleEl.textContent = cards.length + ' verified map' + (cards.length === 1 ? '' : 's');
+    } else {
+      let offset = 0;
+      const renderWindow = () => {
+        const view = [];
+        for (let k = 0; k < WINDOW; k++) view.push(cards[(offset + k) % cards.length]);
+        cardsEl.innerHTML = view.join('');
+        cycleEl.textContent = 'showing ' + WINDOW + ' of ' + cards.length + ' verified maps · rotates';
+      };
+      renderWindow();
+      window.__scienceCycleTimer = setInterval(() => { offset = (offset + WINDOW) % cards.length; renderWindow(); }, 12000);
+    }
     window.__scienceAdmitted = admitted;
     if (admitted[0]) document.getElementById('science-why').textContent = SCIENCE_ADMITTED[admitted[0].id].why;
 
