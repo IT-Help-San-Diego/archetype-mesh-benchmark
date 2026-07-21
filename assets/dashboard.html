@@ -715,6 +715,43 @@
   html[data-mode="focused"] #brain-viz { padding: 32px 48px !important; }
   html[data-mode="focused"] #ws-center { padding: 0 clamp(16px, 6vw, 96px); }
 
+  /* ═══ FOCUSED SHELL — the working single-viewport layout ═══
+     Top: focused-top bar (subject pick + run-all / run-missing / run-just).
+     Center: brain (lights up per-trial via SSE).
+     Right: live stream (Lean spec + log rolling) — visible, not collapsed.
+     The flyout rails remain for power users, but the common case needs
+     NONE of them. No dumbing down: every run mode exists here. */
+  #focused-shell { display: none; }
+  html[data-mode="focused"] #focused-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
+    grid-template-rows: auto 1fr;
+    gap: 14px;
+    padding: 12px clamp(12px, 3vw, 32px);
+    height: calc(100vh - 37px);
+    overflow: hidden;
+  }
+  #focused-top {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: 10px;
+  }
+  #focused-top .ft-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--text-muted); }
+  #focused-subject-pick { font-size: 13px; min-width: 220px; padding: 6px 8px; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; }
+  #focused-axes { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  #focused-axes label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  #focused-runlog { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+  #focused-brain-wrap { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  #focused-stream-wrap { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  /* The brain + Owl cards scroll together in the left well. */
+  #focused-brain-wrap > #center-scroll-copy { flex: 1; min-height: 0; overflow-y: auto; }
+  /* Hide the deep-cockpit workspace when the focused shell is up. */
+  html[data-mode="focused"] #workspace { display: none !important; }
+
   #a11y-toggle {
     font-weight: 700;
     font-size: 12px;
@@ -1258,8 +1295,12 @@
   .brain-leg.lit .brain-dot { background: var(--dot-color, var(--accent-gold)); box-shadow: 0 0 6px var(--dot-color, var(--accent-gold)); }
 
   .nav-arrow { color: var(--text-muted); font-size: 11px; padding: 0 3px; user-select: none; align-self: center; }
-  .top-nav img.logo { height: 32px; cursor: pointer; }
-  body:has(#page-benchmark:not([style*="display: none"])) .top-nav img.logo { visibility: hidden; }
+  .top-nav img.logo { height: 100%; max-height: 36px; width: auto; object-fit: contain; cursor: pointer; align-self: center; flex-shrink: 0; }
+  /* Branding is a landing thing, not a persistent header. Hide the owl in
+     Focused mode and whenever the benchmark workspace is the active page —
+     the action is the brand there. */
+  html[data-mode="focused"] .top-nav img.logo,
+  body:has(#page-benchmark:not([style*="display: none"])) .top-nav img.logo { display: none; }
 
   /* ═══ IMMERSIVE WORKSPACE (2026-07-14) ═══
      Single-viewport cockpit: Run bar + model rail LEFT, brain pinned CENTER,
@@ -1736,6 +1777,31 @@ function clearScienceHighlight() {
 
 <!-- ============ PAGE: Benchmark ============ -->
 <div class="page" id="page-benchmark">
+
+<!-- ═══ FOCUSED SHELL — the single-viewport working layout ═══
+     Brain center (lights up per-trial), live stream right, real subject
+     pick + every run mode on top. No dumbing down. -->
+<div id="focused-shell" aria-label="Focused workspace">
+  <div id="focused-top">
+    <span class="ft-label">SUBJECT</span>
+    <select id="focused-subject-pick" aria-label="Pick the subject to test (silicon model or human participant)"></select>
+    <span class="ft-label">AXES</span>
+    <div id="focused-axes" aria-label="Pick test axes">
+      <label><input type="checkbox" value="reasoning" checked> reasoning</label>
+      <label><input type="checkbox" value="vision" checked> vision</label>
+      <label><input type="checkbox" value="tools" checked> tools</label>
+      <label><input type="checkbox" value="security" checked> security</label>
+      <label><input type="checkbox" value="literary"> literary</label>
+    </div>
+    <button class="btn btn-primary" id="focused-run-all" onclick="focusedRun('all')" title="Run every selected axis battery on this subject">Run</button>
+    <button class="btn btn-secondary" id="focused-run-missing" onclick="focusedRun('missing')" title="Fill only the gaps — tests with zero clean trials (do the rest of the test)">Run Missing</button>
+    <button class="btn btn-secondary" id="focused-run-just" onclick="focusedRun('just')" title="Run only the test IDs you pick">Run Just This…</button>
+    <span id="focused-runlog" aria-live="polite"></span>
+  </div>
+  <div id="focused-brain-wrap"><div id="center-scroll-copy"></div></div>
+  <div id="focused-stream-wrap" aria-label="Live run stream"></div>
+</div>
+
 <div id="workspace">
 
 <!-- ═══ LEFT RAIL — command & selection: Run is always one glance away ═══ -->
@@ -5835,7 +5901,86 @@ async function loadOwlCoverage() {
     owlInit();
   } catch (e) { /* non-fatal — strip shows default honest state */ }
 }
-// ── Mode toggle: Focused (single-viewport workspace) ↔ Deep (full flow) ──
+// ── Focused shell driver — populate subjects, wire brain + stream, run modes ──
+async function focusedPopulateSubjects() {
+  const sel = document.getElementById('focused-subject-pick');
+  if (!sel) return;
+  try {
+    const res = await apiFetch('/api/models');
+    const payload = res && res.data !== undefined ? res.data : res; // apiFetch wraps {ok,status,data}
+    const models = Array.isArray(payload) ? payload : (payload.models || []);
+    // Focused common case: runnable local LM Studio models first, cloud after.
+    const local = models.filter(m => (m.provider === 'lmstudio' || m.location === 'local') && m.runnable !== false);
+    const cloud = models.filter(m => (m.provider !== 'lmstudio' && m.location !== 'local') && m.runnable !== false);
+    const mk = (m) => {
+      const gb = m.size_gb != null ? ` · ${Number(m.size_gb).toFixed(1)}GB` : '';
+      const prov = m.provider || (m.location === 'local' ? 'lmstudio' : 'cloud');
+      return `<option value="${m.key}" data-provider="${prov}">⚙ ${m.key}${gb}</option>`;
+    };
+    sel.innerHTML = `<option value="">— pick a subject —</option>`
+      + (local.length ? `<optgroup label="Local (LM Studio)">${local.map(mk).join('')}</optgroup>` : '')
+      + (cloud.length ? `<optgroup label="Cloud">${cloud.map(mk).join('')}</optgroup>` : '');
+    if (!local.length && !cloud.length) sel.innerHTML = '<option value="">(no runnable models)</option>';
+  } catch (e) {
+    sel.innerHTML = '<option value="">(roster unavailable: ' + (e.message || e) + ')</option>';
+  }
+}
+function focusedSyncShell() {
+  // Mirror the deep workspace's brain + stream into the focused shell —
+  // the SAME DOM nodes stay the source of truth (SSE keeps working).
+  const brain = document.querySelector('#page-benchmark #brain-viz');
+  const stream = document.querySelector('#page-benchmark #formula-stream-container');
+  const brainCopy = document.getElementById('center-scroll-copy');
+  const streamWrap = document.getElementById('focused-stream-wrap');
+  if (brain && brainCopy && !brainCopy.dataset.done) {
+    brainCopy.appendChild(brain.cloneNode(true));
+    brainCopy.dataset.done = '1';
+  }
+  if (stream && streamWrap && !streamWrap.dataset.done) {
+    streamWrap.appendChild(stream.cloneNode(true));
+    streamWrap.dataset.done = '1';
+  }
+}
+// Run modes against the existing API — no dumbing down.
+function focusedAxes() {
+  return Array.from(document.querySelectorAll('#focused-axes input:checked')).map(i => i.value);
+}
+async function focusedRun(mode) {
+  const sel = document.getElementById('focused-subject-pick');
+  const log = document.getElementById('focused-runlog');
+  const key = sel && sel.value;
+  if (!key) { log.textContent = 'pick a subject first'; return; }
+  const provider = sel.selectedOptions[0]?.dataset.provider || 'lmstudio';
+  const axes = focusedAxes();
+  log.textContent = '…';
+  try {
+    let res;
+    const unwrap = (r) => (r && r.data !== undefined ? r.data : r);
+    if (mode === 'missing') {
+      res = unwrap(await apiFetch('/api/runs/complete', { method: 'POST', body: JSON.stringify({ model_key: key, provider }) }));
+      log.textContent = `completion run ${res.run_id ?? '?'} · gap ${res.gap_count ?? 0}`;
+    } else if (mode === 'just') {
+      const ids = prompt('Test IDs to run (comma-separated):', '');
+      if (!ids) { log.textContent = ''; return; }
+      const test_ids = ids.split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n));
+      if (!test_ids.length) { log.textContent = 'no valid ids'; return; }
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', body: JSON.stringify({ model_key: key, provider, test_ids }) }));
+      log.textContent = `run ${res.run_id ?? (res.run_ids||[])[0] ?? '?'} · ${test_ids.length} test(s)`;
+    } else {
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', body: JSON.stringify({ model_key: key, provider, axes }) }));
+      log.textContent = `run(s) ${JSON.stringify(res.run_ids || [])} · ${axes.length} axis battery`;
+    }
+  } catch (e) {
+    log.textContent = 'error: ' + (e.message || e);
+  }
+}
+// Wire focused shell when mode flips / page loads.
+function focusedEnsure() {
+  if (document.documentElement.getAttribute('data-mode') === 'focused') {
+    focusedPopulateSubjects();
+    focusedSyncShell();
+  }
+}
 function toggleMode() {
   const cur = document.documentElement.getAttribute('data-mode');
   const focused = cur !== 'focused';
@@ -5845,6 +5990,7 @@ function toggleMode() {
   if (btn) btn.textContent = 'Mode: ' + (focused ? 'Focused' : 'Deep');
   // Focused forces the benchmark workspace active (it is the only page).
   if (focused) showPage('benchmark');
+  focusedEnsure();
 }
 (function restoreMode() {
   try {
@@ -5856,6 +6002,7 @@ function toggleMode() {
       const btn = document.getElementById('mode-toggle');
       if (btn) btn.textContent = 'Mode: Focused';
       showPage('benchmark');
+      focusedEnsure();
     }
   } catch(e) {}
 })();
