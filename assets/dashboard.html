@@ -642,6 +642,17 @@
   /* Accessibility toggle — must be legible on the dark theme in BOTH states.
      Default (Readable: On) = solid amber pill, black text (high contrast, pops).
      Off (Deep mode) = dark pill, solid light text (never gray-on-white). */
+  #mode-toggle { cursor: pointer; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; background: var(--bg-card); }
+  #mode-toggle:hover { filter: brightness(1.1); }
+  html[data-mode="focused"] #mode-toggle { background: var(--accent-cyan, #3fd8c9); color: #04110f; font-weight: 600; }
+  /* FOCUSED MODE — Benchmark workspace is the ONLY page. The action never
+     leaves the viewport: rail (select/run) | center (brain + stream) |
+     stream. Nothing is REMOVED (full power) — the other tabs are hidden,
+     every capability still reachable by flipping back to Deep. */
+  html[data-mode="focused"] .top-nav .tab[id^="tab-"]:not(#mode-toggle):not(#a11y-toggle):not(#tab-benchmark),
+  html[data-mode="focused"] .top-nav .nav-arrow { display: none; }
+  html[data-mode="focused"] .page:not(#page-benchmark) { display: none !important; }
+
   #a11y-toggle {
     font-weight: 700;
     font-size: 12px;
@@ -1640,7 +1651,9 @@ function clearScienceHighlight() {
 <!-- Top Nav -->
 <div class="top-nav" id="top-nav">
   <img class="logo" src="/assets/owl-semaphore-logo.png" alt="Owl of Athena" onerror="this.style.display='none'" style="height:32px;margin-right:6px;cursor:pointer" onclick="showPage('benchmark')">
-  <button id="a11y-toggle" class="tab" onclick="toggleA11y()" title="High-contrast / large-text mode" style="margin-left:auto;cursor:pointer;">Readable: Off</button>
+  <div id="context-flip" class="tab" title="Local instrument now — calibrationscope.com web presence is a future phase (directional placeholder, no fake auth)" style="cursor:default;opacity:.85"><span style="color:var(--accent-gold)">LOCAL</span><span style="opacity:.5"> ⇄ </span><span style="opacity:.4">WEB</span></div>
+  <button id="mode-toggle" class="tab" onclick="toggleMode()" title="Focused = single-viewport workspace (action never leaves the screen). Deep = full tab flow with everything visible. Both modes keep full power — Focused arranges, Deep exposes.">Mode: Deep</button>
+  <button id="a11y-toggle" class="tab" onclick="toggleA11y()" title="High-contrast / large-text mode" style="cursor:pointer;">Readable: Off</button>
 
   <div class="tab" onclick="showPage('setup')" id="tab-setup">Setup</div>
   <span class="nav-arrow">→</span>
@@ -5760,6 +5773,31 @@ async function loadOwlCoverage() {
     owlInit();
   } catch (e) { /* non-fatal — strip shows default honest state */ }
 }
+// ── Mode toggle: Focused (single-viewport workspace) ↔ Deep (full flow) ──
+function toggleMode() {
+  const cur = document.documentElement.getAttribute('data-mode');
+  const focused = cur !== 'focused';
+  document.documentElement.setAttribute('data-mode', focused ? 'focused' : 'deep');
+  try { localStorage.setItem('calibration-mode', focused ? 'focused' : 'deep'); } catch(e) {}
+  const btn = document.getElementById('mode-toggle');
+  if (btn) btn.textContent = 'Mode: ' + (focused ? 'Focused' : 'Deep');
+  // Focused forces the benchmark workspace active (it is the only page).
+  if (focused) showPage('benchmark');
+}
+(function restoreMode() {
+  try {
+    const saved = localStorage.getItem('calibration-mode');
+    // Default: Deep (today's full flow). Focused is opt-in until it proves
+    // itself daily-driven — same caution as the Readable default in reverse.
+    if (saved === 'focused') {
+      document.documentElement.setAttribute('data-mode', 'focused');
+      const btn = document.getElementById('mode-toggle');
+      if (btn) btn.textContent = 'Mode: Focused';
+      showPage('benchmark');
+    }
+  } catch(e) {}
+})();
+
 // ── Accessibility toggle: high-contrast / large-text mode ──────────
 function toggleA11y() {
   const cur = document.documentElement.getAttribute('data-a11y');
