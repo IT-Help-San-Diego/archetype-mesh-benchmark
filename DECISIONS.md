@@ -273,6 +273,34 @@ content-addressed blob store; we read JSON over localhost:1234). See
   Face doesn't reliably expose GGUF sizes in model metadata. The manifest is
   DATA (our leaderboard), not a scrape.
 
+## 10.6 Goldilocks floor probe (Hermes Agent, 2026-07-21)
+
+Mission: find the lightest local model that can run a real test, so the tool
+vectors into reality for users NOT on a 128 GB Mac. Tested the reasoning axis
+on the smallest untested local model under the **lightweight** engine preset
+(memory-constrained: parallel=1, eval_batch_size=1024, physical_batch_size=256,
+KV-offload — the constrained-hardware profile, not the 128 GB ceiling).
+
+**Verified floor chain (live, sealed):**
+
+| Model | Size | Reasoning | Config | Usable? |
+|---|---|---|---|---|
+| qwen2.5-0.5b-instruct (GGUF) | 0.5B | 46% | — | ❌ breaks |
+| qwen2.5-0.5b-instruct-mlx (run 916) | 0.5B | 41% (42/102) | lightweight | ❌ breaks |
+| llama-3.2-1b-instruct | 1B | 47% | — | ❌ breaks |
+| qwen2.5-1.5b-instruct | 1.5B | 65% | — | ⚠️ barely |
+| google/gemma-4-e2b | 2B | 82% | — | ✅ usable |
+| ibm/granite-3.2-8b | 8B | 60% → 73% scaffold | — | ⚠️ |
+
+**Findings:**
+- The 0.5B floor is **41-46% regardless of format** (GGUF 46% vs MLX 41%) —
+  format does NOT rescue the floor. Below 1.5B the model cannot reason reliably.
+- The Goldilocks boundary: **<1.5B breaks, 1.5B barely works (65%), 2B
+  (gemma-4-e2b 82%) is genuinely usable.** That is the reality vector.
+- The lightweight preset did NOT hurt the 0.5B (41% lightweight ≈ 46% GGUF
+  default) — accuracy-neutral, consistent with the "knobs are speed-only"
+  finding (§10.5 / run-verified).
+
 ---
 
 ## 11. Next steps (open — both tools)
