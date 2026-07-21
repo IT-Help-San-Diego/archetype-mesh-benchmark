@@ -289,17 +289,42 @@ KV-offload — the constrained-hardware profile, not the 128 GB ceiling).
 | qwen2.5-0.5b-instruct-mlx (run 916) | 0.5B | 41% (42/102) | lightweight | ❌ breaks |
 | llama-3.2-1b-instruct | 1B | 47% | — | ❌ breaks |
 | qwen2.5-1.5b-instruct | 1.5B | 65% | — | ⚠️ barely |
-| google/gemma-4-e2b | 2B | 82% | — | ✅ usable |
+| google/gemma-4-e2b | 2B | 99% (run 793, clean infra) | — | ✅ usable |
 | ibm/granite-3.2-8b | 8B | 60% → 73% scaffold | — | ⚠️ |
 
 **Findings:**
 - The 0.5B floor is **41-46% regardless of format** (GGUF 46% vs MLX 41%) —
   format does NOT rescue the floor. Below 1.5B the model cannot reason reliably.
 - The Goldilocks boundary: **<1.5B breaks, 1.5B barely works (65%), 2B
-  (gemma-4-e2b 82%) is genuinely usable.** That is the reality vector.
+  (gemma-4-e2b 99%) is genuinely usable.** That is the reality vector.
 - The lightweight preset did NOT hurt the 0.5B (41% lightweight ≈ 46% GGUF
   default) — accuracy-neutral, consistent with the "knobs are speed-only"
   finding (§10.5 / run-verified).
+- CORRECTION (2026-07-21): the e2b baseline is **99%** (run 793, clean infra),
+  not the 82% initially cited (that was a stale aggregate). See §10.7.
+
+## 10.7 Scaffold does NOT heal an already-strong model (falsification, run 917)
+
+Hypothesis: the generalized scaffold that heals WEAK reasoners (granite 45→63/90,
+qwen1.5b 60→72/102) would also lift the smallest-USABLE model (gemma-4-e2b).
+**FALSIFIED.** Clean 102-trial runs on e2b:
+
+| Run | Config | Score |
+|---|---|---|
+| 793 | unscaffolded (clean infra) | **99.0%** (101/102) |
+| 917 | scaffolded (lightweight, generalized scaffold) | **94.1%** (96/102) |
+
+The scaffold **hurt** e2b by ~5 points (99 → 94). The 2B model already reasons
+near-ceiling on its own; adding generalized logic guidance introduced drag, not
+lift. **Interpretation:** the scaffold is a CRUTCH for weak reasoners, not a
+booster for strong ones. It repairs specific fallacy patterns in models that
+lack them; on a model that already has them, the extra instruction is noise.
+
+This is the control-before-celebration discipline: we predicted a heal, the data
+said no, and the falsification is the more valuable result — it bounds WHERE the
+scaffold lever applies (weak logic models) and where it does not (already-strong
+reasoners). Publication framing: scaffold efficacy is capability-dependent, with
+a measurable inversion point near the 2B/99%-baseline class.
 
 ---
 
