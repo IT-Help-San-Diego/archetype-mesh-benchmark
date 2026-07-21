@@ -108,6 +108,33 @@ now `scripts/verify_logic_ground_truth.py`.)_
   not on EC2, and is not billed by AWS.
 - **Secrets:** only in Customize → Credentials / Compute. **Never in chat.**
 
+## 4b. Storage & data durability (decided 2026-07-21)
+
+Principle — the 1990s rule, stated correctly: **"two is one, one is none."** One
+copy is effectively no copy. Critical data must exist in ≥2 independent places.
+**The EC2 disk is NOT one of them — it is SCRATCH.** If the only copy of something
+is on the box, it does not exist.
+
+Three tiers:
+- **Ephemeral / reproducible** (OS, Rust/QEMU/Docker toolchain, seL4 build trees):
+  lives on the EC2 90 GB disk. NOT backed up — the pinned bootstrap recipe (§5/§6)
+  IS the backup. Box dies → re-provision. This is what the disk is FOR (fast
+  builds), and why 90 GB is fine even though it's "big": it holds throwaway work.
+- **Durable + small/versionable** (DECISIONS.md, boot_validation.log, checksums,
+  CITATION.cff, datapackage.json, ontology_crosswalk.json, source, small outputs):
+  → **the git repo (GitHub)**. Versioned, backed up, exportable, diffable. Won't
+  "run out" for this content. (Limits: 100 MB/file HARD, <1 GB repo recommended,
+  Git LFS only ~1 GB free — so this tier is text/small only.)
+- **Durable + large** (datasets, figures, multi-GB build artifacts, archives):
+  → object storage / **Google Drive (Workspace)** — cross-compatible, exportable,
+  cloud-backed, already paid for. Large binaries do NOT belong in git.
+
+**Rule for the box:** before it stops, **evict every critical artifact off the
+scratch disk** — small → `git push` to the repo (deploy key); large → `rclone`
+to a Google Drive folder (or S3). Two independent providers (GitHub + Drive) =
+the data actually exists. (`image.elf` is 489 KB — fine in git today; this rule
+governs the moment artifacts grow.)
+
 ## 5. Remote host: ssh:cal-scope-sel4 (VERIFIED 2026-07-21)
 
 - Ubuntu 22.04.5, x86_64, 8 vCPU / 15 GB RAM / ~90 GB free (c7i.2xlarge). User
@@ -218,4 +245,8 @@ validated too._
 - [ ] Stand up the heavy Spot box; run l4v Isabelle/HOL proof (empirical boot → proven correct). _(Claude Science)_
 - [ ] Open-science moves #1–#6 (data package + DOI first); confirm Cognitive Atlas IDs before publishing. _(Claude Science → artifacts → Claude Code commits)_
 - [ ] Test-battery data fixes · provenance sealing · aggregate honesty · GUI magic. _(Claude Code — §7)_
-- [ ] **Stop the EC2 box when idle** (billing CPU while running). _(Carey/Claude Science)_
+- [ ] **Stop the EC2 box when idle** (billing CPU while running); run it
+      stopped-with-fast-start + idle-shutdown timer. _(Carey/Claude Science)_
+- [ ] **Artifact eviction (§4b):** set up box → durable storage before stop —
+      `git push` small/versionable artifacts; `rclone` large ones to Google Drive
+      (or S3). Nothing critical lives only on the scratch disk. _(Claude Science)_
