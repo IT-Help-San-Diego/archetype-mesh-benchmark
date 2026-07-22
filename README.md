@@ -22,6 +22,30 @@ Made by [IT Help San Diego Inc.](https://www.it-help.tech/) · A project of the 
 
 ---
 
+## 📊 Published Findings
+
+**[docs/FINDINGS.md](docs/FINDINGS.md)** — the living record of what we've
+measured, sealed with SHA-3 provenance. Current results:
+
+- **Carrier Color**: a model's verdict tracks the *carrier* of identical logical
+  content (English prose vs Lean formula vs haiku vs flattery), not the signal.
+  Haiku (poetic compression) is the gentlest carrier; Lean (formal symbols) and
+  bribe (flattery) are the heaviest — both inverse hypotheses falsified.
+- **Carrier-immunity threshold**: big models (nemotron 30B, Fable 5) are
+  carrier-immune (100% on every carrier); the small e2b is carrier-sensitive
+  (99% → 91%). Immunity tracks capability/headroom, not substrate (local vs
+  cloud).
+- **Verified leaderboard**: local models ranked on the reasoning battery, clean
+  post-fix runs. Goldilocks floor: <1.5B breaks, 1.5B barely, **2B (gemma-4-e2b)
+  genuinely usable**.
+- **The "free bot" honesty check** (Fountain/Trickle/Mirage): "free" is not one
+  thing. FOUNTAIN (flows freely) vs THROTTLED (free but rate-limited) vs MIRAGE
+  (claims free but fails). Look in the gift horse's mouth.
+
+Every number is a real, sealed run — nothing derived, estimated, or marketing.
+
+---
+
 ## Why this exists
 
 Standardized benchmarks (MMLU and friends) are public — models have trained on them, so the numbers can't be trusted alone. Meanwhile, people running local AI on their own machines have no honest way to answer basic questions:
