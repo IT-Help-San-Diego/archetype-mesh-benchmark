@@ -445,19 +445,29 @@ the operator's Hermes session DB (state.db, ~1.3GB of chats).
 
 **Finding:** the advanced user's MEDIAN prompt is tiny (372 chars / ~93 tokens)
 — most messages are short. The MEAN is dragged up by long deep-reasoning threads.
-**95% of prompts fit in ~1K tokens; 99% fit in ~6K tokens; only the outliers
-(p99–max) need ~6K–19K.** The benchmark's 131072 (128K) context preset is
-MASSIVE headroom — an 8K–16K context covers 99% of an advanced user's real
-prompts. Implication for the lightweight preset (32768 context): even THAT is
-generous for 95% of usage; the lightweight profile could go smaller for the
-median case without hurting the deep threads (which still fit in 32K).
+**95% of prompts fit in ~1K tokens; 99% fit in ~6K tokens.** BUT the extreme
+tail (big research dumps, logs, epistemic packets, attachments) is REAL and
+large: 20 messages >10K chars, max **314,732 chars (~78,700 tokens)** — the
+operator's own research texts (Societal Control Levers / Carrier Color theory),
+epistemic packets, live-file dumps. **279 messages reference attachments/images.**
 
-**This is the human-side Goldilocks answer:** the operator's prompts are mostly
-small, but the instrument must handle the long threads. Context_length is not
-"more is better" — it's a per-use-case budget, and 95% of the advanced user's
-budget is ~1K tokens. (Screenshot/vision messages are rare — the operator
-doesn't screenshot often; when they do, the vision-context sizing is a separate
-question, flagged for the vision-axis work.)
+**The Cat-8 headroom principle (the operator's own framing):** he cuts Cat-8
+cable to 90 ft, not the 98 ft spec max, because he knows what copper does.
+Apply it here: **don't size context to the median (~1K tokens, which covers 95%
+of messages) — size it to the EXTREME with headroom.** The 131072 (128K) context
+preset is NOT overkill for the tail — it's the right headroom for a ~78K-token
+research paste, with room to spare so the model never truncates the biggest
+inputs. The median is noise; the tail is the science. For a user who pastes big
+logs/attachments, the 128K context is the "90 ft cable" — generous, correct, and
+justified by the tail, not by the median.
+
+**This is the human-side Goldilocks answer, corrected:** the operator's prompts
+are mostly small, but the instrument must handle the long threads AND the big
+research dumps. Context_length is not "more is better" — it's a per-use-case
+budget, and the ADVANCED user's budget is bimodal: ~1K tokens for the median
+message, ~80K tokens for the deep-science paste. The 128K preset serves the
+tail. (Vision/screenshot messages: 279 attachment references — the operator DOES
+paste images more than "rarely"; vision-context sizing is part of the tail.)
 
 ---
 
