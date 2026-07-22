@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "calibration-scope"
+version = "0.1.0"
+description = "Read-only Python client for Calibration Scope — pull sealed benchmark results, leaderboard, and signal-carrier data from a running instance."
+readme = "README.md"
+license = { text = "BUSL-1.1" }
+authors = [{ name = "Carey Balboa / IT Help San Diego Inc." }]
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["llm", "benchmark", "calibration", "evaluation", "provenance"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://calibrationscope.com"
+Repository = "https://github.com/IT-Help-San-Diego/calibration-scope"
+
+[tool.setuptools.packages.find]
+where = ["python"]
