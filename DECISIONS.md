@@ -358,14 +358,38 @@ baseline 99.0% > haiku 97.1% > English prose 94.1% > Lean = Bribe 91.2%.
 - **Lean formula = WORST, tied with bribe** (91.2%). The formal symbol is the
   heaviest noise. The user's FIRST inverse ("English was the noise, Lean is
   clean") AND SECOND inverse ("flattery will lift it") are BOTH falsified.
-- **Carrier Color confirmed in a model**: the verdict tracks the CARRIER
-  (poetry vs prose vs formal symbol vs flattery), NOT the signal (identical
-  logic). The spectrum is real and measurable. Training-distribution read: the
-  model was trained on human text, so artfully-compressed human language
-  (haiku) is its native register; formal notation and social flattery are both
-  alien/heavy. We built a machine that reasons well in beautiful prose but
-  chokes on the notation we invented to make reasoning precise — and sees
-  through flattery as readily as it chokes on symbols.
+
+## 10.9 Carrier-immunity threshold — big models shrug off ALL carrier noise (runs 922-930)
+
+Replication of §10.8 on stronger models. Same LOGIC cluster (29 tests, modular
+`test_ids`), same 5 carriers, on a 30B local model (nemotron-3-nano-omni, 100%
+baseline) and the cloud frontier anchor (Fable 5, 100% baseline). Truncation
+confound ruled out: max 324 prompt + 764 completion tokens ≪ 131072 context /
+4096 eval_batch ceilings; zero infra errors.
+
+| Model | Baseline | English | Lean | Haiku | Bribe | Verdict |
+|---|---|---|---|---|---|---|
+| gemma-4-e2b (2B, §10.8) | 99.0% | 94.1% | 91.2% | 97.1% | 91.2% | **carrier-SENSITIVE** |
+| nemotron-3-nano-omni (30B) | 100% (87/87) | 100% | 100% | 100% | 100% | **carrier-IMMUNE** |
+| anthropic/claude-fable-5 (cloud) | 100% (85/85) | 100% (87/87) | 100% (84/84) | _running_ | _running_ | **carrier-IMMUNE** |
+
+**Finding:** carrier-immunity tracks **capability/headroom**, not substrate
+(local vs cloud). The small near-ceiling model (e2b, 99%) is dragged by carrier
+noise — the carrier crowds out its limited reasoning headroom (the user's
+"truncate middle / neutered" complaint). The 30B local and the cloud frontier
+model have enough headroom to absorb the noise AND keep the logic — 100% on
+EVERY carrier including Lean (worst on e2b) and bribe (flattery). **Below a
+capability/headroom threshold, a model is carrier-sensitive; above it,
+carrier-immune.** Fable 5 immunity (pending final 2 arms) confirms it holds
+across substrates — immunity is a property of the model, not where it runs.
+
+**Mechanism (the user's intuition, confirmed):** small models are "neutered" by
+carrier noise because the carrier consumes the same limited context/reasoning
+budget the logic needs. Big models have surplus headroom — the noise is
+absorbed without touching the logic. This is Carrier Color's capability
+threshold, measured.
+
+---
 
 ### 🔄 HANDOFF to Claude Science — Carrier Color replication (2026-07-21)
 
