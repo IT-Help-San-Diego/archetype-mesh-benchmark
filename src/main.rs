@@ -201,6 +201,23 @@ async fn main() {
             "/api/signal-carrier",
             get(routes::signal_carrier::signal_carrier),
         )
+        .route(
+            "/api/participants",
+            get(routes::participants::list_participants)
+                .post(routes::participants::create_participant),
+        )
+        .route(
+            "/api/participants/{id}/start",
+            post(routes::participants::start_session),
+        )
+        .route(
+            "/api/participants/{id}/answer",
+            post(routes::participants::submit_answer),
+        )
+        .route(
+            "/api/participants/{id}/finish",
+            post(routes::participants::finish_session),
+        )
         .nest_service("/assets", static_files)
         // 16MB body cap: a 10MB image (Prompt Builder max) is ~13.7MB as base64.
         .layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024))

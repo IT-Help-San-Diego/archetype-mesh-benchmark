@@ -18,6 +18,7 @@ pub mod quarantine;
 pub mod router;
 pub mod runs;
 pub mod signal_carrier;
+pub mod participants;
 pub mod spec_decode;
 pub mod status;
 pub mod summary;
