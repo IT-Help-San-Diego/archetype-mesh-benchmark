@@ -883,7 +883,8 @@ function renderGrid() {
 
   if (viewMode === 'cards') {
   grid.classList.remove('compact');
-  grid.innerHTML = rows.map(m => {
+  grid.innerHTML = (function() {
+    const _renderModelCard = (m) => {
     let verdicts = {};
     try { verdicts = JSON.parse(m.verdicts || '{}'); } catch(e) {}
     // Core 4 always render; literary joins the grid only once it has
@@ -956,7 +957,25 @@ function renderGrid() {
         ${runBtn}
       </div>
     </div>`;
-  }).join('');
+  };
+    const CHUNK = 60;
+    grid.innerHTML = rows.slice(0, CHUNK).map(_renderModelCard).join('');
+    let _off = CHUNK;
+    const _renderMore = () => {
+      if (_off >= rows.length) return;
+      const chunk = rows.slice(_off, _off + CHUNK);
+      grid.insertAdjacentHTML('beforeend', chunk.map(_renderModelCard).join(''));
+      _off += CHUNK;
+      if (_off < rows.length) {
+        if (window.requestIdleCallback) requestIdleCallback(_renderMore, { timeout: 300 });
+        else setTimeout(_renderMore, 16);
+      }
+    };
+    if (_off < rows.length) {
+      if (window.requestIdleCallback) requestIdleCallback(_renderMore, { timeout: 300 });
+      else setTimeout(_renderMore, 16);
+    }
+  })();
   } // end card mode
   else {
     // ═══ COMPACT ROSTER MODE (default) — the Star-Trek picker ═══
