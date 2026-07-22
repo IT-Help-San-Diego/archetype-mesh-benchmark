@@ -371,7 +371,7 @@ confound ruled out: max 324 prompt + 764 completion tokens ≪ 131072 context /
 |---|---|---|---|---|---|---|
 | gemma-4-e2b (2B, §10.8) | 99.0% | 94.1% | 91.2% | 97.1% | 91.2% | **carrier-SENSITIVE** |
 | nemotron-3-nano-omni (30B) | 100% (87/87) | 100% | 100% | 100% | 100% | **carrier-IMMUNE** |
-| anthropic/claude-fable-5 (cloud) | 100% (85/85) | 100% (87/87) | 100% (84/84) | _running_ | _running_ | **carrier-IMMUNE** |
+| anthropic/claude-fable-5 (cloud) | 100% (85/85) | 100% (87/87) | 100% (84/84) | 100% (79/79) | 100% (87/87) | **carrier-IMMUNE** |
 
 **Finding:** carrier-immunity tracks **capability/headroom**, not substrate
 (local vs cloud). The small near-ceiling model (e2b, 99%) is dragged by carrier
@@ -380,8 +380,8 @@ noise — the carrier crowds out its limited reasoning headroom (the user's
 model have enough headroom to absorb the noise AND keep the logic — 100% on
 EVERY carrier including Lean (worst on e2b) and bribe (flattery). **Below a
 capability/headroom threshold, a model is carrier-sensitive; above it,
-carrier-immune.** Fable 5 immunity (pending final 2 arms) confirms it holds
-across substrates — immunity is a property of the model, not where it runs.
+carrier-immune.** Confirmed on BOTH local (nemotron) and cloud (Fable 5) —
+immunity is a property of the model's capability, not where it runs.
 
 **Mechanism (the user's intuition, confirmed):** small models are "neutered" by
 carrier noise because the carrier consumes the same limited context/reasoning
