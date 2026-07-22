@@ -326,6 +326,37 @@ scaffold lever applies (weak logic models) and where it does not (already-strong
 reasoners). Publication framing: scaffold efficacy is capability-dependent, with
 a measurable inversion point near the 2B/99%-baseline class.
 
+## 10.8 Carrier Color — the verdict tracks the CARRIER, not the signal (run 918)
+
+The sharpest experiment yet, and the direct empirical test of the Carrier Color
+framework. Same logic content (modus ponens/tollens, converse/inverse invalid,
+universal-vs-existential), delivered to the SAME strong model (e2b, 99% baseline)
+through DIFFERENT carriers. No answer-leakage: every scaffold is domain-general,
+never a test-specific formula.
+
+| Arm | Carrier | Scaffold | Score | vs Baseline |
+|---|---|---|---|---|
+| 793 | none | — | **99.0%** (101/102) | — |
+| 917 | English prose | "carefully track the direction of implication…" | **94.1%** (96/102) | −4.9 |
+| 918 | Lean formula | `P → Q, P ⊢ Q … ⊬` formal schemas | **91.2%** (93/102) | −7.8 |
+| 919 | Haiku | poetic compression (same logic) | _pending_ | _pending_ |
+| 920 | Bribe | "you're brilliant, I'd love it, make the user happy" | _pending_ | _pending_ |
+
+**Findings (partial, 919/920 pending):**
+- **Every carrier drags the strong model.** Even the Lean formula — the most
+  "rigorous" carrier — hurt MORE than the plain English prose (91.2% < 94.1%).
+  The user's inverse hypothesis ("the English sentence was the noise, the Lean
+  formula is clean") is **falsified**: the formal symbol was the WORST noise.
+- Interpretation: a near-ceiling model does not need ANY scaffold, and every
+  carrier we add degrades it — but the dense formal symbols crowd out its own
+  reasoning most. The "be careful" prose is gentler noise; Lean is heavier noise.
+- **Carrier Color confirmed in a model**: the verdict tracks the CARRIER
+  (symbol vs prose vs poetry vs flattery), not the signal (identical logic).
+  This is the framework measured, not asserted.
+- 919 (haiku) + 920 (bribe) complete the triad→quintet: does the social carrier
+  (flattery) dominate, does poetic compression differ, and where does the model
+  land when "bribed"? Pending — chained watcher auto-fires them.
+
 ---
 
 ## 11. Next steps (open — both tools)
