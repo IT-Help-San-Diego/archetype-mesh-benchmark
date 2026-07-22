@@ -1,0 +1,1439 @@
+
+  :root {
+    /* ═══ IT Help San Diego corporate design language ═══
+       Tokens extracted from the live family properties (2026-07-09):
+       www.it-help.tech/css/tokens.css + dnstool.it-help.tech custom.css.
+       Surfaces are GitHub-dark; the accent voice is the Athena gold /
+       copper family with brand blue — NOT the Tailwind default swatch
+       (#58a6ff/#06b6d4/#c8956a…) this page shipped with, which is the
+       exact palette every AI-generated dashboard defaults to. */
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-card: #21262d;
+    --bg-card-hover: #30363d;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #9ca3af;
+    --text-muted: #8b949e;
+    /* Brand accents — same remapping trick DNS Tool uses: the variable
+       NAMES stay (so every downstream rule follows automatically), the
+       VALUES become corporate. Gold is the primary voice. */
+    --accent-gold: #d4a853;          /* Athena gold — primary accent  */
+    --accent-cyan: #d4a853;          /* remapped to gold, as on DNS Tool */
+    --accent-blue: #58a6ff;          /* brand blue                     */
+    --accent-green: #3fb950;         /* GitHub-dark success            */
+    --accent-amber: #e3b341;         /* GitHub-dark warning            */
+    --accent-purple: #c8956a;        /* copper — replaces AI violet    */
+    --accent-red: #f85149;           /* GitHub-dark danger             */
+    --accent-orange: #e8b54a;        /* warm amber-gold                */
+    --accent-steel: #9a8f82;
+    --safe: #3fb950;
+    --unsafe: #f85149;
+    --flaky: #e3b341;
+    /* Fibonacci spacing scale (px): 5 8 13 21 34 55 — adjacent steps sit
+       in golden-ratio proportion, so nested rhythm stays consonant. */
+    --fib-1: 5px; --fib-2: 8px; --fib-3: 13px; --fib-4: 21px;
+    --fib-5: 34px; --fib-6: 55px;
+    --font-mono: 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+  }
+  /* ═══ Accessibility — high-contrast / large-text mode ═══
+     Toggle via the "Readable" button in the top nav. Increases base
+     font, boosts text contrast to near-solid, enlarges hit targets.
+     Honors the user's stated need: older-scientist / low-vision friendly
+     on a large BenQ display. */
+  body { font-size: 15px; }
+  [data-a11y="high"] {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-card: #141414;
+    --bg-card-hover: #1f1f1f;
+    --border: #4a4a4a;
+    --text-primary: #ffffff;
+    --text-secondary: #e0e0e0;
+    --text-muted: #b8b8b8;
+    --accent-gold: #ffce6b;
+    --accent-blue: #74b9ff;
+    --accent-green: #5cff8f;
+    --accent-red: #ff6b6b;
+    --accent-amber: #ffd866;
+  }
+  [data-a11y="high"] body { font-size: 18px; line-height: 1.65; }
+  [data-a11y="high"] .top-nav .tab,
+  [data-a11y="high"] .btn-primary,
+  [data-a11y="high"] .btn-secondary { font-size: 16px; padding: 12px 20px; min-height: 44px; }
+  [data-a11y="high"] button { min-height: 40px; }
+  [data-a11y="high"] input, [data-a11y="high"] select { font-size: 16px; min-height: 40px; }
+  [data-a11y="high"] .owl-form, [data-a11y="high"] .science-card { padding: 16px; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Corporate footer — brand attribution, DNS Tool register */
+  .site-footer {
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    margin-top: var(--fib-6);
+    padding: var(--fib-4) var(--fib-4) var(--fib-5);
+  }
+  .site-footer-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; flex-wrap: wrap; gap: var(--fib-2); align-items: baseline;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .site-footer a { color: var(--accent-gold); text-decoration: none; border-bottom: 1px dotted rgba(212,168,83,0.4); }
+  .site-footer a:hover { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+  .site-footer-brand { font-weight: 600; }
+  .site-footer-sep { opacity: 0.5; }
+  .site-footer-note { font-style: italic; }
+
+  /* ── Model dossier modal — every factual thing we know, sourced ── */
+  .dossier-btn { margin-left: auto; flex-shrink: 0; }
+  .dossier-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+    backdrop-filter: blur(2px);
+  }
+  .dossier-modal {
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-top: 3px solid var(--accent-gold); border-radius: 10px;
+    width: min(760px, 92vw); max-height: 84vh; overflow-y: auto;
+    padding: var(--fib-4); position: relative;
+  }
+  .dossier-modal::before {
+    content: ''; position: absolute; top: var(--fib-3); right: var(--fib-3);
+    width: 89px; height: 89px; opacity: 0.07; pointer-events: none;
+    background: url('/assets/owl-signature.png') center/contain no-repeat;
+  }
+  .dossier-title { font-size: 17px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 2px; }
+  .dossier-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: var(--fib-3); }
+  .dossier-close { position: absolute; top: var(--fib-2); right: var(--fib-2); background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; z-index: 1; }
+  .dossier-close:hover { color: var(--text-primary); }
+  .dossier-section { margin-bottom: var(--fib-4); }
+  .dossier-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-gold); font-family: var(--font-mono); margin-bottom: var(--fib-2); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .dossier-kv { display: grid; grid-template-columns: 180px 1fr; gap: 3px var(--fib-3); font-size: 12px; }
+  .dossier-kv dt { color: var(--text-muted); }
+  .dossier-kv dd { font-family: var(--font-mono); word-break: break-word; }
+  .dossier-src { font-size: 10px; color: var(--text-muted); font-style: italic; margin-top: var(--fib-1); }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* Top nav — mirror DNS Tool tab aesthetic */
+  .top-nav {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 36px;
+    align-items: center;
+  }
+  .top-nav .tab {
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-sans);
+  }
+  .top-nav .tab.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--accent-cyan);
+  }
+  .top-nav .tab:hover { color: var(--text-primary); }
+  .top-nav .spacer { flex: 1; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
+  }
+  .logo {
+    width: 55px;
+    height: 55px;
+    margin-right: var(--fib-3);
+    filter: drop-shadow(0 0 8px rgba(212,168,83,0.25));
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .header-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--accent-amber);
+    color: var(--accent-amber);
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+
+  .btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    transition: background 120ms;
+  }
+  .btn-primary {
+    background: var(--accent-cyan);
+    color: #0d1117;
+  }
+  .btn-primary:hover { background: #e8b54a; } /* amber-gold hover — corporate, not Tailwind cyan */
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg-card-hover); }
+  .btn-danger {
+    background: var(--accent-red);
+    color: #fff;
+  }
+  .btn-danger:hover { background: #f85149; }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: flex;
+    gap: 12px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  /* ═══ AFFORDANCE SYSTEM (2026-07-14) ═══
+     User mandate: from the top of the page down, every region that holds a
+     CONTROL the user can click/change must read as interactive and distinct
+     from flat readout areas (stats). The vocabulary, applied consistently:
+       • Flat readout  → .stat: quiet, no left-rail, default cursor, no hover.
+       • Control zone   → .control-zone: a subtle raised panel with a gold
+         left-rail and an uppercase micro-label, so 'you can act here' is
+         legible before the user reads a single word.
+       • Interactive control → select/input/button: visible border that
+         warms to gold on hover, gold ring on focus. Never ambiguous. */
+  .control-zone {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .control-zone > .cz-label {
+    display: block;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent-gold);
+    margin-bottom: 8px; opacity: 0.85;
+  }
+  /* A flat readout strip carries a matching micro-label so the CONTRAST with
+     control zones is explicit: same size label, but steel/muted, no rail. */
+  .readout-zone > .rz-label {
+    display: block;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    min-width: 100px;
+    cursor: default;          /* readout, not a control — say so */
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    gap: 10px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.85;
+    width: 100%;
+  }
+  select, .chip {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+  }
+  /* Interactive affordance: every select/input the user can change warms to
+     gold on hover and shows a gold focus ring — the 'you can act here' cue
+     the affordance mandate requires, applied to the controls themselves. */
+  select { cursor: pointer; transition: border-color 120ms, box-shadow 120ms; }
+  select:hover { border-color: var(--accent-gold); }
+  select:focus { outline: none; border-color: var(--accent-gold); box-shadow: 0 0 0 2px rgba(212,168,83,0.25); }
+  input[type="text"] { transition: border-color 120ms, box-shadow 120ms; }
+  input[type="text"]:hover { border-color: var(--accent-gold); }
+  input[type="text"]:focus { outline: none; border-color: var(--accent-gold); box-shadow: 0 0 0 2px rgba(212,168,83,0.25); }
+  .chip {
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  .chip:hover { background: var(--bg-card-hover); }
+  .chip.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+  .chip.safe { background: rgba(63,185,80,0.15); color: var(--safe); border-color: var(--safe); }
+  .chip.unsafe { background: rgba(248,81,73,0.15); color: var(--unsafe); border-color: var(--unsafe); }
+  .chip.flaky { background: rgba(227,179,65,0.15); color: var(--flaky); border-color: var(--flaky); }
+
+  /* Cost-reality tiers: FREE* (claim, unverified) → TRICKLE → STANDARD → PREMIUM.
+     Palette is deliberately spread across hue space — green / cyan / blue /
+     gold — so FREE and TRICKLE can never be confused at a glance. */
+  .chip.cost-free { background: rgba(63,185,80,0.18); color: #3fb950; border-color: #3fb950; }
+  .chip.cost-trickle { background: rgba(88,166,255,0.14); color: #58a6ff; border-color: #58a6ff; } /* brand blue, not Tailwind cyan */
+  .chip.cost-standard { background: rgba(88,166,255,0.12); color: var(--accent-blue); border-color: var(--accent-blue); }
+  .chip.cost-premium { background: rgba(212,168,83,0.15); color: #d4a853; border-color: #d4a853; }
+
+  /* Model grid — bird's-eye scroll */
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 14px;
+    padding: 20px 24px;
+  }
+  .model-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: background 120ms, border-color 200ms;
+    position: relative;
+  }
+  .model-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-blue);
+  }
+  /* ═══ ROSTER PICKER (2026-07-14 v3 — legible rebuild) ═══
+     Prior version rendered cramped: 12.5px name, publisher fighting on the
+     same baseline, checkbox collapsed to an invisible sliver. Rebuilt for
+     legibility: taller rows, big bold white name on its own line, publisher
+     muted BELOW it, and a real 20px checkbox that's obvious empty AND filled.
+     Selection = whole row clickable + gold fill + gold left-rail. */
+  .model-grid.compact { grid-template-columns: 1fr; gap: 6px; }
+
+  // Visual instrumentation: data-click-count so we can verify clicks reach
+  // the row, and instant visual feedback for selected/unselected state.
+  .model-row {
+    display: flex; align-items: center; gap: 11px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    padding: 11px 12px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: background 100ms, border-color 150ms;
+  }
+  .model-row:hover { background: var(--bg-card-hover); border-left-color: var(--accent-gold); }
+  .model-row.selected {
+    border: 2px solid var(--accent-gold);
+    border-left: 5px solid var(--accent-gold);
+    background: rgba(212,168,83,0.30);
+    box-shadow: 0 0 0 1px rgba(212,168,83,0.7), 0 4px 14px rgba(212,168,83,0.18);
+    transform: scale(1.012);
+  }
+  /* Loaded-in-RAM state (silicon presence) — distinct from user selection. */
+  .model-row.loaded {
+    border: 2px solid var(--accent-cyan);
+    border-left: 5px solid var(--accent-cyan);
+    background: rgba(56,189,248,0.14);
+    box-shadow: 0 0 0 1px rgba(56,189,248,0.5);
+  }
+  .model-row.selected.loaded {
+    border: 2px solid var(--accent-gold);
+    border-left: 5px solid var(--accent-gold);
+    background: linear-gradient(90deg, rgba(212,168,83,0.34), rgba(56,189,248,0.10));
+    box-shadow: 0 0 0 1px rgba(212,168,83,0.7), 0 0 0 2px rgba(56,189,248,0.4);
+  }
+  /* Visual feedback so a click always has a visible consequence */
+  .model-row.flash { transition: background 0ms; background: rgba(212,168,83,0.35); }
+  .model-row.model-card-unresolved { opacity: 0.55; border-style: dashed; }
+  /* Real, obvious checkbox — 20px, clear empty box, gold-filled + ✓ when selected. */
+  .row-check {
+    flex: 0 0 24px; width: 24px; height: 24px;
+    border: 2px solid var(--text-muted); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    /* Always-show rule: checked = gold + dark checkmark; unchecked = visible gray box */
+    color: transparent;
+    background: var(--bg-primary);
+    transition: background 100ms, border-color 100ms, color 100ms;
+  }
+  .model-row:hover .row-check { border-color: var(--accent-gold); }
+  .model-row.selected .row-check { background: var(--accent-gold); border-color: var(--accent-gold); color: #0d1117; }
+  /* Unchecked: always a visible, unobtrusive gray box so the picker
+     communicates state even when nothing is selected yet (found live: the
+     old transparent-on-transparent looked like nothing was interactable). */
+  .model-row:not(.selected) .row-check { background: var(--bg-primary); border-color: var(--text-muted); }
+  .row-loc { flex: 0 0 auto; font-size: 16px; line-height: 1; }
+  .row-main { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  /* Name: big, bold, bright, its OWN line — the thing the eye needs. */
+  .row-name {
+    font-size: 15px; font-weight: 800; color: #e6edf3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    line-height: 1.35;
+  }
+  .row-model { color: var(--text-primary); }
+  /* Publisher: its own line BELOW the name, muted, small — never competes. */
+  .row-pub {
+    display: block; font-size: 12px; font-weight: 600; color: #c9d1d9;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    margin-top: 2px; text-transform: none; letter-spacing: 0.01em;
+  }
+  .row-facts {
+    font-size: 12px; color: #c9d1d9; font-family: var(--font-mono);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    display: flex; align-items: center; gap: 8px; margin-top: 3px;
+  }
+  .row-status {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    margin-top: 4px; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono);
+  }
+  .row-status.selected { color: #0d1117; background: var(--accent-gold); }
+  .row-status.loaded { color: #06121a; background: var(--accent-cyan); }
+  .row-status.selected.loaded { color: #0d1117; background: linear-gradient(90deg, var(--accent-gold) 0%, var(--accent-cyan) 100%); }
+  .row-dots { display: inline-flex; gap: 3px; align-items: center; flex: 0 0 auto; }
+  .row-dots .judge-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .row-actions { flex: 0 0 auto; display: flex; gap: 3px; align-items: center; }
+  .row-actions .btn-mini { padding: 3px 7px; font-size: 11px; line-height: 1.2; }
+  .view-toggle-btn {
+    background: var(--bg-card); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-mono);
+  }
+  .view-toggle-btn:hover { border-color: var(--accent-gold); color: var(--text-primary); }
+  /* Sticky roster header — column meaning stays visible during scroll
+     (setproduct guide: sticky header is the one situational element a
+     scrolling list always benefits from). */
+  .roster-head {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 10px; margin-bottom: 4px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--text-muted); text-transform: uppercase;
+  }
+  .roster-head .rh-spacer { flex: 0 0 18px; }
+  .roster-head .rh-main { flex: 1 1 auto; }
+  .roster-head .rh-verdict { flex: 0 0 auto; }
+  .roster-head .rh-act { flex: 0 0 auto; }
+  .roster-head .rh-act button { font-size: 10px; padding: 2px 8px; cursor: pointer; }
+  .model-card-unresolved {
+    opacity: 0.65;
+    border-style: dashed;
+    border-color: var(--flaky);
+  }
+  .model-card-unresolved:hover {
+    border-color: var(--flaky);
+  }
+  /* Spatial math v2 (DNS-Tool topology discipline, 2026-07-09): the old
+     contract reserved a fixed right-side corridor (158px) for absolutely-
+     positioned actions — correct for TWO buttons, silently wrong the day a
+     third (Insights) shipped: long names ran under the buttons (user
+     screenshot, inclusionAI/Ling). Fixed-corridor math is fragile because
+     it must be re-derived on every button change. New contract: ZERO
+     absolute positioning. Rows own zones in normal document flow —
+     header row = identity, meta rows = facts, verdict grid = evidence,
+     actions row = verbs (bottom, border-separated). Overlap is now
+     geometrically impossible at any name length, button count, or zoom.
+     Pure CSS flow = zero JS measurement = zero layout thrash. */
+  .model-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .model-name {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    min-width: 0;
+    overflow-wrap: anywhere; /* long model ids wrap, never clip or collide */
+  }
+  .badge-local, .badge-cloud {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .badge-local {
+    background: rgba(63,185,80,0.15);
+    color: var(--safe);
+    border: 1px solid rgba(63,185,80,0.3);
+  }
+  .badge-cloud {
+    background: rgba(88,166,255,0.15);
+    color: var(--accent-blue);
+    border: 1px solid rgba(88,166,255,0.3);
+  }
+  .provider-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere; /* same wrap rule as .model-name — one policy */
+  }
+  .copy-key-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: color 120ms, border-color 120ms;
+  }
+  .copy-key-btn:hover { color: var(--accent-gold, #d4a853); border-color: var(--accent-gold, #d4a853); }
+  .copy-key-btn.copied { color: var(--safe); border-color: var(--safe); }
+  .model-card-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .btn-mini {
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .btn-mini:hover { background: var(--accent-blue); border-color: var(--accent-blue); color: #0d1117; }
+
+  /* Verdict grid */
+  .verdict-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .verdict-cell {
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .verdict-cell.vision { border-left: 3px solid var(--accent-purple); }
+  .verdict-cell.tools { border-left: 3px solid var(--accent-cyan); }
+  .verdict-cell.reasoning { border-left: 3px solid var(--accent-green); }
+  .verdict-cell.security { border-left: 3px solid var(--accent-amber); }
+  .verdict-cell.literary { border-left: 3px solid var(--accent-gold, #d4a853); grid-column: 1 / -1; }
+  .v-safe { color: var(--safe); }
+  .v-unsafe { color: var(--unsafe); }
+  .v-flaky { color: var(--flaky); }
+  .v-empty { color: var(--text-muted); font-style: italic; }
+
+  /* Judge dot */
+  .judge-dot {
+    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+  }
+  .judge-dot.safe { background: var(--safe); box-shadow: 0 0 6px var(--safe); }
+  .judge-dot.unsafe { background: var(--unsafe); box-shadow: 0 0 6px var(--unsafe); }
+  .judge-dot.flaky { background: var(--flaky); box-shadow: 0 0 6px var(--flaky); }
+
+  /* Live log area */
+  .v-ms {
+    font-family: var(--font-mono); font-size: 10px; color: var(--accent-cyan);
+    opacity: 0.85; margin-left: 2px;
+  }
+  .top-nav .tab#tab-benchmark.active,
+  .top-nav .tab.active { background: var(--bg-primary); color: var(--text-primary); border-bottom: 2px solid var(--accent-cyan); }
+
+  /* Accessibility toggle — must be legible on the dark theme in BOTH states.
+     Default (Readable: On) = solid amber pill, black text (high contrast, pops).
+     Off (Deep mode) = dark pill, solid light text (never gray-on-white). */
+  #mode-toggle { cursor: pointer; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; background: var(--bg-card); }
+  #mode-toggle:hover { filter: brightness(1.1); }
+  html[data-mode="focused"] #mode-toggle { background: var(--accent-cyan, #3fd8c9); color: #04110f; font-weight: 600; }
+  /* FOCUSED MODE — Benchmark workspace is the ONLY page. The action never
+     leaves the viewport: rail (select/run) | center (brain + stream) |
+     stream. Nothing is REMOVED (full power) — the other tabs are hidden,
+     every capability still reachable by flipping back to Deep. */
+  html[data-mode="focused"] .top-nav .tab[id^="tab-"]:not(#mode-toggle):not(#a11y-toggle):not(#tab-benchmark),
+  html[data-mode="focused"] .top-nav .nav-arrow { display: none; }
+  html[data-mode="focused"] .page:not(#page-benchmark) { display: none !important; }
+
+  /* FOCUSED MODE — a genuinely different ARRANGEMENT of the workspace, not
+     just fewer tabs. Design goal (Hawking-accessibility + "the brain is the
+     centerpiece"): the center brain + action bar fill the viewport; the
+     dense rail (model grid) and the stream collapse into edge flyouts the
+     user opens deliberately. NOTHING is removed — the flyouts contain the
+     exact same full-power controls (select tests, run-all, run-missing,
+     run-just-this). Deep mode keeps the full three-column cockpit. */
+  html[data-mode="focused"] #workspace {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr !important;
+    height: calc(100vh - 37px) !important;
+    position: relative;
+  }
+  html[data-mode="focused"] #ws-rail,
+  html[data-mode="focused"] #ws-stream {
+    position: fixed;
+    top: 37px;
+    bottom: 0;
+    z-index: 40;
+    width: min(400px, 90vw);
+    background: var(--bg-primary);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+    box-shadow: none;
+  }
+  html[data-mode="focused"] #ws-rail {
+    left: 0;
+    transform: translateX(calc(-100% + 46px));
+    border-right: 1px solid var(--border);
+  }
+  html[data-mode="focused"] #ws-stream {
+    right: 0;
+    transform: translateX(calc(100% - 46px));
+    border-left: 1px solid var(--border);
+  }
+  html[data-mode="focused"] #ws-rail:hover,
+  html[data-mode="focused"] #ws-rail:focus-within,
+  html[data-mode="focused"] #ws-rail.open,
+  html[data-mode="focused"] #ws-stream:hover,
+  html[data-mode="focused"] #ws-stream:focus-within,
+  html[data-mode="focused"] #ws-stream.open {
+    transform: translateX(0);
+    box-shadow: 0 8px 32px rgba(0,0,0,.55);
+  }
+  /* The flyout edge handles — visible affordance so users know the rail
+     exists. */
+  html[data-mode="focused"] #ws-rail::after,
+  html[data-mode="focused"] #ws-stream::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 46px;
+    background: linear-gradient(90deg, var(--bg-secondary), transparent);
+    cursor: pointer;
+  }
+  html[data-mode="focused"] #ws-rail::after { right: -46px; border-right: 1px solid var(--border); }
+  html[data-mode="focused"] #ws-stream::after { left: -46px; border-left: 1px solid var(--border); }
+  /* Focused: brain hero breathes — bigger max-width, more air. */
+  html[data-mode="focused"] #brain-hero-wrap { max-width: 880px !important; margin: 0 auto; }
+  html[data-mode="focused"] #brain-viz { padding: 32px 48px !important; }
+  html[data-mode="focused"] #ws-center { padding: 0 clamp(16px, 6vw, 96px); }
+
+  /* ═══ FOCUSED SHELL — the working single-viewport layout ═══
+     Top: focused-top bar (subject pick + run-all / run-missing / run-just).
+     Center: brain (lights up per-trial via SSE).
+     Right: live stream (Lean spec + log rolling) — visible, not collapsed.
+     The flyout rails remain for power users, but the common case needs
+     NONE of them. No dumbing down: every run mode exists here. */
+  #focused-shell { display: none; }
+  html[data-mode="focused"] #focused-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
+    grid-template-rows: auto 1fr;
+    gap: 14px;
+    padding: 12px clamp(12px, 3vw, 32px);
+    height: calc(100vh - 37px);
+    overflow: hidden;
+  }
+  #focused-top {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: 10px;
+  }
+  #focused-top .ft-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; color: var(--text-muted); }
+  #focused-subject-pick { font-size: 13px; min-width: 220px; padding: 6px 8px; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; }
+  #focused-axes { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  #focused-axes label { display: flex; gap: 4px; align-items: center; cursor: pointer; }
+  #focused-runlog { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+  #focused-brain-wrap { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  #focused-stream-wrap { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  /* The brain + Owl cards scroll together in the left well. */
+  #focused-brain-wrap > #center-scroll-copy { flex: 1; min-height: 0; overflow-y: auto; }
+  /* Hide the deep-cockpit workspace when the focused shell is up. */
+  html[data-mode="focused"] #workspace { display: none !important; }
+
+  #a11y-toggle {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    border-radius: 6px;
+    border: 1px solid var(--accent-amber, #ffd866);
+    background: var(--accent-amber, #ffd866);
+    color: #1a1200;
+    padding: 6px 12px;
+    min-height: 32px;
+  }
+  #a11y-toggle:hover { filter: brightness(1.08); }
+  html[data-a11y="off"] #a11y-toggle {
+    background: #2a2f37;
+    color: #f0f3f6;
+    border-color: #4a4f57;
+  }
+
+  /* Prompt length checker */
+  .length-check {
+    margin: 0 24px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-green);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .length-check-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+  }
+  .length-check-head:hover { background: rgba(255,255,255,0.03); }
+  .length-check.collapsed .length-check-body { display: none; }
+  .length-check.collapsed .protocol-chevron { transform: rotate(-90deg); }
+  .length-check-body { padding: 4px 16px 16px; }
+  .lc-row { display: grid; grid-template-columns: 260px 1fr; gap: 12px; margin-bottom: 10px; }
+  .lc-row select {
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: var(--font-sans);
+  }
+  #lc-prompt {
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px; font-size: 13px; font-family: var(--font-mono);
+    resize: vertical; min-height: 70px; line-height: 1.5;
+  }
+  .lc-result {
+    padding: 10px 14px; border-radius: 6px; font-size: 13px; font-family: var(--font-mono);
+    background: var(--bg-secondary); border: 1px solid var(--border);
+  }
+  .lc-result.fits { border-color: var(--safe); color: var(--safe); }
+  .lc-result.overflow { border-color: var(--unsafe); color: var(--unsafe); }
+  .lc-bar-track { height: 8px; border-radius: 4px; background: var(--bg-card); margin-top: 8px; overflow: hidden; }
+  .lc-bar-fill { height: 100%; border-radius: 4px; transition: width 200ms; }
+
+  /* Generic sub-pages (Setup / Tests / Runs / LM Studio) */
+  .page { min-height: 60vh; }
+  .setup-wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px 60px; }
+  .setup-hero { margin-bottom: 24px; }
+  .setup-hero-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .setup-hero-sub { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+  .setup-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .setup-card-title { font-size: 15px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 10px; }
+  .setup-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 10px; }
+  .setup-card ul { padding-left: 20px; margin-bottom: 10px; }
+  .setup-card li { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 4px; }
+  .setup-card code {
+    background: var(--bg-secondary); color: var(--accent-amber); padding: 2px 6px;
+    border-radius: 4px; font-family: var(--font-mono); font-size: 12px;
+  }
+  .setup-card pre {
+    background: var(--bg-secondary); color: var(--accent-green); padding: 12px 16px;
+    border-radius: 6px; font-family: var(--font-mono); font-size: 12px; overflow-x: auto;
+    margin-bottom: 10px; line-height: 1.6;
+  }
+  .list-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .list-row .lr-axis { min-width: 90px; font-weight: 600; }
+  .list-row .lr-name { flex: 1; font-family: var(--font-mono); }
+  .list-row .lr-meta { color: var(--text-muted); font-size: 11px; font-family: var(--font-mono); }
+
+  /* Loot page */
+  .loot-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 60px; }
+  .squad-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .squad-slot {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; position: relative; overflow: hidden;
+  }
+  .squad-slot::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+  }
+  .squad-slot.vision::before { background: var(--accent-purple); }
+  .squad-slot.tools::before { background: var(--accent-cyan); }
+  .squad-slot.reasoning::before { background: var(--accent-green); }
+  .squad-slot.security::before { background: var(--accent-amber); }
+  .squad-slot-axis { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
+  .squad-slot-model { font-size: 14px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 4px; }
+  .squad-slot-speed { font-size: 12px; color: var(--accent-cyan); font-family: var(--font-mono); }
+  .squad-slot-empty { color: var(--text-muted); font-style: italic; font-size: 13px; }
+  /* ── Capability router plan ── */
+  .router-axis { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; background: var(--bg-secondary); }
+  .router-axis-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .router-axis-name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; }
+  .router-status { font-size: 10px; font-family: var(--font-mono); padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .router-status.routed { background: rgba(63,185,80,0.15); color: var(--accent-green, #3fb950); }
+  .router-status.degraded { background: rgba(227,179,65,0.15); color: var(--accent-amber, #e3b341); }
+  .router-status.unrouted { background: rgba(248,81,73,0.12); color: #f85149; }
+  .router-row { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; font-size: 13px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.04); }
+  .router-row:first-of-type { border-top: none; }
+  .router-tier { font-size: 10px; font-family: var(--font-mono); width: 72px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.04em; }
+  .router-tier.primary { color: var(--accent-green, #3fb950); font-weight: 700; }
+  .router-tier.fallback { color: var(--accent-cyan); }
+  .router-tier.excluded { color: #f85149; }
+  .router-model { font-family: var(--font-mono); font-weight: 600; }
+  .router-reason { color: var(--text-muted); font-size: 12px; }
+  .router-evidence { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); }
+  .router-more { font-size: 11px; color: var(--text-muted); font-style: italic; padding: 4px 0 0 80px; }
+  /* ── Reality check (Setup step 0) ── */
+  .rc-row { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.04); font-size: 13px; flex-wrap: wrap; }
+  .rc-row:first-child { border-top: none; }
+  .rc-check { width: 18px; flex-shrink: 0; }
+  .rc-label { color: var(--text-muted); width: 190px; flex-shrink: 0; }
+  .rc-value { font-family: var(--font-mono); font-weight: 600; cursor: help; border-bottom: 1px dotted rgba(255,255,255,0.25); }
+  .rc-note { color: var(--text-muted); font-size: 12px; }
+  .rc-unmeasured { color: var(--accent-amber, #e3b341); font-style: italic; }
+  .rc-budget { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-secondary); }
+  .rc-budget-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 8px; }
+  .rc-bar { display: flex; height: 26px; border-radius: 6px; overflow: visible; font-size: 11px; font-family: var(--font-mono); margin-bottom: 8px; position: relative; }
+  .rc-bar-seg { display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+  .rc-bar-seg:first-child { border-radius: 6px 0 0 6px; }
+  .rc-bar-seg:last-of-type { border-radius: 0 6px 6px 0; }
+  .rc-ceiling-mark { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--accent-amber, #e3b341); opacity: 0.85; }
+  .rc-ceiling-label { position: absolute; top: -22px; transform: translateX(-50%); font-size: 10px; color: var(--accent-amber, #e3b341); white-space: nowrap; }
+  .rc-bar-life { background: rgba(88,166,255,0.30); }
+  .rc-bar-ai { background: rgba(63,185,80,0.30); }
+  .rc-bar-ceiling { background: rgba(148,163,184,0.18); }
+  .rc-tier { font-size: 13px; margin-top: 6px; }
+  .rc-formula { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 6px; }
+  .squad-slot-hermes, .router-hermes { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  .router-hermes { margin-top: 0; margin-left: auto; text-align: right; max-width: 55%; }
+  .hermes-verify { font-size: 12px; font-family: var(--font-mono); padding: 8px 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-muted); line-height: 1.7; }
+  .hermes-verify .hv-ok { color: var(--accent-green, #3fb950); }
+  .hermes-verify .hv-warn { color: var(--accent-amber, #e3b341); }
+  .loot-sort-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .loot-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .loot-table th {
+    text-align: left; padding: 10px 12px; color: var(--text-muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+  }
+  .loot-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .loot-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .loot-rank { font-family: var(--font-mono); color: var(--text-muted); width: 28px; }
+  .loot-rank.gold { color: #d4a853; font-weight: 700; } /* Athena gold — the brand voice, not web #ffd700 */
+  .loot-rank.silver { color: #c0c0c0; font-weight: 700; }
+  .loot-rank.bronze { color: #cd7f32; font-weight: 700; }
+  .loot-model-name { font-family: var(--font-mono); font-weight: 600; }
+  .loot-axis-cell { font-family: var(--font-mono); font-size: 12px; text-align: center; }
+  .loot-axis-cell .lac-ms { display:block; font-size: 10px; color: var(--accent-cyan); margin-top:2px; }
+  .protocol {
+    margin: 0 24px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .protocol-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+  }
+  .protocol-head:hover { background: rgba(255,255,255,0.03); }
+  .protocol-title {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--accent-cyan); font-family: var(--font-mono);
+  }
+  .protocol-chevron { color: var(--text-muted); font-size: 12px; transition: transform .2s; }
+  /* ── Expand/collapse affordance (user 2026-07-09: "It isn't deadly clear
+     that hey, this is expandable"). A bare chevron is a decoration, not a
+     signal. Every collapsible header now carries an explicit state pill —
+     'CLICK TO EXPAND ▸' / 'COLLAPSE ▴' — driven by the .collapsed class so
+     the label can never disagree with the state. ── */
+  .protocol-chevron, .pb-caret {
+    font-size: 0; /* hide the raw glyph; the pill below replaces it */
+    transform: none !important;
+  }
+  .protocol-chevron::before, .pb-caret::before {
+    content: "COLLAPSE ▴";
+    font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.06em;
+    color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 10px; padding: 3px 10px; white-space: nowrap;
+  }
+  .collapsed .protocol-chevron::before, .collapsed .pb-caret::before {
+    content: "CLICK TO EXPAND ▸";
+    color: var(--accent-cyan); border-color: var(--accent-cyan);
+  }
+  .protocol-head:hover .protocol-chevron::before,
+  .length-check-head:hover .protocol-chevron::before,
+  .nous-exp-head:hover .protocol-chevron::before,
+  .pb-collapse-head:hover .pb-caret::before {
+    color: var(--text-primary); border-color: var(--text-primary);
+  }
+  .protocol.collapsed .protocol-chevron { transform: rotate(-90deg); }
+  .protocol-body {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    padding: 4px 16px 14px;
+  }
+  .protocol.collapsed .protocol-body { display: none; }
+  .protocol-h {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .protocol-body ul { margin: 0; padding-left: 16px; }
+  .protocol-body li {
+    font-size: 12px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .protocol-body li b { color: var(--text-primary); }
+  @media (max-width: 900px) {
+    .protocol-body { grid-template-columns: 1fr; }
+  }
+  .live-log {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 12px 24px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    max-height: 160px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .log-line { margin: 2px 0; }
+  .log-line .ts { color: var(--text-muted); margin-right: 8px; }
+  .log-line .ev { color: var(--accent-cyan); }
+  .log-line .phase-eject { color: var(--accent-purple); }
+  .log-line .phase-load { color: var(--accent-blue); }
+  .log-line .phase-resident { color: var(--safe); }
+  .log-line .phase-trial { color: var(--text-primary); }
+  .log-line .phase-verdict { color: var(--accent-amber); font-weight: 600; }
+  .log-line .err { color: var(--accent-red); }
+
+  /* Trial verdict colors — green=pass, red=fail, amber=intermittent */
+  .log-line.pass  { color: var(--safe); }    /* #3fb950 */
+  .log-line.fail  { color: var(--accent-red); }
+  .log-line.verdict.pass { font-weight: 700; }
+  .log-line.verdict.fail { font-weight: 700; }
+  /* Owl Semaphore σₕ indicator — cyan tick means the model cited the
+     correct rule in its own reasoning (Score 1 of 4). Shown on the line
+     below the test name in the live log. */
+  .log-line .owl-tick { color: var(--accent-cyan); margin-left: 6px; font-weight: 700; }
+
+  /* Nous-necessity experiment panel */
+  .nous-exp {
+    margin: 0 24px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-orange);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .nous-exp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; user-select: none;
+  }
+  .nous-exp-head:hover { background: rgba(255,255,255,0.03); }
+  .nous-exp.collapsed .nous-exp-body { display: none; }
+  .nous-exp.collapsed .protocol-chevron { transform: rotate(-90deg); }
+  .nous-exp-body { padding: 4px 16px 16px; }
+  .nous-exp-body p { font-size: 12px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px; }
+  .nous-exp-body code {
+    background: var(--bg-secondary); color: var(--accent-amber); padding: 1px 5px;
+    border-radius: 4px; font-family: var(--font-mono); font-size: 11px;
+  }
+  .nous-exp-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .nous-exp-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .nous-exp-table-wrap th {
+    text-align: left; padding: 8px 10px; color: var(--text-muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+  }
+  .nous-exp-table-wrap td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .model-grid { grid-template-columns: 1fr; }
+    .stats-bar { gap: 8px; }
+    .stat { min-width: 70px; padding: 8px 10px; }
+    .stat-value { font-size: 18px; }
+  }
+
+  /* Prompt Builder page */
+  .pb-wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 60px; }
+  .pb-hero { margin-bottom: 24px; }
+  .pb-hero-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .pb-hero-sub { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+  .pb-section {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .pb-section-title { font-size: 15px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; }
+  .pb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .pb-field { display: flex; flex-direction: column; gap: 6px; }
+  .pb-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+  .pb-textarea {
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; font-size: 13px; font-family: var(--font-mono);
+    resize: vertical; min-height: 120px; line-height: 1.5;
+  }
+  .pb-file-input { display: none; }
+  .pb-file-label {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+    background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; font-size: 13px; font-family: var(--font-sans);
+    transition: background 120ms, border-color 120ms;
+  }
+  .pb-file-label:hover { background: var(--bg-card); border-color: var(--accent-cyan); }
+  .pb-file-preview { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .pb-preview-item { position: relative; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .pb-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+  .pb-preview-remove { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.7); color: white; border: none; cursor: pointer; font-size: 14px; line-height: 24px; text-align: center; }
+  .pb-examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+  .pb-example-card {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; cursor: pointer; transition: border-color 120ms, transform 120ms;
+  }
+  .pb-example-card:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
+  .pb-example-title { font-size: 12px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px; }
+  .pb-example-text { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); white-space: pre-wrap; max-height: 80px; overflow: hidden; }
+  .pb-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  /* ── Prompt Builder workbench (2026-07-08 redesign): compose left, result
+     right, Run always above the fold. Collapses to one column on narrow. ── */
+  .pb-workbench { display: grid; grid-template-columns: minmax(340px, 5fr) minmax(300px, 4fr); gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 980px) { .pb-workbench { grid-template-columns: 1fr; } }
+  .pb-col { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .pb-result-panel { min-height: 320px; max-height: 65vh; overflow-y: auto; }
+  .pb-result-empty { color: var(--text-muted); font-style: italic; font-size: 13px; padding: 12px 0; }
+  .pb-collapsible .pb-collapse-body { overflow: hidden; }
+  .pb-collapsible.collapsed .pb-collapse-body { display: none; }
+  .pb-collapse-head { cursor: pointer; user-select: none; }
+  .pb-collapse-head .pb-caret { float: right; transition: transform 0.15s; }
+  .pb-collapsible.collapsed .pb-caret { transform: rotate(-90deg); }
+  .pb-no-answer { border-left: 3px solid var(--accent-amber, #e3b341); background: rgba(227,179,65,0.06); padding: 10px 12px; border-radius: 4px; margin-bottom: 10px; }
+  .pb-no-answer-title { font-size: 11px; font-weight: 700; color: var(--accent-amber, #e3b341); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .pb-result {
+    background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin-top: 16px; font-family: var(--font-mono); font-size: 12px;
+    white-space: pre-wrap; max-height: 400px; overflow: auto;
+  }
+  .pb-result.success { border-color: var(--safe); }
+  .pb-result.error { border-color: var(--unsafe); }
+
+  /* Cloud key setup */
+  .key-setup-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: var(--fib-3); margin-bottom: var(--fib-3); }
+  .key-row { display: flex; align-items: center; gap: var(--fib-2); padding: var(--fib-2) 0; border-bottom: 1px solid var(--border); }
+  .key-row:last-child { border-bottom: none; }
+  .key-provider { font-weight: 600; font-family: var(--font-mono); min-width: 100px; }
+  .key-status { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .key-status.configured { color: var(--safe); }
+  .key-input { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); flex: 1; }
+  .key-input:focus { border-color: var(--accent-gold); outline: none; }
+  .key-btn { padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card-hover); color: var(--text-primary); }
+  .key-btn:hover { border-color: var(--accent-gold); }
+  .key-btn.danger { color: var(--unsafe); }
+  /* Duplicate test button */
+  .dup-btn { font-size: 10px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border); background: transparent; color: var(--accent-gold); cursor: pointer; margin-left: 6px; }
+  .dup-btn:hover { background: rgba(212,168,83,0.1); }
+  /* Newest bots */
+  .newest-bots { margin-bottom: var(--fib-4); }
+  .newest-bot-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; margin: 3px; border-radius: 4px; border: 1px solid var(--accent-gold); background: rgba(212,168,83,0.08); font-size: 11px; font-family: var(--font-mono); cursor: pointer; }
+  .newest-bot-chip:hover { background: rgba(212,168,83,0.15); }
+  .newest-bot-chip .nbc-badge { font-size: 9px; padding: 1px 4px; border-radius: 2px; background: var(--accent-green); color: #000; }
+
+  /* Landing hero — the interactive guided flow */
+  .landing-hero { padding: var(--fib-6) var(--fib-4); text-align: center; background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); border-radius: 0 0 12px 12px; margin: -8px 0 var(--fib-4); position: relative; overflow: hidden; }
+  .landing-hero-title { font-size: 32px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: var(--fib-2); position: relative; }
+  .landing-hero-sub { font-size: 15px; color: var(--text-secondary); max-width: 600px; margin: 0 auto var(--fib-4); position: relative; }
+  .landing-actions { display: flex; gap: var(--fib-3); justify-content: center; flex-wrap: wrap; position: relative; }
+  .landing-btn { padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--accent-gold); background: rgba(212,168,83,0.08); color: var(--accent-gold); font-family: var(--font-mono); transition: all 0.2s; }
+  .landing-btn:hover { background: rgba(212,168,83,0.15); border-color: var(--text-primary); }
+  .landing-btn.primary { background: var(--accent-gold); color: var(--bg-primary); }
+  .landing-btn.primary:hover { background: var(--text-primary); color: var(--bg-primary); }
+  .landing-divider { width: 1px; height: 20px; background: var(--border); margin: 0 var(--fib-1); }
+  /* Reality check badge */
+  .reality-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); font-weight: 600; }
+  .reality-badge.ok { background: rgba(63,185,80,0.12); color: var(--safe); border: 1px solid rgba(63,185,80,0.3); }
+  .reality-badge.warn { background: rgba(227,179,65,0.12); color: var(--flaky); border: 1px solid rgba(227,179,65,0.3); }
+  .reality-badge.crit { background: rgba(248,81,73,0.12); color: var(--unsafe); border: 1px solid rgba(248,81,73,0.3); }
+  /* Hacker easter egg audio */
+  .hack-audio-btn { position: fixed; bottom: 8px; right: 8px; width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-card); color: var(--text-muted); cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; opacity: 0.3; transition: opacity 0.3s; z-index: 999; }
+  .hack-audio-btn:hover { opacity: 1; color: var(--accent-gold); border-color: var(--accent-gold); }
+
+  /* Run confirmation modal — DNS-tool style diagram */
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .confirm-modal { background: var(--bg-card); border: 1px solid var(--accent-gold); border-radius: 12px; padding: var(--fib-4); max-width: 520px; width: 90%; box-shadow: 0 0 40px rgba(212,168,83,0.1); }
+  .confirm-title { font-size: 16px; font-weight: 700; color: var(--accent-gold); margin-bottom: var(--fib-2); font-family: var(--font-mono); }
+  .confirm-flow { display: flex; align-items: center; gap: 8px; margin: var(--fib-3) 0; flex-wrap: wrap; }
+  .confirm-node { padding: 6px 12px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); font-weight: 600; }
+  .confirm-node.source { background: rgba(212,168,83,0.15); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+  .confirm-node.target { background: rgba(63,185,80,0.15); color: var(--safe); border: 1px solid var(--safe); }
+  .confirm-node.local { background: rgba(136,153,170,0.1); color: var(--text-secondary); border: 1px solid var(--text-muted); }
+  .confirm-arrow { color: var(--text-muted); font-size: 16px; }
+  .confirm-detail { font-size: 12px; color: var(--text-secondary); margin: var(--fib-2) 0; line-height: 1.6; }
+  .confirm-detail code { background: var(--bg-primary); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold); }
+  .confirm-warn { padding: var(--fib-2); background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2); border-radius: 6px; margin: var(--fib-2) 0; font-size: 11px; color: var(--unsafe); }
+  /* Spend monitor — money-out-the-door intelligence. Gold border = cost,
+     not danger; the number is grounded in real measured token averages. */
+  .confirm-spend { padding: var(--fib-2) var(--fib-3); background: rgba(212,168,83,0.08); border: 1px solid rgba(212,168,83,0.35); border-radius: 6px; margin: var(--fib-2) 0; font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+  .confirm-spend .spend-hd { font-weight: 700; color: var(--accent-gold); font-size: 12px; letter-spacing: 0.04em; }
+  .confirm-spend .spend-amt { font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold); }
+  .confirm-spend .spend-local { color: var(--safe); font-weight: 600; }
+  .confirm-spend table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .confirm-spend td { padding: 2px 6px; font-family: var(--font-mono); font-size: 11px; border-top: 1px solid rgba(255,255,255,0.05); }
+  .confirm-spend td.r { text-align: right; }
+  .confirm-scope { padding: var(--fib-2) var(--fib-3); background: rgba(88,166,255,0.06); border: 1px solid rgba(88,166,255,0.25); border-radius: 6px; margin: var(--fib-2) 0; font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .confirm-scope b { color: var(--accent-blue); }
+  .confirm-actions { display: flex; gap: var(--fib-2); justify-content: flex-end; margin-top: var(--fib-3); }
+  .confirm-btn { padding: 8px 20px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card-hover); color: var(--text-primary); font-family: var(--font-mono); }
+  .confirm-btn:hover { border-color: var(--text-primary); }
+  .confirm-btn.danger { background: var(--unsafe); color: #fff; border-color: var(--unsafe); }
+  .confirm-btn.danger:hover { background: #d73a49; }
+  .click-count { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-left: 8px; }
+
+  /* Loot page — NASA scientific aesthetic */
+  .loot-hero { padding: var(--fib-5) var(--fib-4); text-align: center; background: linear-gradient(180deg, rgba(212,168,83,0.06) 0%, transparent 100%); border-bottom: 1px solid var(--border); margin-bottom: var(--fib-4); }
+  .loot-hero-title { font-size: 22px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); margin-bottom: var(--fib-1); }
+  .loot-hero-sub { font-size: 12px; color: var(--text-secondary); max-width: 700px; margin: 0 auto; line-height: 1.7; }
+  .loot-pipeline { display: flex; align-items: center; justify-content: center; gap: 4px; margin: var(--fib-3) 0; flex-wrap: wrap; }
+  .loot-pipe-node { padding: 6px 14px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.5px; }
+  .loot-pipe-node.primary { background: rgba(212,168,83,0.15); color: var(--accent-gold); border: 1px solid var(--accent-gold); }
+  .loot-pipe-node.secondary { background: rgba(136,153,170,0.08); color: var(--text-secondary); border: 1px solid var(--text-muted); }
+  .loot-pipe-arrow { color: var(--text-muted); font-size: 14px; }
+  .loot-metric { text-align: center; padding: var(--fib-2); }
+  .loot-metric-value { font-size: 24px; font-weight: 700; font-family: var(--font-mono); color: var(--accent-gold); }
+  .loot-metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .squad-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: var(--fib-3); transition: all 0.2s; }
+  .squad-card:hover { border-color: var(--accent-gold); transform: translateY(-1px); }
+  .squad-card-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: var(--fib-1); }
+  .squad-card-model { font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+  .squad-card-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+  .squad-card-score { font-size: 20px; font-weight: 700; color: var(--safe); font-family: var(--font-mono); margin-top: var(--fib-1); }
+  .leaderboard-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 80px; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; transition: background 0.15s; }
+  .leaderboard-row:hover { background: var(--bg-card-hover); }
+  .leaderboard-header { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .lb-model { font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
+  .lb-metric { font-family: var(--font-mono); font-size: 11px; }
+  .lb-bar { height: 4px; background: var(--bg-primary); border-radius: 2px; overflow: hidden; }
+  .lb-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  /* Prominent owl — louder, prouder, not a watermark */
+  .landing-hero img[src*='owl-semaphore-logo.png'] { height: 96px !important; filter: drop-shadow(0 0 20px rgba(212,168,83,0.3)) drop-shadow(0 0 40px rgba(212,168,83,0.15)); animation: owlPulse 4s ease-in-out infinite; }
+  @keyframes owlPulse { 0%, 100% { filter: drop-shadow(0 0 20px rgba(212,168,83,0.3)) drop-shadow(0 0 40px rgba(212,168,83,0.15)); } 50% { filter: drop-shadow(0 0 28px rgba(212,168,83,0.45)) drop-shadow(0 0 56px rgba(212,168,83,0.25)); } }
+
+  .nav-arrow { user-select: none; }
+
+  /* ═══ Brain topology regions ═══
+     Idle: barely-there outlines. Firing: axis-colored glow, SUSTAINED
+     for the entire trial duration. trial_start lights it up; trial_result
+     updates the color (green=pass, red=fail). The class is NOT auto-removed
+     by a timeout — it stays lit until the next trial_start or run_complete. */
+  .brain-region {
+    fill: rgba(255,255,255,0.0);
+    stroke: rgba(255,255,255,0.0);
+    stroke-width: 2;
+    opacity: 0;
+    transition: opacity 0.5s ease-out, fill 0.5s ease-out, stroke 0.5s ease-out;
+    cursor: pointer;
+  }
+  .brain-region:hover { opacity: 0.35; fill: var(--region-color, rgba(212,168,83,0.4)); }
+  .brain-region.firing {
+    opacity: 1;
+    fill: var(--region-color, rgba(212,168,83,0.45));
+    stroke: var(--region-color, rgba(212,168,83,0.95));
+    stroke-width: 2.5;
+    filter: url(#region-glow) drop-shadow(0 0 16px var(--region-color, rgba(212,168,83,0.9)));
+    transition: opacity 120ms ease-in, fill 120ms ease-in, stroke 120ms ease-in;
+    animation: region-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes region-pulse {
+    0%, 100% { opacity: 0.75; }
+    50% { opacity: 1; }
+  }
+
+  /* ═══ EMERGENCY ABORT BAR (2026-07-14) ═══
+     Fixed, top-layer, impossible to miss. Appears the instant any run goes
+     live and stays pinned to the viewport until every live run ends — so if
+     a load starts eating RAM the STOP is always one glance and one click
+     away, never buried in a scrolled-off panel. This is a real abort: it
+     signals the backend, which cancels LM Studio/provider work mid-flight. */
+  #abort-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+    display: none; align-items: center; justify-content: center; gap: 16px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #2a0a0a, #4a0f0f, #2a0a0a);
+    border-bottom: 2px solid var(--unsafe, #f87171);
+    box-shadow: 0 4px 24px rgba(248,113,113,0.4);
+    font-family: var(--font-mono);
+    animation: abort-bar-pulse 2s ease-in-out infinite;
+  }
+  #abort-bar.armed { display: flex; }
+  /* Push the whole app down while the bar is armed so it never covers the nav. */
+  body.abort-armed { padding-top: 52px; }
+  @keyframes abort-bar-pulse {
+    0%, 100% { box-shadow: 0 4px 24px rgba(248,113,113,0.35); }
+    50% { box-shadow: 0 4px 32px rgba(248,113,113,0.65); }
+  }
+  #abort-bar .abort-status {
+    color: #ffd9d9; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #abort-bar .abort-live-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--unsafe, #f87171);
+    animation: abort-dot-blink 1s steps(2) infinite;
+  }
+  @keyframes abort-dot-blink { 50% { opacity: 0.2; } }
+  #abort-bar .abort-btn {
+    background: #c0392b; color: #fff; border: none;
+    padding: 8px 22px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.06em;
+    font-family: var(--font-mono); text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4); transition: transform 0.1s, background 0.15s;
+  }
+  #abort-bar .abort-btn:hover { background: #ff5555; transform: scale(1.04); }
+  #abort-bar .abort-btn:active { transform: scale(0.97); }
+  #abort-bar .abort-btn:disabled { opacity: 0.5; cursor: wait; }
+  .brain-leg { color: var(--text-muted); transition: color 0.4s; }
+  .brain-leg.lit { color: var(--text-primary); }
+  /* Formula stream animation: formulas slide in from the right as they appear */
+  @keyframes formula-enter {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .brain-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background: var(--border); margin-right:7px; vertical-align:baseline;
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  .brain-leg.lit .brain-dot { background: var(--dot-color, var(--accent-gold)); box-shadow: 0 0 6px var(--dot-color, var(--accent-gold)); }
+
+  .nav-arrow { color: var(--text-muted); font-size: 11px; padding: 0 3px; user-select: none; align-self: center; }
+  .top-nav img.logo { height: 100%; max-height: 36px; width: auto; object-fit: contain; cursor: pointer; align-self: center; flex-shrink: 0; }
+  /* Branding is a landing thing, not a persistent header. Hide the owl in
+     Focused mode and whenever the benchmark workspace is the active page —
+     the action is the brand there. */
+  html[data-mode="focused"] .top-nav img.logo,
+  body:has(#page-benchmark:not([style*="display: none"])) .top-nav img.logo { display: none; }
+
+  /* ═══ IMMERSIVE WORKSPACE (2026-07-14) ═══
+     Single-viewport cockpit: Run bar + model rail LEFT, brain pinned CENTER,
+     formula/log stream RIGHT. Applies only ≥1200px — below that the page
+     keeps classic stacked flow (zero mobile risk). The brain NEVER leaves
+     the viewport; science + protocol scroll in their own center well. */
+  @media (min-width: 1200px) {
+    #workspace {
+      display: grid;
+      grid-template-columns: 400px minmax(0,1fr) 380px;
+      height: calc(100vh - 37px);
+      overflow: hidden;
+    }
+    #ws-rail, #ws-stream {
+      display: flex; flex-direction: column;
+      min-height: 0; overflow: hidden;
+    }
+    #ws-rail { border-right: 1px solid var(--border); }
+    #ws-stream { border-left: 1px solid var(--border); }
+    #ws-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+    #center-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+    /* Screen-reader-only: visually hidden but announced to assistive tech.
+       Used to give form controls an accessible name without cluttering the UI. */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+
+    /* rail: action bar first, always visible. CONTROL ZONE — gold left-rail
+       marks it as interactive (affordance mandate). */
+    #action-bar { justify-content: flex-start !important; padding: 9px 12px; margin-bottom: 0 !important; border-bottom: 1px solid var(--border); border-left: 3px solid var(--accent-gold); background: var(--bg-card); }
+    #action-bar #scaffold-supplement { width: 100% !important; order: 9; }
+    /* Stats = READOUT zone: quieter, denser, no interactive cue. Space math:
+       7 stats in a 3-col grid at compact size reclaims the wasted rail height
+       the old 2-col loose layout burned. */
+    #ws-rail .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px 12px; margin: 0; background: var(--bg-secondary); }
+    #ws-rail .stat { padding: 5px 8px; min-width: 0; text-align: center; }
+    #ws-rail .stat-value { font-size: 15px; line-height: 1.1; }
+    #ws-rail .stat-label { font-size: 8px; margin-top: 1px; }
+    /* Filters = CONTROL ZONE: gold left-rail + interactive controls inside. */
+    #ws-rail .filters { padding: 8px 12px; gap: 6px; border-left: 3px solid var(--accent-gold); background: var(--bg-card); border-bottom: 1px solid var(--border); }
+    #ws-rail .filters select, #ws-rail .filters input { font-size: 11px; max-width: 100%; }
+    #ws-rail #filter-search { width: 100%; }
+    #ws-rail .model-grid { flex: 1; min-height: 0; overflow-y: auto; grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+
+    /* center: brain big, hero slimmed to a header strip */
+    #ws-center .landing-hero { padding: 10px 16px 8px; margin: 0; border-radius: 0; }
+    #ws-center .landing-hero img[src*='owl-semaphore-logo.png'] { height: 42px !important; margin-bottom: 4px !important; }
+    #ws-center .landing-hero-title { font-size: 16px; margin-bottom: 2px; }
+    #ws-center .landing-hero-sub { font-size: 11px; max-width: 720px; margin: 0 auto 6px; }
+    #ws-center .landing-actions { gap: 8px; }
+    #ws-center .landing-btn { padding: 5px 14px; font-size: 11px; }
+    #ws-center #brain-viz { flex-shrink: 0; }
+    #ws-center #brain-hero-wrap { max-width: min(720px, 100%); margin: 0 auto; }
+
+    /* right rail: the stream */
+    #ws-stream #formula-stream-container { flex: 0 0 auto !important; max-width: none !important; max-height: 34vh !important; margin: 10px 12px 0; }
+    #ws-stream .live-log { flex: 1; min-height: 120px; max-height: none; border-top: 1px solid var(--border); margin-top: 10px; }
+    #ws-stream #nous-exp-panel, #ws-stream #spec-decode-panel { flex-shrink: 0; }
+  }
+
+  .native-selector-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(3px); z-index: 10001;
+    display: none; align-items: center; justify-content: center;
+  }
+  .native-selector-overlay.open { display: flex; }
+  .native-selector-modal {
+    background: var(--bg-primary, #0d1117);
+    border: 1px solid var(--border, #30363d);
+    border-radius: 10px;
+    width: 520px; max-width: 94vw;
+    display: flex; flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+  .native-selector-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border, #30363d);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .native-selector-title { font-size: 15px; font-weight: 700; color: var(--text-primary, #e6edf3); }
+  .native-selector-close {
+    background: transparent; border: 1px solid var(--border, #30363d);
+    color: var(--text-muted, #8b949e); border-radius: actions 6px;
+    width: 30px; height: 30px; cursor: pointer; font-size: 15px;
+  }
+  .native-selector-close:hover { background: var(--bg-card, #161b22); color: var(--text-primary, #e6edf3); }
+  .native-selector-body { padding: 14px 16px; }
+  .native-selector-body select {
+    width: 100%; height: 320px;
+    background: var(--bg-card, #161b22); color: var(--text-primary, #e6edf3);
+    border: 1px solid var(--border, #30363d); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 13px; padding: 6px;
+  }
+  .native-selector-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border, #30363d);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .native-selector-count { color: var(--text-muted, #8b949e); font-size: 13px; }
+
+  .native-selector-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(3px); z-index: 10001;
+    display: none; align-items: center; justify-content: center;
+  }
+  .native-selector-overlay.open { display: flex; }
+  .native-selector-modal {
+    background: var(--bg-primary, #0d1117);
+    border: 1px solid var(--border, #30363d);
+    border-radius: 10px;
+    width: 520px; max-width: 94vw;
+    display: flex; flex-direction: column;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+  .native-selector-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border, #30363d);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .native-selector-title { font-size: 15px; font-weight: 700; color: var(--text-primary, #e6edf3); }
+  .native-selector-close {
+    background: transparent; border: 1px solid var(--border, #30363d);
+    color: var(--text-muted, #8b949e); border-radius: 6px;
+    width: 30px; height: 30px; cursor: pointer; font-size: 15px;
+  }
+  .native-selector-close:hover { background: var(--bg-card, #161b22); color: var(--text-primary, #e6edf3); }
+  .native-selector-body { padding: 14px 16px; }
+  .native-selector-body select {
+    width: 100%; height: 320px;
+    background: var(--bg-card, #161b22); color: var(--text-primary, #e6edf3);
+    border: 1px solid var(--border, #30363d); border-radius: 6px;
+    font-family: var(--font-mono); font-size: 13px; padding: 6px;
+  }
+  .native-selector-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border, #30363d);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .native-selector-count { color: var(--text-muted, #8b949e); font-size: 13px; }
+  /* Demo Bots panel — Goldilocks starter set */
+  .demo-bots-panel {
+    background: var(--bg-card, #0d1117);
+    border: 1px solid var(--border, #30363d);
+    border-left: 3px solid var(--accent-gold, #d4af37);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 0 0 12px 0;
+  }
+  .db-header { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text-primary, #e6edf3); margin-bottom: 8px; }
+  .db-sub { font-weight: 400; font-size: 11px; color: var(--text-muted, #8b949e); margin-left: 6px; }
+  .db-card { background: var(--bg-secondary, #161b22); border: 1px solid var(--border, #30363d); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+  .db-card:last-child { margin-bottom: 0; }
+  .db-title { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--text-primary, #e6edf3); }
+  .db-key { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted, #8b949e); margin: 2px 0 4px; word-break: break-all; }
+  .db-story { font-size: 11px; line-height: 1.4; color: var(--text-muted, #8b949e); margin-bottom: 6px; }
+  .db-btn { background: var(--accent-gold, #d4af37); color: #0d1117; border: none; border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); }
+  .db-btn:hover { filter: brightness(1.1); }
+  .db-btn:disabled { opacity: 0.6; cursor: default; }
+  .db-installed { font-family: var(--font-mono); font-size: 11px; color: #3fb950; }
+  .db-prog { font-family: var(--font-mono); font-size: 11px; color: var(--accent-gold, #d4af37); }
+  .db-note { font-size: 10px; color: var(--text-muted, #8b949e); margin-top: 8px; line-height: 1.3; }
