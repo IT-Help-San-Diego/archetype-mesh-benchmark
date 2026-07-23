@@ -3728,12 +3728,34 @@ async function focusedRun(mode) {
   const picks = window._focusedSubjects || [{ key, provider: 'lmstudio' }];
   const provider = picks[0]?.provider || 'lmstudio';
   const axes = focusedAxes();
+  // Scaffolding parity with Deep mode (2026-07-23): the Focused shell can run
+  // clean-room (default), scaffolded, or the paired baseline+scaffold design.
+  const loadMode = document.getElementById('focused-load-mode')?.value || 'clean-room';
+  const supplement = document.getElementById('focused-scaffold-supplement')?.value?.trim() || '';
+  if ((loadMode === 'scaffolded' || loadMode === 'paired') && !supplement) {
+    log.textContent = 'scaffold mode needs a supplement — write the operator guidance first';
+    return;
+  }
+  const scaffoldFields = loadMode === 'scaffolded'
+    ? { load_mode: 'scaffolded', scaffold_supplement: supplement }
+    : {};
   log.textContent = '…';
   const JSON_HEADERS = { 'Content-Type': 'application/json' };
   try {
     let res;
     const unwrap = (r) => (r && r.data !== undefined ? r.data : r);
-    if (mode === 'missing') {
+    if (loadMode === 'paired') {
+      // Paired design: every selected axis runs twice (baseline, then
+      // scaffolded) — same endpoint Deep mode uses. 'missing'/'just' don't
+      // compose with pairing; the whole battery is the unit of comparison.
+      if (mode !== 'all') { log.textContent = 'paired mode runs the full battery — use the Run button'; return; }
+      if (!axes.length) { log.textContent = 'pick at least one axis'; return; }
+      res = unwrap(await apiFetch('/api/runs/baseline-scaffold', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, axes, scaffold_supplement: supplement }) }));
+      const b = (res.baseline_run_ids || []).join(',');
+      const s = (res.scaffold_run_ids || []).join(',');
+      log.textContent = `paired runs queued · baseline=[${b}] scaffold=[${s}]`;
+    } else if (mode === 'missing') {
+      if (loadMode === 'scaffolded') { log.textContent = 'completion runs are clean-room by design — switch MODE to Clean-room'; return; }
       res = unwrap(await apiFetch('/api/runs/complete', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider }) }));
       log.textContent = `completion run ${res.run_id ?? '?'} · gap ${res.gap_count ?? 0}`;
     } else if (mode === 'just') {
@@ -3742,17 +3764,39 @@ async function focusedRun(mode) {
       if (!selectedAxes.length) { log.textContent = 'pick at least one axis'; return; }
       const test_ids = await showTestPicker(selectedAxes);
       if (!test_ids || !test_ids.length) { log.textContent = 'no tests selected'; return; }
-      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, test_ids }) }));
-      log.textContent = `run ${res.run_id ?? (res.run_ids||[])[0] ?? '?'} · ${test_ids.length} test(s)`;
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, test_ids, ...scaffoldFields }) }));
+      log.textContent = `run ${res.run_id ?? (res.run_ids||[])[0] ?? '?'} · ${test_ids.length} test(s)${loadMode === 'scaffolded' ? ' · scaffolded' : ''}`;
     } else {
-      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, axes }) }));
-      log.textContent = `run(s) ${JSON.stringify(res.run_ids || [])} · ${axes.length} axis battery`;
+      res = unwrap(await apiFetch('/api/runs', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ model_key: key, provider, axes, ...scaffoldFields }) }));
+      log.textContent = `run(s) ${JSON.stringify(res.run_ids || [])} · ${axes.length} axis battery${loadMode === 'scaffolded' ? ' · scaffolded' : ''}`;
     }
     if (res && res.ok === false) { log.textContent = 'API error: ' + (res.error || res.status); return; }
   } catch (e) {
     log.textContent = 'error: ' + (e.message || e);
   }
 }
+// Show/hide the scaffold-supplement editor with the Focused MODE select.
+function focusedLoadModeChanged() {
+  const mode = document.getElementById('focused-load-mode')?.value;
+  const ta = document.getElementById('focused-scaffold-supplement');
+  if (ta) ta.style.display = (mode === 'scaffolded' || mode === 'paired') ? 'block' : 'none';
+}
+
+// Deep-mode subject picking through the SAME modal Focused uses (Cloud/Local
+// tabs, ⚡ spec-pair badges, multi-select) — parity requested 2026-07-23. The
+// picks land in the Deep roster's selection (selectedKeys) so Run Selected /
+// Baseline vs Scaffold work exactly as if the rows were clicked by hand.
+async function deepPickSubjects() {
+  await focusedLoadPickerData();
+  const picks = await showSubjectPicker();
+  if (!picks || !picks.length) return;
+  selectedKeys.clear();
+  picks.forEach(p => selectedKeys.add(p.key));
+  persistSelection();
+  renderGrid();
+  log('info', `Subject picker: ${picks.length} model(s) selected in the roster`);
+}
+
 // Focused spec-decode timing test — reuses /api/spec-decode/test. Only meaningful
 // for a subject picked as a ⚡ draft pair. Renders with/without-draft tok/s honestly,
 // surfacing the plain-text reason the API returns as a 400 body (e.g. "main not loaded").

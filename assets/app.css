@@ -1448,3 +1448,9 @@
 #context-flip:hover{color:var(--text-primary);border-color:var(--accent-gold)}
 #context-flip:focus-visible{outline:2px solid var(--accent-gold);outline-offset:2px}
 .top-nav{padding-left:122px}
+
+/* ── Focused-shell scaffolding controls (parity with Deep, 2026-07-23) ────── */
+#focused-load-mode { font-size: 12px; padding: 6px 8px; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+#focused-load-mode:focus-visible { outline: 2px solid var(--accent-gold); outline-offset: 2px; }
+#focused-scaffold-supplement { display: none; flex-basis: 100%; margin-top: 6px; min-height: 56px; resize: vertical; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; padding: 8px 10px; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; }
+#focused-scaffold-supplement:focus-visible { outline: 2px solid var(--accent-gold); outline-offset: 2px; }

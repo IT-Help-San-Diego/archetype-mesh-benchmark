@@ -109,11 +109,18 @@
       <label><input type="checkbox" value="security" checked> security</label>
       <label><input type="checkbox" value="literary"> literary</label>
     </div>
+    <span class="ft-label">MODE</span>
+    <select id="focused-load-mode" onchange="focusedLoadModeChanged()" title="Clean-room = model alone, no system prompt (the default science). Scaffolded = your operator guidance as system prompt + a leak-free formal hint on reasoning tests. Paired = every axis runs TWICE, baseline then scaffolded, for a direct delta.">
+      <option value="clean-room" selected>Clean-room</option>
+      <option value="scaffolded">Scaffolded</option>
+      <option value="paired">Baseline + Scaffold</option>
+    </select>
     <button class="btn btn-primary" id="focused-run-all" onclick="focusedRun('all')" title="Run every selected axis battery on this subject">Run</button>
     <button class="btn btn-secondary" id="focused-run-missing" onclick="focusedRun('missing')" title="Fill only the gaps — tests with zero clean trials (do the rest of the test)">Run Missing</button>
     <button class="btn btn-secondary" id="focused-run-just" onclick="focusedRun('just')" title="Run only the test IDs you pick">Run Just This…</button>
     <button class="btn btn-secondary" id="focused-run-spec" onclick="focusedRunSpecTest()" title="Time this subject with vs without its speculative-decode draft (⚡). Runs two 80-token completions against LM Studio; may auto-load the model." style="display:none;border-color:var(--accent-cyan);color:var(--accent-cyan);">⚡ Test Spec Pair</button>
     <span id="focused-runlog" aria-live="polite"></span>
+    <textarea id="focused-scaffold-supplement" placeholder="Scaffold system prompt — your operator guidance, sent as the system message. Reasoning tests also get a leak-free formal hint (verdict withheld). Required for Scaffolded and Paired modes." title="This text becomes the model's system prompt in scaffolded runs. It never contains a test's answer — the executor strips verdicts from formal hints."></textarea>
     <div id="focused-spec-result" style="display:none;flex-basis:100%;margin-top:6px;padding:8px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-secondary);"></div>
   </div>
   <div id="focused-brain-wrap"><div id="center-scroll-copy"></div></div>
@@ -145,6 +152,7 @@
           <span id="selected-count-badge" style="margin-left:10px;font-size:11px;color:var(--text-muted);">0 selected</span>
           <button class="view-toggle-btn" id="view-toggle-multi" style="margin-left:6px;" title="Open full selection panel">Manage…</button>
   <button class="btn btn-secondary" onclick="openTestBuilder()">+ New Test</button>
+  <button class="btn btn-secondary" onclick="deepPickSubjects()" title="Open the subject picker — Cloud/Local tabs, spec-pair ⚡ badges, multi-select. Same picker as Focused mode; your picks land in the roster selection below.">Pick subjects…</button>
   <button class="btn btn-primary" onclick="runSelected()">Run Selected</button>
 <button class="btn btn-secondary" id="baseline-scaffold-btn">Baseline vs Scaffold</button>
           <div class="axis-picker" id="baseline-axis-picker" style="margin-left:6px;">
