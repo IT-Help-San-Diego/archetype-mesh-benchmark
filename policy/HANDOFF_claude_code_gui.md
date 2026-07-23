@@ -78,11 +78,22 @@ re-runs or data changes you make.
    FIPS and it costs cmake/go build friction. Verified live: chain+hostname
    validation (ssl_verify_result=0), IP SAN, SSE over TLS, CSP split, 36 unit
    tests, clippy 0.
-2. **Site polish — owl+brain graphic pass.** Homepage has the working
-   structure (owl semaphore nav/hero, brain+English→Lean→VERIFIED panel).
-   Give it a design polish pass — better brain art, the Lean formulas
-   "flying by" as CSS-only @keyframes on an inline SVG (verify it survives
-   CSP). Keep owl-semaphore-logo.webp (family-standard asset, don't regenerate).
+2. **Site polish — owl+brain graphic pass.** BUILT (Claude Code, 2026-07-23,
+   commit 7ed1af9) — DEPLOY PENDING (`scripts/deploy-site.sh` from a
+   credentialed seat; this seat has no AWS creds by design):
+   - Canonical LOCAL⇄WEB portal pill on ALL THREE surfaces (site home,
+     lessons, local instrument): fixed top:10px/left:14px, identical string
+     + size (87×25) — flipping never moves the control under the cursor
+     (Carey's no-mouse-jerk rule). Current surface gold; whole pill links.
+   - The spec-stream on the site: 8 real battery schemas (⊢/⊬ ground truth)
+     rising past the brain — inline-SVG text + CSS-only @keyframes, zero JS,
+     stagger via classes (style attrs are CSP-blocked), reduced-motion →
+     static faint formulas. viewBox matched to the brain art's real
+     landscape aspect (square viewBox letterboxed the stream — caught live).
+   - Both pages' style hashes recomputed + stamped in meta CSPs; verified
+     in-browser: CLEAN console, 8 animations, pill pinned across scroll.
+   - Remaining for this item: run deploy-site.sh (Hermes/Carey), then a
+     final visual pass on the LIVE site; optionally richer brain art later.
 3. **Lessons page polish.** Four comics render inline; design pass on the
    lesson cards, status badges, seal lines. Do NOT change the lesson .md
    files or comic SVGs (sealed — hash-verified).
