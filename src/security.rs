@@ -106,8 +106,7 @@ fn csp(nonce: &str) -> String {
          frame-ancestors 'none'; \
          base-uri 'self'; \
          form-action 'self'; \
-         object-src 'none'; \
-         upgrade-insecure-requests"
+         object-src 'none'"
     )
 }
 
