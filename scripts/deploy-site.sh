@@ -43,20 +43,32 @@ aws cloudfront get-response-headers-policy --id "$POLICY_ID" \
 python3 - "$H_INDEX" "$H_LESSONS" <<'PY'
 import json, re, sys
 cfg = json.load(open("/tmp/rhp.json"))
-csp = cfg["SecurityHeadersConfig"]["ContentSecurityPolicy"]["ContentSecurityPolicy"]
+# CLI quirk: GET returns UNCONFIGURED security headers as {} (e.g.
+# XSSProtection), but UPDATE validates any present member for its required
+# fields. Prune empty members or the update fails ParamValidation.
+sec = cfg.get("SecurityHeadersConfig", {})
+for k in [k for k, v in sec.items() if v == {}]:
+    del sec[k]
+csp = sec["ContentSecurityPolicy"]["ContentSecurityPolicy"]
 new_style = f"style-src 'self' '{sys.argv[1]}' '{sys.argv[2]}'"
 csp2 = re.sub(r"style-src [^;]*", new_style, csp)
-cfg["SecurityHeadersConfig"]["ContentSecurityPolicy"]["ContentSecurityPolicy"] = csp2
+if csp2 == csp:
+    print("policy CSP already current — no update needed")
+else:
+    print("policy CSP style-src ->", new_style)
+sec["ContentSecurityPolicy"]["ContentSecurityPolicy"] = csp2
 json.dump(cfg, open("/tmp/rhp.json", "w"))
-print("policy CSP style-src ->", new_style)
 PY
 aws cloudfront update-response-headers-policy --id "$POLICY_ID" \
   --if-match "$ETAG" --response-headers-policy-config file:///tmp/rhp.json > /dev/null
 echo "CloudFront headers policy updated."
 
 # ── 3. Upload site + invalidate. ───────────────────────────────────────────
+# Bucket names may themselves contain dots (ours: calibrationscope.com-site),
+# so strip the ".s3.<region>.amazonaws.com" suffix — never cut at the first dot.
 BUCKET=$(aws cloudfront get-distribution --id "$DIST_ID" \
-  --query 'Distribution.DistributionConfig.Origins.Items[0].DomainName' --output text | cut -d. -f1)
+  --query 'Distribution.DistributionConfig.Origins.Items[0].DomainName' --output text \
+  | sed -E 's/\.s3[.-][a-z0-9-]+\.amazonaws\.com$//; s/\.s3\.amazonaws\.com$//')
 echo "S3 bucket: $BUCKET"
 aws s3 sync "$SITE" "s3://$BUCKET" --exclude ".DS_Store" --delete
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" > /dev/null
