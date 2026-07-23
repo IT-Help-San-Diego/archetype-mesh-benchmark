@@ -22,7 +22,9 @@ async fn test_status_returns_ok() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    assert_eq!(&body[..], b"ok");
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["status"], "ok");
+    assert_eq!(v["version"], env!("CARGO_PKG_VERSION"));
 }
 
 #[tokio::test]
