@@ -177,13 +177,11 @@ jobs:
         with:
           toolchain: 1.96.1
 
-      - name: Apply migrations (psql)
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-          for f in $(ls migrations/*.sql | sort); do
-            PGPASSWORD=postgres psql -h localhost -U postgres -d calibration_scope -v ON_ERROR_STOP=1 -q -f "$f"
-          done
-
+      # NO psql pre-apply here — the binary runs its own embedded sqlx
+      # migrator at startup. Pre-applying via psql leaves _sqlx_migrations
+      # empty, so the binary re-runs everything against an already-migrated
+      # schema and panics at 008's ON CONFLICT (key) — 023 dropped that
+      # unique constraint. One migrator owns the schema: the binary.
       - name: Build the dashboard binary
         run: cargo build --release
 
