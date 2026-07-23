@@ -45,8 +45,9 @@ checksums, and shell installer all publish first; only the
 
 ## Cutting a release
 
-First set the new version in `Cargo.toml` `[package] version` and refresh the
-lockfile with `cargo check --release` — check, NOT `cargo build --release`: a
+First set the new version in `Cargo.toml` `[package] version`, bump
+`RELEASE_TAG` in `site/install.sh` to match the tag you are about to cut, and
+refresh the lockfile with `cargo check --release` — check, NOT `cargo build --release`: a
 release build here would overwrite `target/release/calibration-scope-dashboard`,
 the exact binary the launchd service (`ai.hermes.calibration-scope-dashboard`)
 loads on its next restart.
@@ -57,8 +58,14 @@ chain; `gh run watch --exit-status` blocks until CI is green and kills the
 chain if it isn't, which is what makes tagging in the same breath safe):
 
 ```bash
-git commit -am "release: vX.Y.Z-beta.N" && git push && sleep 5 && gh run watch --exit-status $(gh run list --branch main --limit 1 --json databaseId --jq '.[0].databaseId') && git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N
+git commit -am "release: vX.Y.Z-beta.N" && git push && until RUN=$(gh run list --workflow CI --commit "$(git rev-parse HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId') && [ -n "$RUN" ]; do sleep 3; done && gh run watch --exit-status "$RUN" && git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N
 ```
+
+(Hard-won details: `--workflow CI` because CodeQL also runs on main pushes and
+a bare `--limit 1` can watch the wrong run; the `until` loop because right
+after a push the run may not exist yet, and `gh run watch` with an EMPTY id
+drops into an interactive picker — the exact failure mode a one-liner exists
+to prevent.)
 
 The tag must match `Cargo.toml`'s version exactly (dist errors out if not —
 that mismatch check is a feature). The CI-watch link matters because tag
@@ -80,14 +87,19 @@ brew install it-help-san-diego/tap/calibration-scope
 
 Both install the self-contained binary only. The runtime prerequisites stay
 what they are: a reachable PostgreSQL (`DATABASE_URL`) and LM Studio for
-local-model runs. The planned `calibrationscope.com/install.sh` wrapper (see
-site Get Started section) will orchestrate those on top of these artifacts —
-and can always point at the newest release (including betas) via the GitHub
-API rather than `releases/latest`.
+local-model runs. The full-service wrapper is **`site/install.sh`**, served at
+`calibrationscope.com/install.sh` by the site deploy — it brew-installs the
+formula, ensures Postgres, creates the database, writes the launchd service,
+and opens the dashboard. Its `RELEASE_TAG` constant (used only for the Linux
+pointer) must be bumped as part of each release — see below.
 
-Platform floor: the Linux binary is built on ubuntu-22.04, so it needs
-glibc ≥ 2.35. If older distros ever matter, add a musl target or a build
-container in `dist-workspace.toml`.
+Linux coverage (three flavors, chosen for the Debian/Ubuntu/Kali crowd):
+`x86_64-unknown-linux-gnu` (built on ubuntu-22.04 → glibc ≥ 2.35: Ubuntu
+22.04+, Debian 12+, any current Kali), `aarch64-unknown-linux-gnu` (ARM boxes
+— Kali on a Pi, ARM servers), and `x86_64-unknown-linux-musl` — a fully
+static binary with NO glibc floor that runs on any distro, however ancient.
+The aarch64 and musl artifacts first appear on the release AFTER v0.1.0-beta.1
+(targets were added post-tag). A native `.deb`/apt path is future work.
 
 ## Changing release config
 

@@ -109,14 +109,38 @@ Hermes is not required — the dashboard works standalone with LM Studio and/or 
 
 No telemetry. No external calls except the model endpoints you configure. Binds to `127.0.0.1` only.
 
-## Quick start
+## Install
+
+**macOS, one line** — installs the self-contained binary and PostgreSQL, sets
+up a launchd service that survives reboots, and opens the dashboard:
+
+```bash
+curl -fsSL https://calibrationscope.com/install.sh | sh
+```
+
+**Homebrew directly** — same payload (the formula brings postgresql@17 with
+it); you wire up `DATABASE_URL` yourself:
+
+```bash
+brew install it-help-san-diego/tap/calibration-scope
+```
+
+**Linux** — prebuilt binary via the release installer (tag-pinned URLs in
+[docs/RELEASING.md](docs/RELEASING.md)); PostgreSQL from your distro.
+
+Prebuilt binaries are self-contained — the dashboard and the SHA3-pinned test
+stimuli are embedded (`src/embedded.rs`) — and every release carries GitHub
+build-provenance attestations (`gh attestation verify`). Local-model runs need
+[LM Studio](https://lmstudio.ai) serving on `:1234`; cloud runs just need keys.
+
+## Quick start (from source)
 
 ```bash
 # Prereqs: Rust toolchain, PostgreSQL, LM Studio with its local server on :1234
 git clone https://github.com/IT-Help-San-Diego/calibration-scope.git
 cd calibration-scope
 cp .env.example .env          # set DATABASE_URL (and optional cloud API keys)
-cargo run --release           # migrations run automatically
+cargo run --release           # migrations run automatically — .env loads from the working directory
 # open http://127.0.0.1:8768
 ```
 

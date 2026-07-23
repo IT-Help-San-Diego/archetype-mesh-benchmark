@@ -71,5 +71,12 @@ BUCKET=$(aws cloudfront get-distribution --id "$DIST_ID" \
   | sed -E 's/\.s3[.-][a-z0-9-]+\.amazonaws\.com$//; s/\.s3\.amazonaws\.com$//')
 echo "S3 bucket: $BUCKET"
 aws s3 sync "$SITE" "s3://$BUCKET" --exclude ".DS_Store" --delete
+# install.sh must DISPLAY in a browser (the site says "read it before you pipe
+# it") — s3 sync's mimetypes guess is application/x-sh, which downloads. Re-put
+# with an explicit text type. curl|sh consumers don't care either way.
+if [ -f "$SITE/install.sh" ]; then
+  aws s3 cp "$SITE/install.sh" "s3://$BUCKET/install.sh" \
+    --content-type 'text/plain; charset=utf-8'
+fi
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" > /dev/null
 echo "Deployed + invalidation issued. Verify in a real browser: console must be clean."

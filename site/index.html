@@ -131,13 +131,12 @@ footer a{color:var(--gold)}
 
 <section id="get-started"><div class="wrap">
 <h2>Get started</h2>
-<p>Runs on macOS and Linux. You need three things first: the <a href="https://www.rust-lang.org/tools/install" rel="noopener">Rust toolchain</a>, PostgreSQL (on a Mac: <span class="mono15">brew install postgresql@17</span> or <a href="https://postgresapp.com/" rel="noopener">Postgres.app</a>), and <a href="https://lmstudio.ai/" rel="noopener">LM Studio</a> with its local server on <span class="mono15">:1234</span>.</p>
-<pre class="codebox">git clone https://github.com/IT-Help-San-Diego/calibration-scope.git
-cd calibration-scope
-cp .env.example .env          <span class="c"># set DATABASE_URL (and optional cloud API keys)</span>
-cargo run --release           <span class="c"># migrations run automatically</span></pre>
-<p>Then open <a href="http://127.0.0.1:8768" class="mono15">127.0.0.1:8768</a>, sync your LM Studio library, pick a model, and press <span class="mono15">▶ Run</span>. Full instructions, source, and sealed evidence live at <a href="https://github.com/IT-Help-San-Diego/calibration-scope" rel="noopener">github.com/IT-Help-San-Diego/calibration-scope</a>.</p>
-<p class="flownote">A Homebrew formula and prebuilt binaries are in the works — this section will shrink to one line when they land. To audit your evidence database afterward, any Postgres client works; we like <a href="https://tableplus.com/" rel="noopener">TablePlus</a>. The schema is the API.</p>
+<p>macOS, one line — installs the instrument and PostgreSQL, wires up a service that survives reboots, and opens the dashboard:</p>
+<pre class="codebox">curl -fsSL https://calibrationscope.com/install.sh | sh</pre>
+<p>Prefer plain Homebrew? Same self-contained binary; you point <span class="mono15">DATABASE_URL</span> at your own Postgres:</p>
+<pre class="codebox">brew install it-help-san-diego/tap/calibration-scope</pre>
+<p>Local-model runs need <a href="https://lmstudio.ai/" rel="noopener">LM Studio</a> serving on <span class="mono15">:1234</span>; cloud models just need your own API keys, entered on the setup page. Linux prebuilts, build-from-source, and full docs: <a href="https://github.com/IT-Help-San-Diego/calibration-scope" rel="noopener">github.com/IT-Help-San-Diego/calibration-scope</a>.</p>
+<p class="flownote">The binary is self-contained — the dashboard and the SHA3-pinned test stimuli travel inside it, and every release ships with GitHub build attestations you can verify. To audit your evidence database, any Postgres client works; we like <a href="https://tableplus.com/" rel="noopener">TablePlus</a>. The schema is the API. Read <a href="https://calibrationscope.com/install.sh" rel="noopener">install.sh</a> before you pipe it — we would.</p>
 </div></section>
 
 <section><div class="wrap">

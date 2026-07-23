@@ -21,8 +21,18 @@ publish-prereleases = true
 # can `gh attestation verify`, bounding the blast radius of any build-chain
 # compromise (the dist installer itself is version-pinned but not hash-pinned).
 github-attestations = true
-# Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Target platforms to build apps for (Rust target-triple syntax).
+# Linux gets three flavors on purpose (the hacker community lives on
+# Debian/Ubuntu/Kali): x86_64 glibc for modern distros, aarch64 glibc for
+# ARM boxes (Kali on a Pi, ARM servers), and x86_64 MUSL — a fully static
+# binary with NO glibc floor that runs on any distro, however old.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Whether to install an updater program
