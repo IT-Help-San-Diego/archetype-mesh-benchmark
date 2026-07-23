@@ -306,22 +306,6 @@ jobs:
             echo "site/ unchanged — nothing to deploy"
           fi
 
-      # Debug (remove once the assume-role is green): print the ACTUAL claims
-      # GitHub puts in the OIDC token, so a trust-policy mismatch is read, not
-      # guessed. Claims are public token metadata (iss/sub/aud) — no secrets.
-      - name: Decode OIDC token claims
-        if: steps.sitediff.outputs.changed == 'true'
-        run: |
-          RAW=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
-          python3 - "$RAW" <<'PY'
-          import sys, json, base64
-          payload = sys.argv[1].split(".")[1]
-          payload += "=" * (-len(payload) % 4)
-          c = json.loads(base64.urlsafe_b64decode(payload))
-          print(json.dumps({k: c.get(k) for k in ("iss", "sub", "aud", "repository", "ref")}, indent=2))
-          PY
-
       - name: Configure AWS credentials (OIDC — no stored keys)
         if: steps.sitediff.outputs.changed == 'true'
         uses: aws-actions/configure-aws-credentials@v4
