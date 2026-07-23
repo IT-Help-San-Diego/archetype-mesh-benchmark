@@ -1,0 +1,5 @@
+[Unit]
+Description=Idle shutdown check (EC2 auto-stop)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/idle-shutdown.sh
