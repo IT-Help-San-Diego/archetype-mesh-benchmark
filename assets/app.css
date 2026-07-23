@@ -1444,7 +1444,7 @@
    Current surface reads gold; the whole pill links to the other surface. */
 #context-flip{position:fixed;top:10px;left:14px;z-index:400;display:inline-flex;align-items:center;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:11px;letter-spacing:.6px;line-height:1;border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-secondary);white-space:nowrap;text-decoration:none;background:var(--bg-card)}
 #context-flip .cur{color:var(--accent-gold);font-weight:700}
-#context-flip .s{opacity:.6;margin:0 5px}
+#context-flip .s{opacity:.6;margin:0 5px;font-size:15px}
 #context-flip:hover{color:var(--text-primary);border-color:var(--accent-gold)}
 #context-flip:focus-visible{outline:2px solid var(--accent-gold);outline-offset:2px}
 .top-nav{padding-left:122px}
