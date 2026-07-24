@@ -957,3 +957,50 @@ stopped, disk-only billing, wakes in ~40s via
 `aws ec2 start-instances --instance-ids i-08ca65b7acd2dc275 --region us-west-2`.
 Your l4v proof run is safe under the sentinel contract. Clear to proceed on
 the hardened Carrier Color run or the Rust root-task modification — your pick.
+
+## 14. Manual Subject Mode — testing bots with no API (2026-07-24, Hermes + Carey)
+
+### The gap
+The instrument only tests API-reachable models. A large class of subjects —
+Replit Agent, consumer chat tiers, locked-down enterprise bots — are
+human-loop only: paste in a web UI, copy replies out. Trigger case: Carey
+asked to benchmark Replit; the executor had no channel. Manual Subject Mode
+makes those subjects first-class instead of side experiments.
+
+### Design (agreed 2026-07-24)
+1. **Pack generator** (endpoint): DB -> numbered questions-only .md/.txt.
+   Never emits `expected_result`; output is leak-scanned. Pilot packs built
+   2026-07-24 (see `~/Downloads/calibration-scope-manual-test-packs/`):
+   - logic-cluster: 42 items, sha3-512 881b6f8d...6bcf74
+   - full-text-battery: 64 items, sha3-512 2dfc8023...e9d76b8
+2. **Explicit reply-format contract** in the pack header (Carey directive):
+   the subject is TOLD the required shape — `[NN] <answer>`, one line per
+   item, free-form after the answer is acceptable. Format compliance becomes
+   measured instruction-following, not guessing our preferred shape.
+3. **Reply-ingest parser**: tolerant numbered-response mapping; unmappable
+   replies are flagged, never guessed.
+4. **Dual measurement** (Carey's second insight, same session): the format
+   contract is itself a test. Failure modes: numbering drift, format collapse
+   (one blob for all items), partial compliance (early items fine, then
+   decay). Scored as `format_compliance` = map-rate + drift-point, stored
+   SEPARATELY from the logic score: unmappable items leave the logic
+   denominator but count against format. Neither score contaminates the
+   other. Quarantine-don't-delete applies.
+5. **Provenance**: `channel='manual'` on test_runs/trial_results rows; manual
+   runs are labeled on the leaderboard, never silently mixed with API runs.
+   Schema hook: migration 043 `participant_id` — a manual bot run is a
+   participant that happens to be silicon. Same ingest path later serves
+   human-cal subjects (humans drift formats too; the instrument measures it
+   identically across carbon and silicon).
+
+### Constraints (honest)
+- No automated N=3: the human pastes 3x or accepts N=1 noise.
+- Vision axis excluded unless the bot accepts uploads.
+- Fresh-chat-per-item discipline is socially enforced by the pack header.
+- Latency/timing metrics are meaningless in manual mode; excluded.
+
+### Build order
+1. Pack generator endpoint + reply ingest + `channel` migration (Hermes).
+2. Pilot: Replit run through the 42-item logic pack; Carey pastes, ingest
+   grades, Replit lands on the leaderboard with `manual` provenance.
+3. Format-compliance field wired into run detail + leaderboard.
