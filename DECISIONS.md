@@ -1004,3 +1004,34 @@ makes those subjects first-class instead of side experiments.
 2. Pilot: Replit run through the 42-item logic pack; Carey pastes, ingest
    grades, Replit lands on the leaderboard with `manual` provenance.
 3. Format-compliance field wired into run detail + leaderboard.
+
+## 15. The Unified Architecture — Measure / Reveal / Witness (2026-07-24, Hermes + Carey)
+
+### The convergence
+Every finding has pulled the same direction: the machine was never the only subject. Grader bugs penalized honest refusals; carriers beat signals; scaffolds healed weak reasoners. The product is not a "bot tester" and not a "human intelligence test." It is a **calibration instrument for reasoning itself — substrate-neutral.**
+
+### The three pillars
+1. **MEASURE** — the instrument. API executor, Manual Subject Mode (§14), sealed batteries, N=3 discipline, SHA-3 provenance. The subject can be silicon or carbon; the channel can be local API, cloud API, or manual paste.
+2. **REVEAL** — the aha. Brain topology, carrier variance, the moment the subject *sees* their own reasoning. Focused mode defaults to readable accessibility; Deep mode reveals the full density.
+3. **WITNESS** — the share. Not a screenshot, not a leaderboard post — a **sealed, self-verifying artifact**: golden-ratio layout, dark scotopic palette, the owl, the finding in one sentence, the run's SHA-3 seal, subject, battery, channel, date. Anyone can verify the hash against the instrument. The beauty carries the proof. It demonstrates; it does not sell.
+
+### The keystone UI: the subject/channel wizard
+Focused mode's front door is a three-question flow:
+1. **Subject:** SILICON or CARBON
+2. **Channel:** LOCAL API / CLOUD API / MANUAL (web-chat paste)
+3. **Battery:** pick, then Run
+Every path lands in the same schema with honest provenance labels. A kid with LM Studio, a security researcher with Replit, and a human-cal participant all walk the same door.
+
+### The word: OSCENT
+**Oscent** (from *oscillo* — to swing/oscillate, echoing *oscilloscope*) is the substrate-neutral coinage: an **oscilloscope for intelligence**. It measures the *signal* of reasoning regardless of what carries it. This is the framing that avoids "just a bot tester" or "just a human test."
+
+### The mission sentence
+> **Calibration Scope measures reasoning — in any subject, on any substrate — and seals the measurement so anyone can verify it.**
+
+This sentence is the wording mandate. Site, README, dashboard landing, lessons, DECISIONS preamble, and all public copy must speak this one voice. The sites demonstrate; they do not sell. Anyone who wants to hire Carey can find the corporate site in the footer.
+
+### What this changes
+- Human-cal (043) + Manual Subject Mode (§14) + API executor are three channel implementations of one abstraction.
+- The Witness artifact spec is new work (Claude Code lane, when ready).
+- The wording audit is a live work item: every public surface must be checked against the mission sentence.
+- §10.8 Carrier Color, §10.15 positional integration, §14 Manual Subject Mode are all chapters of the same book: signal vs. carrier, measured, sealed, verified.
