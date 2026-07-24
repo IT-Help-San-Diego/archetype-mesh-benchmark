@@ -61,9 +61,65 @@ re-runs or data changes you make.
    subresources; every image/script/style is same-origin. Don't introduce a
    CDN or external font.
 
+## NEW — Oscent architecture items (2026-07-24, DECISIONS §15)
+
+These three items are the front door and the share layer of the instrument.
+They implement the unified architecture: Measure → Reveal → Witness.
+
+### 1. Subject/Channel Wizard (keystone UI)
+
+Focused mode's front door is a three-question flow, not a model grid:
+
+1. **Subject:** SILICON or CARBON
+2. **Channel:** LOCAL API / CLOUD API / MANUAL (web-chat paste)
+3. **Battery:** pick, then Run
+
+Every path lands in the same schema with honest `channel` provenance.
+A kid with LM Studio, a security researcher with Replit, and a human-cal
+participant all walk the same door. The wizard REPLACES the current
+model-picker as the default Focused entry; Deep mode keeps the full grid.
+
+Design constraints:
+- Readable/High-contrast is the default (Hawking standard).
+- No spinners — every state shows real data or a clear next action.
+- The wizard is a single page, not a modal stack.
+- Channel labels are plain language: "Local model (LM Studio)", "Cloud API",
+  "Web chat (paste)".
+
+### 2. Witness Artifact Generator
+
+The "share from science." Not a screenshot — a sealed, self-verifying
+certificate.
+
+- One self-contained HTML file (zero-JS, like the site), golden-ratio grid
+- Content: finding sentence, subject, battery, channel, date, SHA-3 seal,
+  owl logo
+- Dark scotopic palette (#0a0a0a bg, #e0e0e0 text), no spinners, no JS
+- Verify-by-hash instruction footer: "Verify this seal against the
+  instrument"
+- Not a leaderboard post — a certificate. It demonstrates; it does not sell.
+
+Backend endpoint: GET /api/runs/:id/witness → generates the artifact HTML.
+Frontend: a "Witness" button on the run detail view (both Focused and Deep).
+
+### 3. Wording Audit
+
+Sweep all public surfaces against the mission sentence:
+
+> "Calibration Scope measures reasoning — in any subject, on any substrate —
+> and seals the measurement so anyone can verify it."
+
+Kill any "benchmark tool" / "LLM tester" language. Dashboard landing, site
+index, README, lessons headers, DECISIONS preamble. One voice.
+
+---
+
 ## Open items (pick in order)
 
-1. ~~Local HTTPS~~ **DONE (Claude Code, 2026-07-22).** Dual-protocol on ONE
+1. **Subject/Channel Wizard** (NEW — Oscent item 1)
+2. **Witness Artifact Generator** (NEW — Oscent item 2)
+3. **Wording Audit** (NEW — Oscent item 3)
+4. ~~Local HTTPS~~ **DONE (Claude Code, 2026-07-22).** Dual-protocol on ONE
    port (8768): first-byte peek routes TLS → rustls, everything else → plain
    HTTP — so no existing http consumer (curl, Python client, Hermes scripts,
    launchd checks) broke, and trusting the CA is an opt-in upgrade, never a
